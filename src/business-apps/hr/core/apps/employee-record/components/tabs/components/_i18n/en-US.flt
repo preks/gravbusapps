@@ -25,3 +25,6 @@ status_in_progress = In Progress
 status_completed = Completed
 status_incomplete = Incomplete
 status_under_review = Under Review
+error_loading_project_time = Unable to load project time data.
+error_loading_interventions = Unable to load assistant insights.
+loading_time_data = Loading time data...

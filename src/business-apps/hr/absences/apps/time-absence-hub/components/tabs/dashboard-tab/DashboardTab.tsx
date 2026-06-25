@@ -1,9 +1,13 @@
 import React from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { TabComponentProps, TimeFilter, AbsenceDetailsFilter } from '../../../types'
 import { OptimizedKPISection } from './KPISection/OptimizedKPISection'
 import OptimizedAbsenceTrends from './AbsenceTrends/OptimizedAbsenceTrends'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { TimeScope } from '../../../constants/routes'
+import { getSafeHubErrorMessage } from '../../../utils/safeErrorMessage'
+import { ErrorStateCard } from '../../views/shared/DataStateCards'
+import translations from '../../../_i18n'
 
 interface DashboardTabProps extends TabComponentProps {
   onMonthClick?: (month: string, year?: number) => void
@@ -27,6 +31,26 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   onNavigateToEntitlements,
   filterAction
 }) => {
+  const { t } = useTranslation(translations)
+  const header = (
+    <div className="gba:flex gba:justify-between gba:items-center">
+      <div>
+        <h2 className="gba:text-lg gba:font-semibold gba:text-foreground">
+          {getTranslationFromI18nKeyAndLabel(
+            'lowcoder:absence_management_hub_backoffice.dashboard_analytics',
+            'Dashboard Analytics'
+          )}
+        </h2>
+        <p className="gba:text-sm gba:text-muted-foreground">
+          {dashboardData?.isLoading
+            ? getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.loading', 'Loading...')
+            : `${getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.showing_absences', 'Showing')} ${dashboardData?.totalAbsences || 0} ${getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absences', 'absences')}`}
+        </p>
+      </div>
+      {!dashboardData?.error ? filterAction : null}
+    </div>
+  )
+
   if (!dashboardData) {
     return (
       <div>
@@ -37,24 +61,21 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       </div>
     )
   }
-  return (
-    <div className="gba:space-y-8" data-testid="dashboard-content">
-      <div className="gba:flex gba:justify-between gba:items-center gba:mb-6">
-        <div>
-          <h2 className="gba:text-lg gba:font-semibold gba:text-foreground">
-            {getTranslationFromI18nKeyAndLabel(
-              'lowcoder:absence_management_hub_backoffice.dashboard_analytics',
-              'Dashboard Analytics'
-            )}
-          </h2>
-          <p className="gba:text-sm gba:text-muted-foreground">
-            {dashboardData?.isLoading
-              ? getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.loading', 'Loading...')
-              : `${getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.showing_absences', 'Showing')} ${dashboardData?.totalAbsences || 0} ${getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absences', 'absences')}`}
-          </p>
-        </div>
-        {filterAction}
+
+  if (dashboardData.error) {
+    const fallbackMessage = t('error-loading-dashboard')
+
+    return (
+      <div className="gba:flex gba:flex-col gba:gap-4" data-testid="dashboard-content-error">
+        {header}
+        <ErrorStateCard message={getSafeHubErrorMessage(fallbackMessage)} />
       </div>
+    )
+  }
+
+  return (
+    <div className="gba:flex gba:flex-col gba:gap-8" data-testid="dashboard-content">
+      {header}
 
       {/* Dashboard Components - All optimized */}
       <OptimizedKPISection

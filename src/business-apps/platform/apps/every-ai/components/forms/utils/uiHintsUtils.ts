@@ -309,8 +309,10 @@ function isRecordValue(value: any): value is Record<string, any> {
 
 /**
  * When DynamicFormDisplay uses a nested entity slice (`objectKey` + `sourceType`), overrides may use
- * either absolute paths from the flow/task container (`employeeAbsence.startDate`) or paths
- * relative to that slice (`startDate`). This picks the object to mutate and the path segments.
+ * absolute paths from the flow/task container (`employeeAbsence.startDate`), slice-relative paths
+ * that the entity owns (`typeRef`), or genuinely top-level wire fields (`flowType`, top-level
+ * `startDate`). This picks the object to mutate and the path segments, keeping top-level/injected
+ * fields on the container root and only descending into the entity for keys it actually defines.
  */
 export type UiApplyRoutingContext = {
   sourceType: 'flow' | 'task'
@@ -321,7 +323,8 @@ function resolveRoutedMutationTarget(
   next: { flow?: Record<string, any>; task?: Record<string, any> },
   normalizedPath: string,
   parts: string[],
-  ctx?: UiApplyRoutingContext | null
+  ctx?: UiApplyRoutingContext | null,
+  override?: UiOverride | null
 ): { root: Record<string, any>; parts: string[] } | null {
   const objectKey = ctx?.objectKey ?? null
   const sourceType = ctx?.sourceType
@@ -331,26 +334,45 @@ function resolveRoutedMutationTarget(
   const container = next[sourceType]
   if (!isRecordValue(container)) return null
 
+  // Absolute path into / equal to the slice entity (e.g. `employeeAbsence.typeRef`): write it on
+  // the container using the full path segments.
   if (normalizedPath === objectKey || normalizedPath.startsWith(`${objectKey}.`)) {
     return { root: container, parts }
   }
 
+  // A `fixed.source` that copies FROM the slice entity targets a root-level mirror field
+  // (e.g. top-level `startDate` <- `employeeAbsence.startDate`), so it must live on the container
+  // root, not inside the entity.
+  const fixedSource = typeof override?.fixed?.source === 'string' ? override.fixed.source : ''
+  if (fixedSource && normalizeUiHintPath(fixedSource).startsWith(`${objectKey}.`)) {
+    return { root: container, parts }
+  }
+
   const head = parts[0]
+  // Already a top-level key on the flow/task container: keep it there.
   if (Object.prototype.hasOwnProperty.call(container, head)) return null
 
+  // Only descend into the slice entity for keys it actually owns (legacy slice-relative overrides
+  // like `typeRef` / `value`). Genuinely new top-level wire fields the entity does not define
+  // (e.g. `flowType`, `employeeDetails`) stay on the container root.
   const entity = container[objectKey]
-  return isRecordValue(entity) ? { root: entity, parts } : null
+  if (isRecordValue(entity) && Object.prototype.hasOwnProperty.call(entity, head)) {
+    return { root: entity, parts }
+  }
+
+  return { root: container, parts }
 }
 
 function resolveApplyMutationTarget(
   next: { flow?: Record<string, any>; task?: Record<string, any> },
   normalizedPath: string,
-  ctx?: UiApplyRoutingContext | null
+  ctx?: UiApplyRoutingContext | null,
+  override?: UiOverride | null
 ): { root: Record<string, any>; parts: string[] } | null {
   const parts = normalizedPath.split('.').filter(Boolean)
   if (parts.length === 0) return null
 
-  const routedTarget = resolveRoutedMutationTarget(next, normalizedPath, parts, ctx)
+  const routedTarget = resolveRoutedMutationTarget(next, normalizedPath, parts, ctx, override)
   if (routedTarget) return routedTarget
 
   const bucket = pickTargetRoot(next, parts[0])
@@ -392,7 +414,7 @@ export function applyUiOverridesToArguments(
   Object.entries(overrides || {}).forEach(([fullPath, o]) => {
     if (!o || typeof o !== 'object') return
     const normalizedPath = normalizeUiHintPath(fullPath)
-    const resolved = resolveApplyMutationTarget(next, normalizedPath, routing ?? null)
+    const resolved = resolveApplyMutationTarget(next, normalizedPath, routing ?? null, o)
     if (!resolved) return
     const { root, parts } = resolved
 

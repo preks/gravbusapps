@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useCallback, useEffect, useLayoutEffect } from 'react'
 import dayjs from 'dayjs'
 import { ArrowLeftIcon, CalendarBlankIcon } from '@phosphor-icons/react'
-import { Button, Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system'
+import { Button, Card, CardContent, CardHeader, CardTitle, useTranslation } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { getAbsenceStatusLabel } from '@/business-apps/hr/absences/utils/absenceStatusUtils'
 
@@ -21,6 +21,9 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { getOverlapAggregates } from '../../../utils/getOverlapAggregates'
 import { toUtcDayRangeISO } from '../../../utils/dateUtils'
 import { getOverlapStatusBreakdown, OverlapStatusResult } from '../../../utils/getOverlapStatusBreakdown'
+import { getSafeHubErrorMessage } from '../../../utils/safeErrorMessage'
+import { ErrorStateCard } from '../../views/shared/DataStateCards'
+import translations from '../../../_i18n'
 
 interface AbsenceDetailsProps extends BusinessAppContextProps {
   month?: string
@@ -415,6 +418,7 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
   dashboardData,
   onNavigateBack
 }) => {
+  const { t } = useTranslation(translations)
   const graphQLClient = useGraphQLClient(accessToken)
 
   // Resolve initial date range from provided props or dashboard time filter
@@ -944,6 +948,8 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
 
   // 🚀 CRITICAL: Handle error state properly - AFTER ALL HOOKS
   if (dashboardData.error) {
+    const fallbackMessage = t('error-loading-absence-details')
+
     return (
       <div className="gba:p-6">
         <div className="gba:flex gba:items-center gba:gap-4 gba:mb-6">
@@ -955,15 +961,7 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
             )}
           </Button>
         </div>
-        <div className="gba:bg-destructive-secondary gba:border gba:rounded-lg gba:p-4">
-          <div className="gba:text-destructive gba:font-medium">
-            {getTranslationFromI18nKeyAndLabel(
-              'lowcoder:absence_hub.error_loading_absence_details',
-              'Error loading absence details'
-            )}
-          </div>
-          <div className="gba:text-destructive gba:text-sm gba:mt-1">{dashboardData.error}</div>
-        </div>
+        <ErrorStateCard message={getSafeHubErrorMessage(fallbackMessage)} />
       </div>
     )
   }

@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { Button, Card, CardContent, Alert, useTranslation } from '@newwork/nw-design-system'
+import { Button, Card, CardContent, useTranslation } from '@newwork/nw-design-system'
 import { CalendarBlankIcon, ArrowLeftIcon } from '@phosphor-icons/react'
 import { getCurrentActiveUserLocale, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useTimeTrackingData } from '@/business-apps/hr/core/apps/employee-record/components/tabs/hooks/useTimeTrackingData'
@@ -20,6 +20,7 @@ import {
 } from '@/business-apps/hr/core/apps/employee-record/queries/attendanceQueries'
 import { getEmployeeAbsences } from '@/business-apps/hr/core/forms/create-new-absence/queries/getEmployeeAbsences'
 import DailyLog from './DailyLog'
+import { getMyTimeErrorMessage, MyTimeErrorStateCard, MyTimeLoadingStateCard } from './MyTimeErrorStateCard'
 
 interface TimeHistoryProps {
   employeeId: string
@@ -74,6 +75,7 @@ const TimeHistory: React.FC<TimeHistoryProps> = ({
     sortDir,
     setSort,
     error,
+    isLoading,
     refresh
   } = useTimeTrackingData({
     employeeId,
@@ -302,6 +304,22 @@ const TimeHistory: React.FC<TimeHistoryProps> = ({
     { label: t('time_tracking_summary_difference_hours'), value: summary.difference }
   ]
 
+  if (isLoading) {
+    return (
+      <div data-testid="time-tracking-history-container">
+        <MyTimeLoadingStateCard message={t('loading_time_data')} />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div data-testid="time-tracking-history-container">
+        <MyTimeErrorStateCard message={getMyTimeErrorMessage(error, t('error_loading_time_entries'))} />
+      </div>
+    )
+  }
+
   return (
     <div data-testid="time-tracking-history-container">
       <div
@@ -317,7 +335,6 @@ const TimeHistory: React.FC<TimeHistoryProps> = ({
           </Card>
         ))}
       </div>
-
       <div className="gba:mb-3 gba:flex gba:items-center gba:justify-end gba:gap-2">
         <Button variant="outline" onClick={() => setShowCalendar(true)} data-testid="my-time-history-calendar-button">
           <CalendarBlankIcon className="gba:w-4 gba:h-4 gba:mr-2" />
@@ -343,12 +360,6 @@ const TimeHistory: React.FC<TimeHistoryProps> = ({
           </AppAction>
         )}
       </div>
-
-      {error && (
-        <Alert variant="destructive" className="gba:w-full gba:whitespace-normal gba:!inline-block gba:mb-4">
-          {error}
-        </Alert>
-      )}
 
       <Card className="gba:p-4">
         <div className="gba:flex gba:items-center gba:justify-start gba:mb-3">

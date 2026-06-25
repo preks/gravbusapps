@@ -13,6 +13,8 @@ import { buildCancelEmployeeAbsenceSnapshot } from '@/business-apps/hr/absences/
 
 type SortOrder = 'ASC' | 'DESC' | ''
 
+const MISSING_ACCESS_TOKEN_ERROR = 'Access token missing'
+
 // Extracted helper to module scope to avoid recreation on each render
 const extractColorFromObjectValue = (objectValue: any): string => {
   if (!objectValue || typeof objectValue !== 'object') {
@@ -185,7 +187,7 @@ export const useAbsenceData = ({ accessToken, filters, onDataChange }: UseAbsenc
 
   const [absences, setAbsences] = useState<EnhancedAbsence[]>([])
   const [total, setTotal] = useState(0)
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
 
   const [currentPage, setCurrentPage] = useState(1)
@@ -209,6 +211,10 @@ export const useAbsenceData = ({ accessToken, filters, onDataChange }: UseAbsenc
 
   const fetchAbsences = useCallback(async () => {
     if (!accessToken) {
+      setError(new Error(MISSING_ACCESS_TOKEN_ERROR))
+      setAbsences([])
+      setTotal(0)
+      setLoading(false)
       return
     }
 
@@ -216,6 +222,7 @@ export const useAbsenceData = ({ accessToken, filters, onDataChange }: UseAbsenc
       if (!initialLoadDone.current) {
         setLoading(true)
       }
+      setError(null)
 
       const currentFilters = filtersRef.current
       const conditions: any = currentFilters.buildWhereConditions()
@@ -294,7 +301,13 @@ export const useAbsenceData = ({ accessToken, filters, onDataChange }: UseAbsenc
   })
 
   useEffect(() => {
-    if (!accessToken) return
+    if (!accessToken) {
+      setError(new Error(MISSING_ACCESS_TOKEN_ERROR))
+      setAbsences([])
+      setTotal(0)
+      setLoading(false)
+      return
+    }
 
     const currentValues = {
       accessToken,

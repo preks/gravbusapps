@@ -8,7 +8,8 @@ import {
   Sheet,
   SheetContent,
   SheetHeader,
-  SheetTitle
+  SheetTitle,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '../../../../../../../common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -27,6 +28,9 @@ import { EmployeeDetails } from '@/business-apps/hr/core/details/employee-detail
 import { EnhancedAbsence } from '../../types'
 import { HubGlobalFilters } from '../../hooks/useHubGlobalFilters'
 import { HubFilterOptionsState } from '../../hooks/useHubFilterOptions'
+import { ErrorStateCard, LoadingStateCard } from './shared/DataStateCards'
+import { getSafeHubErrorMessage } from '../../utils/safeErrorMessage'
+import translations from '../../_i18n'
 
 interface AbsencesViewProps extends BusinessAppContextProps {
   activeSubTab?: string
@@ -83,10 +87,14 @@ export const AbsencesView: React.FC<AbsencesViewProps> = ({
   onGlobalFiltersChange,
   filterAction
 }) => {
+  const { t } = useTranslation(translations)
   const currentSubTab: AbsencesSubTab = isAbsencesSubTab(activeSubTab) ? activeSubTab : 'list'
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null)
   const [exportRows, setExportRows] = useState<EnhancedAbsence[]>([])
   const [listTotal, setListTotal] = useState(0)
+  const [listError, setListError] = useState<Error | null>(null)
+  const [listLoading, setListLoading] = useState(true)
+  const [listHasResolved, setListHasResolved] = useState(false)
   const [calendarDepartmentIds, setCalendarDepartmentIds] = useState<string[]>([])
 
   const calendarDepartmentComboboxOptions = useMemo<ComboboxOption[]>(
@@ -162,36 +170,16 @@ export const AbsencesView: React.FC<AbsencesViewProps> = ({
         </div>
       </div>
 
-      <DataDisplay
-        titleSections={[
-          {
-            id: 'list',
-            label: tt('subtab_list', 'List'),
-            metadata: {
-              count: listTotal,
-              subtitle: tt('leave_requests_title', 'Leave Requests')
-            }
-          },
-          {
-            id: 'calendar',
-            label: tt('subtab_calendar', 'Calendar'),
-            metadata: {
-              subtitle: tt('calendar_title', 'Yearly team calendar')
-            }
-          }
-        ]}
-        currentSection={currentSubTab}
-        onSectionChange={value => handleSubTabChange(value as AbsencesSubTab)}
-        searchValue={currentSubTab === 'list' ? globalFilters.employeeQuery : undefined}
-        searchPlaceholder={tt('search_placeholder', 'Search employee...')}
-        onSearchChange={currentSubTab === 'list' ? handleEmployeeSearchChange : undefined}
-        enableLiveFiltering={currentSubTab === 'list'}
-        secondaryActions={secondaryActions}
-        toolbarDensity="default"
-      >
-        {currentSubTab === 'list' ? (
+      {currentSubTab === 'list' && listError ? (
+        <ErrorStateCard message={getSafeHubErrorMessage(t('error-loading-leave-requests'))} />
+      ) : null}
+      {currentSubTab === 'list' && !listError && listLoading && !listHasResolved ? (
+        <LoadingStateCard message={t('loading-leave-requests')} />
+      ) : null}
+      {currentSubTab === 'list' && !listError && listLoading && !listHasResolved ? (
+        <div className="gba:hidden" aria-hidden="true">
           <AbsenceList
-            key={`${derivedDateRange?.dateFrom ?? 'no-from'}-${derivedDateRange?.dateTo ?? 'no-to'}-${JSON.stringify(globalFilters)}`}
+            key={`${derivedDateRange?.dateFrom ?? 'no-from'}-${derivedDateRange?.dateTo ?? 'no-to'}-${JSON.stringify(globalFilters)}-loader`}
             accessToken={accessToken}
             userInfo={userInfo}
             initialFilters={{
@@ -208,13 +196,82 @@ export const AbsencesView: React.FC<AbsencesViewProps> = ({
             onDataChange={data => {
               setExportRows(data.absences)
               setListTotal(data.total)
+              setListHasResolved(true)
             }}
-            onOpenEmployeeRecord={setSelectedEmployeeId}
+            onErrorChange={error => {
+              setListError(error)
+              if (error) {
+                setListLoading(false)
+                setListHasResolved(true)
+              }
+            }}
+            onLoadingChange={setListLoading}
           />
-        ) : (
-          <CalendarTab accessToken={accessToken} userInfo={userInfo} departmentIds={calendarDepartmentIds} />
-        )}
-      </DataDisplay>
+        </div>
+      ) : null}
+
+      {currentSubTab === 'list' && (listError || (listLoading && !listHasResolved)) ? null : (
+        <DataDisplay
+          titleSections={[
+            {
+              id: 'list',
+              label: tt('subtab_list', 'List'),
+              metadata: {
+                count: listTotal,
+                subtitle: tt('leave_requests_title', 'Leave Requests')
+              }
+            },
+            {
+              id: 'calendar',
+              label: tt('subtab_calendar', 'Calendar'),
+              metadata: {
+                subtitle: tt('calendar_title', 'Yearly team calendar')
+              }
+            }
+          ]}
+          currentSection={currentSubTab}
+          onSectionChange={value => handleSubTabChange(value as AbsencesSubTab)}
+          searchValue={currentSubTab === 'list' ? globalFilters.employeeQuery : undefined}
+          searchPlaceholder={tt('search_placeholder', 'Search employee...')}
+          onSearchChange={currentSubTab === 'list' ? handleEmployeeSearchChange : undefined}
+          enableLiveFiltering={currentSubTab === 'list'}
+          secondaryActions={secondaryActions}
+          toolbarDensity="default"
+        >
+          {currentSubTab === 'list' ? (
+            <AbsenceList
+              key={`${derivedDateRange?.dateFrom ?? 'no-from'}-${derivedDateRange?.dateTo ?? 'no-to'}-${JSON.stringify(globalFilters)}`}
+              accessToken={accessToken}
+              userInfo={userInfo}
+              initialFilters={{
+                startDate: derivedDateRange?.dateFrom,
+                endDate: derivedDateRange?.dateTo,
+                departmentIds: globalFilters.departmentIds,
+                locationIds: globalFilters.locationIds,
+                legalEntityIds: globalFilters.legalEntityIds,
+                managerIds: globalFilters.managerIds,
+                employeeQuery: globalFilters.employeeQuery,
+                absenceTypeIds: globalFilters.absenceTypeIds,
+                statusIds: globalFilters.statusIds
+              }}
+              onDataChange={data => {
+                setExportRows(data.absences)
+                setListTotal(data.total)
+                setListHasResolved(true)
+              }}
+              onErrorChange={setListError}
+              onLoadingChange={isLoading => {
+                if (!listHasResolved) {
+                  setListLoading(isLoading)
+                }
+              }}
+              onOpenEmployeeRecord={setSelectedEmployeeId}
+            />
+          ) : (
+            <CalendarTab accessToken={accessToken} userInfo={userInfo} departmentIds={calendarDepartmentIds} />
+          )}
+        </DataDisplay>
+      )}
 
       <Sheet open={selectedEmployeeId !== null} onOpenChange={open => !open && setSelectedEmployeeId(null)}>
         <SheetContent

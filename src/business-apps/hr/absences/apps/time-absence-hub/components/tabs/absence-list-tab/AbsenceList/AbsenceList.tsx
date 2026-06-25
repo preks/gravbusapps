@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { BusinessAppContextProps } from '../../../../../../../../../common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '../../../../../../../../../common/utils/windowUtils'
 import { toast } from 'sonner'
@@ -33,11 +33,13 @@ interface AbsenceListProps extends BusinessAppContextProps {
       creationDateRange?: { startDate?: string; endDate?: string }
     }
   }) => void
+  onErrorChange?: (error: Error | null) => void
+  onLoadingChange?: (isLoading: boolean) => void
   onOpenEmployeeRecord?: (employeeId: string) => void
 }
 
 export const AbsenceList: React.FC<AbsenceListProps> = props => {
-  const { accessToken, initialFilters, onDataChange, onOpenEmployeeRecord } = props
+  const { accessToken, initialFilters, onDataChange, onErrorChange, onLoadingChange, onOpenEmployeeRecord } = props
   const [cancellingAbsenceId, setCancellingAbsenceId] = useState<string | null>(null)
   const [locallyCancelledAbsenceIds, setLocallyCancelledAbsenceIds] = useState<Set<string>>(() => new Set())
 
@@ -47,6 +49,14 @@ export const AbsenceList: React.FC<AbsenceListProps> = props => {
     filters,
     onDataChange
   })
+
+  useEffect(() => {
+    onErrorChange?.(data.error)
+  }, [data.error, onErrorChange])
+
+  useEffect(() => {
+    onLoadingChange?.(data.loading)
+  }, [data.loading, onLoadingChange])
 
   const tt = (key: string, fallback: string) =>
     getTranslationFromI18nKeyAndLabel(`lowcoder:time_absence_hub.absences.${key}`, fallback)

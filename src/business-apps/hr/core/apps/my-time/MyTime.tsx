@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react'
-import { PageLayout, Spinner, useTranslation } from '@newwork/nw-design-system'
+import { Card, CardContent, PageLayout, Spinner, useTranslation } from '@newwork/nw-design-system'
 import { ClockIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -36,8 +36,9 @@ const TIME_TRACKING_TABS = new Set([MyTimeTabEnum.TimeTracking, MyTimeTabEnum.Hi
 
 export const MyTime: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo }) => {
   const employeeId = userInfo?.employeeDetails?.employeeId || ''
+  const effectiveAccessToken = accessToken
 
-  const { employee, loading } = useMyTimeEmployeeData(accessToken, employeeId)
+  const { employee, loading } = useMyTimeEmployeeData(effectiveAccessToken, employeeId)
   const activeWorkingHours = React.useMemo(
     () => getActiveWorkingHours<WeeklyWorkingHours>(employee?.workingHours),
     [employee?.workingHours]
@@ -46,6 +47,7 @@ export const MyTime: React.FC<BusinessAppContextProps> = ({ accessToken, userInf
 
   const timeRelevant = useMemo(() => isContractTimeRelevant(employee), [employee])
   const employeeResolved = !loading && employee !== null
+  const employeeLoadError = !loading && (!effectiveAccessToken || !employeeId || employee === null)
 
   const allTabs = useMemo(
     () => [
@@ -99,7 +101,15 @@ export const MyTime: React.FC<BusinessAppContextProps> = ({ accessToken, userInf
         variant={MODULE_COLORS.HR}
         className="gba:min-h-screen"
       >
-        {!employeeResolved && (
+        {employeeLoadError && (
+          <Card>
+            <CardContent className="gba:flex gba:flex-col gba:items-center gba:gap-2 gba:py-8 gba:text-center">
+              <p className="gba:text-sm gba:text-destructive">{t('error_loading_my_time')}</p>
+            </CardContent>
+          </Card>
+        )}
+
+        {!employeeLoadError && !employeeResolved && (
           <div className="gba:flex gba:justify-center gba:items-center gba:h-64">
             <Spinner />
           </div>
@@ -112,7 +122,7 @@ export const MyTime: React.FC<BusinessAppContextProps> = ({ accessToken, userInf
                 <TimeTracking
                   employee={employee}
                   employeeId={employeeId}
-                  accessToken={accessToken}
+                  accessToken={effectiveAccessToken}
                   isSelfView={true}
                   onNavigateToEveryAI={() => setSelectedTab(MyTimeTabEnum.EveryAIAssistant)}
                 />
@@ -123,7 +133,7 @@ export const MyTime: React.FC<BusinessAppContextProps> = ({ accessToken, userInf
               <div data-testid="my-time-everyai-content" className="gba:mt-4">
                 <InterventionsTable
                   employeeId={employeeId}
-                  accessToken={accessToken}
+                  accessToken={effectiveAccessToken}
                   workingHours={activeWorkingHours}
                   defaultExpanded
                 />
@@ -132,7 +142,7 @@ export const MyTime: React.FC<BusinessAppContextProps> = ({ accessToken, userInf
 
             {activeTab === MyTimeTabEnum.SmartBooking && (
               <div data-testid="my-time-smart-booking-content" className="gba:mt-4">
-                <SmartBooking employeeId={employeeId} accessToken={accessToken} />
+                <SmartBooking employeeId={employeeId} accessToken={effectiveAccessToken} />
               </div>
             )}
 
@@ -140,7 +150,7 @@ export const MyTime: React.FC<BusinessAppContextProps> = ({ accessToken, userInf
               <div data-testid="my-time-history-content" className="gba:mt-4">
                 <TimeHistory
                   employeeId={employeeId}
-                  accessToken={accessToken}
+                  accessToken={effectiveAccessToken}
                   userId={userInfo?.id || ''}
                   employee={employee}
                   employeeCode={employee?.code}

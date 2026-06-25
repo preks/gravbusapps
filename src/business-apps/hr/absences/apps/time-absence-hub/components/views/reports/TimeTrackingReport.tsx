@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system'
+import { Card, CardContent, CardHeader, CardTitle, useTranslation } from '@newwork/nw-design-system'
 import { ClockIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatExportDate } from '@/common/utils/excelExportUtils'
@@ -9,6 +9,8 @@ import { AttendanceRow, FilteredEmployee } from '../../../queries/OrgAttendanceQ
 import { ReportExportActions } from './ReportExportActions'
 import { downloadRowsAsCsv, downloadRowsAsXlsx } from './reportExportUtils'
 import { toMinutes } from '../attendance/attendanceUtils'
+import { getSafeHubErrorMessage } from '../../../utils/safeErrorMessage'
+import translations from '../../../_i18n'
 
 interface TimeTrackingReportProps {
   accessToken: string
@@ -127,6 +129,7 @@ export const TimeTrackingReport: React.FC<TimeTrackingReportProps> = ({
   globalFilters,
   derivedDateRange
 }) => {
+  const { t } = useTranslation(translations)
   const [isExporting, setIsExporting] = useState<'csv' | 'xlsx' | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
@@ -181,6 +184,7 @@ export const TimeTrackingReport: React.FC<TimeTrackingReportProps> = ({
     isLoading: attendanceData.isLoading,
     derivedDateRange,
     error: attendanceData.error,
+    errorMessage: t('error-loading-attendance-data'),
     rowCount: exportRows.length,
     employeeCount: attendanceData.employees.length
   })
@@ -227,16 +231,24 @@ interface SummaryParams {
   isLoading: boolean
   derivedDateRange: { dateFrom: string; dateTo: string } | null
   error: string | null
+  errorMessage: string
   rowCount: number
   employeeCount: number
 }
 
-const renderSummary = ({ isLoading, derivedDateRange, error, rowCount, employeeCount }: SummaryParams): string => {
+const renderSummary = ({
+  isLoading,
+  derivedDateRange,
+  error,
+  errorMessage,
+  rowCount,
+  employeeCount
+}: SummaryParams): string => {
   if (isLoading) {
     return tt('loading', 'Loading attendance data...')
   }
   if (error) {
-    return `${tt('error_prefix', 'Error:')} ${error}`
+    return getSafeHubErrorMessage(errorMessage)
   }
   if (!derivedDateRange) {
     return tt('no_date_range', 'Pick a time range to enable export.')

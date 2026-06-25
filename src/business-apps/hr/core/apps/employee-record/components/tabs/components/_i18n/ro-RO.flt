@@ -25,3 +25,6 @@ status_in_progress = În curs
 status_completed = Finalizat
 status_incomplete = Incomplet
 status_under_review = În verificare
+error_loading_project_time = Datele pentru timpul de proiect nu au putut fi încărcate.
+error_loading_interventions = Informațiile asistentului nu au putut fi încărcate.
+loading_time_data = Se încarcă datele de timp...

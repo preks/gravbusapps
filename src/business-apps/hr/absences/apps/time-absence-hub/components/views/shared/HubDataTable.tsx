@@ -9,10 +9,14 @@ import {
   TableCell,
   TableHead,
   TableHeader,
-  TableRow
+  TableRow,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { ArrowDownIcon, ArrowUpIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getSafeHubErrorMessage } from '../../../utils/safeErrorMessage'
+import { ErrorStateCard } from './DataStateCards'
+import translations from '../../../_i18n'
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50, 100]
 const SORTABLE_HEAD_CLASS =
@@ -128,27 +132,28 @@ export function HubDataTable<RowType>({
   rowLabel,
   emptyMessage
 }: HubDataTableProps<RowType>) {
+  const { t } = useTranslation(translations)
   const totalPages = Math.max(1, Math.ceil(total / pageSize))
   const hasMultiplePages = total > pageSize
   const rangeStart = total === 0 ? 0 : (currentPage - 1) * pageSize + 1
   const rangeEnd = Math.min(currentPage * pageSize, total)
 
   if (error) {
-    const errorMessage = error instanceof Error ? error.message : error
+    const errorMessage = getSafeHubErrorMessage(t('error-loading-table-data'))
     return (
-      <Card data-testid={`${dataTestIdPrefix}-container`}>
-        <CardContent className="gba:flex gba:items-center gba:justify-center gba:py-8">
-          <div className="gba:text-center">
-            <p className="gba:text-destructive gba:mb-2">{errorMessage}</p>
+      <div data-testid={`${dataTestIdPrefix}-container`}>
+        <ErrorStateCard
+          message={errorMessage}
+          action={
             <Button onClick={() => globalThis.window.location.reload()}>
               {getTranslationFromI18nKeyAndLabel(
                 'lowcoder:absence_management_hub_backoffice.absence_list.retry',
                 'Retry'
               )}
             </Button>
-          </div>
-        </CardContent>
-      </Card>
+          }
+        />
+      </div>
     )
   }
 
@@ -170,7 +175,9 @@ export function HubDataTable<RowType>({
             <TableHeader>
               <TableRow className="gba:border-b gba:bg-muted">
                 {columns.map(column => {
-                  const isSortable = Boolean(column.sortableField && onSort)
+                  const sortableField = column.sortableField
+                  const isSortable = Boolean(sortableField && onSort)
+                  const handleSortClick = sortableField && onSort ? () => onSort(sortableField) : undefined
                   const headClassName = isSortable
                     ? SORTABLE_HEAD_CLASS
                     : 'gba:font-semibold gba:text-foreground gba:py-4 gba:px-6'
@@ -179,7 +186,7 @@ export function HubDataTable<RowType>({
                     <TableHead
                       key={column.key}
                       className={`${column.widthClassName || ''} ${headClassName} ${column.headerClassName || ''}`}
-                      onClick={isSortable ? () => onSort(column.sortableField as string) : undefined}
+                      onClick={handleSortClick}
                     >
                       <div className="gba:flex gba:items-center">
                         {column.header}

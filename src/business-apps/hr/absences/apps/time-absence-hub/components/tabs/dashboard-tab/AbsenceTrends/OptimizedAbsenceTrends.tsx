@@ -5,6 +5,7 @@ import { BusinessAppContextProps } from '../../../../../../../../../common/Busin
 import { DashboardData } from '../../../../types'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { LegendMarker } from '../shared/LegendMarker'
+import { getSafeHubErrorMessage } from '../../../../utils/safeErrorMessage'
 
 interface OptimizedAbsenceTrendsProps extends BusinessAppContextProps {
   dashboardData: DashboardData
@@ -266,6 +267,11 @@ const OptimizedAbsenceTrends: React.FC<OptimizedAbsenceTrendsProps> = ({ dashboa
   }
 
   if (error) {
+    const fallbackMessage = getTranslationFromI18nKeyAndLabel(
+      'lowcoder:absence_management_hub_backoffice.error_loading_trends',
+      'Unable to load absence trends.'
+    )
+
     return (
       <Card data-testid="optimized-absence-trends-error">
         <CardHeader>
@@ -278,12 +284,8 @@ const OptimizedAbsenceTrends: React.FC<OptimizedAbsenceTrendsProps> = ({ dashboa
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="gba:text-destructive gba:text-center gba:py-8">
-            {getTranslationFromI18nKeyAndLabel(
-              'lowcoder:absence_management_hub_backoffice.error_loading_trends',
-              'Error loading trends'
-            )}
-            : {error}
+          <div className="gba:py-8 gba:text-center">
+            <p className="gba:text-sm gba:text-destructive">{getSafeHubErrorMessage(fallbackMessage)}</p>
           </div>
         </CardContent>
       </Card>

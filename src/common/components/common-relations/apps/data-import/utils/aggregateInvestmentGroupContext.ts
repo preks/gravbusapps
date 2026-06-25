@@ -39,6 +39,25 @@ export interface InvestmentGroupAnalyzerContext {
    */
   additionalPropertiesFields: string[]
   /**
+   * Catalog `field.type` per `additionalPropertiesFields` entry, when
+   * declared on at least one matching form field in the subtree.
+   *
+   * Keyed by the same short field name listed in `additionalPropertiesFields`
+   * (e.g. `openingBalance`, `realizedGainsLosses`). Values are the raw
+   * catalog vocabulary — `'AMOUNT' | 'NUMBER' | 'PERCENTAGE' | 'DATE' |
+   * 'DATETIME' | 'BOOLEAN' | 'TEXT' | 'TEXTAREA' | 'CATALOG_*' | 'REF_*'`
+   * — left untouched so the backend can own normalisation to its internal
+   * casting vocabulary.
+   *
+   * Without these, Flowbot stores every additional-property cell as a
+   * string (the LLM only sees field names, never declared types), which
+   * breaks numeric/date filtering on the `jsonb` column in the DB.
+   *
+   * If two entries in the subtree disagree on a field's type, the first
+   * declaration wins — deterministic on a stable catalog walk.
+   */
+  additionalPropertiesFieldTypes: Record<string, string>
+  /**
    * Keys of every tile field declared on any `tileFields[*]` entry in the
    * `InvestmentGroup` catalog subtree (root + transitive descendants).
    */
@@ -67,18 +86,23 @@ const parseObjectValue = (objectValue: unknown): Record<string, unknown> | null 
   return null
 }
 
+interface CollectedFormField {
+  property: string
+  type: string | null
+}
+
 /**
- * Collect every `field.property` string from the `formFields` array shape
- * declared by the catalog. Defensive against malformed entries — anything
- * that doesn't fit the expected `{ fields: { property }[] }[]` shape is
- * silently skipped.
+ * Collect `field.property` (and `field.type` when present) from the
+ * `formFields` array shape declared by the catalog. Defensive against
+ * malformed entries — anything that doesn't fit the expected
+ * `{ fields: { property, type? }[] }[]` shape is silently skipped.
  */
-const collectFieldPropertiesFromFormFields = (parsedObjectValue: Record<string, unknown> | null): string[] => {
+const collectFormFieldsFromObjectValue = (parsedObjectValue: Record<string, unknown> | null): CollectedFormField[] => {
   if (!parsedObjectValue) return []
   const formFields = parsedObjectValue.formFields
   if (!Array.isArray(formFields)) return []
 
-  const properties: string[] = []
+  const collected: CollectedFormField[] = []
   for (const group of formFields) {
     if (!group || typeof group !== 'object') continue
     const fields = (group as { fields?: unknown }).fields
@@ -86,12 +110,13 @@ const collectFieldPropertiesFromFormFields = (parsedObjectValue: Record<string, 
     for (const field of fields) {
       if (!field || typeof field !== 'object') continue
       const property = (field as { property?: unknown }).property
-      if (typeof property === 'string' && property.length > 0) {
-        properties.push(property)
-      }
+      if (typeof property !== 'string' || property.length === 0) continue
+      const rawType = (field as { type?: unknown }).type
+      const type = typeof rawType === 'string' && rawType.length > 0 ? rawType : null
+      collected.push({ property, type })
     }
   }
-  return properties
+  return collected
 }
 
 /**
@@ -133,6 +158,7 @@ export function aggregateInvestmentGroupContext(
   const empty: InvestmentGroupAnalyzerContext = {
     requiredSubtypeKey: '',
     additionalPropertiesFields: [],
+    additionalPropertiesFieldTypes: {},
     tileFieldKeys: []
   }
   if (!groupId || !allTypes || allTypes.length === 0) return empty
@@ -157,19 +183,23 @@ export function aggregateInvestmentGroupContext(
   }
 
   const dedupedFields = new Set<string>()
+  // First-write-wins: a later subtree entry never silently rewrites an
+  // already-declared catalog type for the same short name.
+  const fieldTypes: Record<string, string> = {}
   const dedupedTileKeys = new Set<string>()
   for (const entry of allTypes) {
     if (!subtreeIds.has(entry.id)) continue
     const parsed = parseObjectValue(entry.objectValue)
 
-    const properties = collectFieldPropertiesFromFormFields(parsed)
-    for (const property of properties) {
+    const formFields = collectFormFieldsFromObjectValue(parsed)
+    for (const { property, type } of formFields) {
       const markerIndex = property.indexOf(ADDITIONAL_PROPERTIES_MARKER)
-      if (markerIndex >= 0) {
-        const shortField = property.slice(markerIndex + ADDITIONAL_PROPERTIES_MARKER.length)
-        if (shortField.length > 0) {
-          dedupedFields.add(shortField)
-        }
+      if (markerIndex < 0) continue
+      const shortField = property.slice(markerIndex + ADDITIONAL_PROPERTIES_MARKER.length)
+      if (shortField.length === 0) continue
+      dedupedFields.add(shortField)
+      if (type && !(shortField in fieldTypes)) {
+        fieldTypes[shortField] = type
       }
     }
 
@@ -182,6 +212,7 @@ export function aggregateInvestmentGroupContext(
   return {
     requiredSubtypeKey,
     additionalPropertiesFields: [...dedupedFields],
+    additionalPropertiesFieldTypes: fieldTypes,
     tileFieldKeys: [...dedupedTileKeys]
   }
 }

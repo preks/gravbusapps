@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { Card, Alert } from '@newwork/nw-design-system'
+import { Card, useTranslation } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useTimeTrackingData } from '../../employee-record/components/tabs/hooks/useTimeTrackingData'
 import { useAbsenceData } from '../../employee-record/hooks/useAbsenceData'
@@ -12,6 +12,8 @@ import weekday from 'dayjs/plugin/weekday'
 import localeData from 'dayjs/plugin/localeData'
 import TimeSummaryCards from '../../employee-record/components/tabs/components/TimeSummaryCards'
 import { parseDurationToMinutes, formatDurationToHHMM } from '../utils/duration'
+import timeTrackingTranslations from '../_i18n'
+import { getMyTimeErrorMessage, MyTimeErrorStateCard, MyTimeLoadingStateCard } from './MyTimeErrorStateCard'
 dayjs.extend(weekday)
 dayjs.extend(localeData)
 
@@ -25,6 +27,7 @@ interface DailyLogProps {
 const EMPTY_ABSENCE_ENTITLEMENTS: never[] = []
 
 const DailyLog: React.FC<DailyLogProps> = ({ employeeId, employee, accessToken, hideSummaryCards }) => {
+  const { t } = useTranslation(timeTrackingTranslations)
   const [currentDate, setCurrentDate] = React.useState<Dayjs>(dayjs())
   const [selectedStartDate, setSelectedStartDate] = React.useState<any>(null)
   const [selectedEndDate, setSelectedEndDate] = React.useState<any>(null)
@@ -37,6 +40,7 @@ const DailyLog: React.FC<DailyLogProps> = ({ employeeId, employee, accessToken, 
     allMonthEntries,
     holidayDates,
     error,
+    isLoading,
     monthlyRequiredUntilYesterdayMinutes,
     monthlyWorkedUntilYesterdayMinutes,
     monthlyRequiredMinutes,
@@ -99,6 +103,22 @@ const DailyLog: React.FC<DailyLogProps> = ({ employeeId, employee, accessToken, 
     return [...absenceList, ...timeEntries]
   }, [allMonthEntries, absenceList])
 
+  if (isLoading) {
+    return (
+      <div data-testid="time-tracking-history-container">
+        <MyTimeLoadingStateCard message={t('loading_time_data')} />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div data-testid="time-tracking-history-container">
+        <MyTimeErrorStateCard message={getMyTimeErrorMessage(error, t('error_loading_time_entries'))} />
+      </div>
+    )
+  }
+
   return (
     <div data-testid="time-tracking-history-container">
       {!hideSummaryCards && (
@@ -146,12 +166,6 @@ const DailyLog: React.FC<DailyLogProps> = ({ employeeId, employee, accessToken, 
           }
         />
       </Card>
-
-      {error && (
-        <Alert variant="destructive" className="gba:w-full gba:whitespace-normal gba:!inline-block gba:mb-4">
-          {error}
-        </Alert>
-      )}
     </div>
   )
 }

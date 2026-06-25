@@ -2,7 +2,6 @@
 
 import React from 'react'
 import {
-  Alert,
   Button,
   Dialog,
   DialogContent,
@@ -22,6 +21,7 @@ import { LocationCard } from './LocationCard'
 import { ThisWeekCard } from './ThisWeekCard'
 import { TodaysLogCard } from './TodaysLogCard'
 import { QuickActionsCard } from './QuickActionsCard'
+import { getMyTimeErrorMessage, MyTimeErrorStateCard, MyTimeLoadingStateCard } from './MyTimeErrorStateCard'
 
 interface TimeTrackingProps {
   employee: any
@@ -46,6 +46,7 @@ const TimeTracking: React.FC<TimeTrackingProps> = ({
   const {
     isClockedIn,
     isSubmitting,
+    isLoading,
     error,
     clockIn,
     clockOut,
@@ -88,14 +89,24 @@ const TimeTracking: React.FC<TimeTrackingProps> = ({
   const monthlyWorkedMinutes = monthlyWorkedUntilYesterdayMinutes + todayRecordedMinutes
   const clockInDisabledReason = isBeforeHireDateToday ? clockInBeforeHireDateMessage : undefined
 
+  if (isLoading) {
+    return (
+      <div data-testid="monthly-summary-container">
+        <MyTimeLoadingStateCard message={t('loading_time_data')} />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div data-testid="monthly-summary-container">
+        <MyTimeErrorStateCard message={getMyTimeErrorMessage(error, t('error_loading_time_entries'))} />
+      </div>
+    )
+  }
+
   return (
     <div data-testid="monthly-summary-container">
-      {error && (
-        <Alert variant="destructive" className="gba:w-full gba:whitespace-normal gba:!inline-block gba:mb-4">
-          {error}
-        </Alert>
-      )}
-
       {/* Top row: Hero card + right stack */}
       <div
         className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:items-stretch gba:gap-4"

@@ -946,6 +946,8 @@ employment-label-exit-reason = Motiv ieșire
 employment-working-conditions-previous = Anterior
 employment-working-conditions-next = Următor
 employment-working-conditions-period-not-continuous = Această perioadă a condițiilor de lucru nu continuă direct din perioada anterioară sau în perioada următoare.
+employment-working-hours-period-not-continuous = Această perioadă a programului de lucru nu continuă direct din perioada anterioară sau în perioada următoare.
+employment-working-hours-missing-required-input = Această înregistrare a programului de lucru trebuie actualizată deoarece lipsesc informații obligatorii.
 common-loading = Se încarcă...
 common-yes = Da
 common-no = Nu
@@ -1055,6 +1057,10 @@ working-hours-active-from-before-hire-date-warning = Programul de lucru începe 
 working-hours-active-from-hire-date-preselected = Pentru prima înregistrare a programului de lucru, data angajării este preselectată și nu poate fi editată.
 working-hours-at-least-one-working-day-required = Cel puțin o zi trebuie să aibă mai mult de 0 ore de lucru.
 working-hours-submitting-message = Se trimit orele de lucru...
+working-hours-salary-adjustment-prompt-title = Ajustați și salariul?
+working-hours-salary-adjustment-prompt-description = Aceste modificări ale programului de lucru necesită o ajustare salarială?
+working-hours-salary-adjustment-prompt-no = Nu
+working-hours-salary-adjustment-prompt-yes = Da
 
 # Career Tab
 career-tab-title = Traseu de carieră

@@ -959,6 +959,8 @@ employment-label-exit-reason = Exit Reason
 employment-working-conditions-previous = Previous
 employment-working-conditions-next = Next
 employment-working-conditions-period-not-continuous = This working condition period does not continue directly from the previous or into the next period.
+employment-working-hours-period-not-continuous = This working hours period does not continue directly from the previous or into the next period.
+employment-working-hours-missing-required-input = This working hours entry needs to be updated because required input is missing.
 common-loading = Loading...
 common-yes = Yes
 common-no = No
@@ -1068,6 +1070,10 @@ working-hours-active-from-before-hire-date-warning = Working hours start before 
 working-hours-active-from-hire-date-preselected = For the first working hours entry, the hire date is preselected and cannot be edited.
 working-hours-at-least-one-working-day-required = At least one day must have more than 0 working hours.
 working-hours-submitting-message = Submitting working hours...
+working-hours-salary-adjustment-prompt-title = Adjust salary too?
+working-hours-salary-adjustment-prompt-description = Do these working hours changes require a salary adjustment?
+working-hours-salary-adjustment-prompt-no = No
+working-hours-salary-adjustment-prompt-yes = Yes
 
 # Career Tab
 career-tab-title = Career & Promotion Readiness

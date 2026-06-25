@@ -12,6 +12,8 @@ import { getAbsenceStatusLabel, getAbsenceStatusColor } from '@/business-apps/hr
 import { DepartmentBarChart, StatusPieChart, VacationEntitlementsCard, VacationLiabilityCard } from './components'
 import dayjs from 'dayjs'
 import { TimeScope } from '../../../../constants/routes'
+import { getSafeHubErrorMessage } from '../../../../utils/safeErrorMessage'
+import { ErrorStateCard } from '../../../views/shared/DataStateCards'
 
 interface OptimizedKPISectionProps extends BusinessAppContextProps {
   dashboardData: DashboardData
@@ -261,13 +263,14 @@ export const OptimizedKPISection: React.FC<OptimizedKPISectionProps> = ({
   }
 
   if (error) {
+    const fallbackMessage = getTranslationFromI18nKeyAndLabel(
+      'lowcoder:absence_management_hub_backoffice.error_loading_kpi_data',
+      'Unable to load dashboard data.'
+    )
+
     return (
-      <div className="gba:text-destructive gba:p-4" data-testid="optimized-kpi-section-error">
-        {getTranslationFromI18nKeyAndLabel(
-          'lowcoder:absence_management_hub_backoffice.error_loading_kpi_data',
-          'Error loading KPI data'
-        )}
-        : {error}
+      <div data-testid="optimized-kpi-section-error">
+        <ErrorStateCard message={getSafeHubErrorMessage(fallbackMessage)} />
       </div>
     )
   }

@@ -160,6 +160,14 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({
   const hasMultipleWorkingHours = workingHoursEntries.length > 1
   const isFirstWorkingHours = selectedWorkingHoursSafeIndex <= 0
   const isLastWorkingHours = selectedWorkingHoursSafeIndex >= workingHoursEntries.length - 1
+  const workingHoursMissingRequiredInput = React.useMemo(() => {
+    if (!workingHours?.id) {
+      return false
+    }
+
+    const activeFrom = workingHours.activeFrom ? dayjs(workingHours.activeFrom).startOf('day') : null
+    return !activeFrom?.isValid()
+  }, [workingHours?.activeFrom, workingHours?.id])
   const employmentPeriodIsNotContinuous = React.useMemo(() => {
     const currentCondition = workingConditions[selectedWorkingConditionSafeIndex]
     const previousCondition = workingConditions[selectedWorkingConditionSafeIndex - 1]
@@ -183,6 +191,29 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({
 
     return false
   }, [selectedWorkingConditionSafeIndex, workingConditions])
+  const workingHoursPeriodIsNotContinuous = React.useMemo(() => {
+    const currentWorkingHours = workingHoursEntries[selectedWorkingHoursSafeIndex]
+    const previousWorkingHours = workingHoursEntries[selectedWorkingHoursSafeIndex - 1]
+    const nextWorkingHours = workingHoursEntries[selectedWorkingHoursSafeIndex + 1]
+    const currentStart = currentWorkingHours?.activeFrom ? dayjs(currentWorkingHours.activeFrom).startOf('day') : null
+    const currentEnd = currentWorkingHours?.activeTo ? dayjs(currentWorkingHours.activeTo).startOf('day') : null
+
+    if (previousWorkingHours?.activeTo && currentStart?.isValid()) {
+      const previousEnd = dayjs(previousWorkingHours.activeTo).startOf('day')
+      if (previousEnd.isValid() && !previousEnd.add(1, 'day').isSame(currentStart, 'day')) {
+        return true
+      }
+    }
+
+    if (nextWorkingHours?.activeFrom && currentEnd?.isValid()) {
+      const nextStart = dayjs(nextWorkingHours.activeFrom).startOf('day')
+      if (nextStart.isValid() && !currentEnd.add(1, 'day').isSame(nextStart, 'day')) {
+        return true
+      }
+    }
+
+    return false
+  }, [selectedWorkingHoursSafeIndex, workingHoursEntries])
 
   React.useEffect(() => {
     setSelectedWorkingConditionIndex(activeWorkingConditionIndex)
@@ -817,6 +848,25 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({
                   )}
                 </div>
                 <div className="gba:flex gba:items-center gba:gap-2" data-testid="employment-working-hours-update">
+                  {(workingHoursMissingRequiredInput || workingHoursPeriodIsNotContinuous) && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span
+                          className="gba:inline-flex gba:items-center gba:text-warning"
+                          data-testid="employment-working-hours-period-warning"
+                        >
+                          <WarningIcon size={16} />
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        {t(
+                          workingHoursMissingRequiredInput
+                            ? 'employment-working-hours-missing-required-input'
+                            : 'employment-working-hours-period-not-continuous'
+                        )}
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
                   {workingHours?.id && (
                     <AppAction
                       variant="update-secondary"

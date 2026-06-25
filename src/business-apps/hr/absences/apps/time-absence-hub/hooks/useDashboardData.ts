@@ -11,6 +11,8 @@ import { processCompleteServerSideAggregations } from '../utils/serverSideAggreg
 import { DashboardData, TimeFilter } from '../types'
 import { hasHubPopulationFilters, HubGlobalFilters } from './useHubGlobalFilters'
 
+const MISSING_ACCESS_TOKEN_ERROR = 'Access token missing'
+
 export interface UseDashboardDataProps {
   accessToken: string
   timeFilter?: TimeFilter
@@ -159,13 +161,24 @@ export const useDashboardData = ({
   }
 
   useEffect(() => {
-    if (accessToken) {
-      fetchData()
+    if (!accessToken) {
+      setData(prev => ({
+        ...prev,
+        isLoading: false,
+        error: MISSING_ACCESS_TOKEN_ERROR
+      }))
+      return
     }
+
+    fetchData()
   }, [accessToken, timeFilter, filters, derivedDateRange])
 
   useProcessCompletion({
     onSuccess: () => {
+      if (!accessToken) {
+        return
+      }
+
       fetchData()
     }
   })

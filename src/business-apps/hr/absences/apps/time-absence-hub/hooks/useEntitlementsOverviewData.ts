@@ -39,6 +39,7 @@ type EntitlementEmployee = NonNullable<OrgEntitlementRow['employee']>
 type EntitlementType = NonNullable<OrgEntitlementRow['type']>
 
 const SNAPSHOT_TOTAL_LIMIT = 5000
+const MISSING_ACCESS_TOKEN_ERROR = 'Access token missing'
 
 const hydrateMissingEmployees = async (
   rows: OrgEntitlementRow[],
@@ -198,7 +199,7 @@ export const useEntitlementsOverviewData = ({
   const [state, setState] = useState<UseEntitlementsOverviewDataReturn>({
     rows: [],
     total: 0,
-    isLoading: false,
+    isLoading: true,
     error: null
   })
   const graphqlClient = useGraphQLClient(accessToken)
@@ -229,7 +230,7 @@ export const useEntitlementsOverviewData = ({
   useEffect(() => {
     if (!accessToken) {
       hasLoadedOnceRef.current = false
-      setState({ rows: [], total: 0, isLoading: false, error: null })
+      setState({ rows: [], total: 0, isLoading: false, error: MISSING_ACCESS_TOKEN_ERROR })
       return
     }
 

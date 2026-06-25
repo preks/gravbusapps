@@ -1,5 +1,13 @@
 import React, { useEffect, useState } from 'react'
-import { Button, DataDisplay, Sheet, SheetContent, SheetHeader, SheetTitle } from '@newwork/nw-design-system'
+import {
+  Button,
+  DataDisplay,
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  useTranslation
+} from '@newwork/nw-design-system'
 import { DownloadSimpleIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '../../../../../../../../common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -27,6 +35,9 @@ import {
   getEntitlementRemaining,
   isEntitlementExpiringSoon
 } from './entitlementUtils'
+import { ErrorStateCard, LoadingStateCard } from '../shared/DataStateCards'
+import { getSafeHubErrorMessage } from '../../../utils/safeErrorMessage'
+import translations from '../../../_i18n'
 
 interface EntitlementsViewProps extends BusinessAppContextProps {
   globalFilters: HubGlobalFilters
@@ -97,6 +108,7 @@ export const EntitlementsView: React.FC<EntitlementsViewProps> = ({
   onGlobalFiltersChange,
   filterAction
 }) => {
+  const { t } = useTranslation(translations)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
   const [updateEmployeeId, setUpdateEmployeeId] = useState<string | null>(null)
@@ -197,43 +209,50 @@ export const EntitlementsView: React.FC<EntitlementsViewProps> = ({
         </div>
       </div>
 
-      <DataDisplay
-        titleSections={[
-          {
-            id: 'entitlements',
-            label: tt('leave_balances_title', 'Leave Balances'),
-            metadata: {
-              count: overview.total,
-              isLoading: overview.isLoading,
-              subtitle: tt('subtitle_entitlements', 'balances')
+      {overview.error ? <ErrorStateCard message={getSafeHubErrorMessage(t('error-loading-leave-balances'))} /> : null}
+      {overview.isLoading && overview.rows.length === 0 ? (
+        <LoadingStateCard message={t('loading-leave-balances')} />
+      ) : null}
+
+      {overview.error || (overview.isLoading && overview.rows.length === 0) ? null : (
+        <DataDisplay
+          titleSections={[
+            {
+              id: 'entitlements',
+              label: tt('leave_balances_title', 'Leave Balances'),
+              metadata: {
+                count: overview.total,
+                isLoading: overview.isLoading,
+                subtitle: tt('subtitle_entitlements', 'balances')
+              }
             }
+          ]}
+          currentSection="entitlements"
+          searchValue={globalFilters.employeeQuery}
+          searchPlaceholder={tt('search_placeholder', 'Search employee...')}
+          onSearchChange={handleEmployeeSearchChange}
+          enableLiveFiltering={true}
+          secondaryActions={
+            <div className="gba:flex gba:items-center gba:gap-2">
+              {filterAction}
+              <Button
+                variant="outline"
+                size="sm"
+                className="gba:gap-2"
+                onClick={handleExportExcel}
+                disabled={overview.isLoading || overview.rows.length === 0}
+                data-testid="time-absence-hub-entitlements-export-excel"
+              >
+                <DownloadSimpleIcon size={14} />
+                {tt('export_excel', 'Export Excel')}
+              </Button>
+            </div>
           }
-        ]}
-        currentSection="entitlements"
-        searchValue={globalFilters.employeeQuery}
-        searchPlaceholder={tt('search_placeholder', 'Search employee...')}
-        onSearchChange={handleEmployeeSearchChange}
-        enableLiveFiltering={true}
-        secondaryActions={
-          <div className="gba:flex gba:items-center gba:gap-2">
-            {filterAction}
-            <Button
-              variant="outline"
-              size="sm"
-              className="gba:gap-2"
-              onClick={handleExportExcel}
-              disabled={overview.isLoading || overview.rows.length === 0}
-              data-testid="time-absence-hub-entitlements-export-excel"
-            >
-              <DownloadSimpleIcon size={14} />
-              {tt('export_excel', 'Export Excel')}
-            </Button>
-          </div>
-        }
-        toolbarDensity="default"
-      >
-        <EntitlementsTable {...entitlementsTableProps} />
-      </DataDisplay>
+          toolbarDensity="default"
+        >
+          <EntitlementsTable {...entitlementsTableProps} />
+        </DataDisplay>
+      )}
 
       <Sheet open={Boolean(updateEmployeeId)} onOpenChange={open => !open && setUpdateEmployeeId(null)}>
         <SheetContent className="gba:w-full gba:max-w-3xl gba:overflow-y-auto">

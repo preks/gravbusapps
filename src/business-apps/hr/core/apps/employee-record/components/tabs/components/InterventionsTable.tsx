@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useRef } from 'react'
-import { Card, CardContent, Alert, Badge, Icon, Button, useTranslation } from '@newwork/nw-design-system'
+import { Card, CardContent, Badge, Icon, Button, Spinner, useTranslation } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
 import { useTimeInterventions } from '../hooks/useTimeInterventions'
 import { AppAction } from '@/components/app-action/AppAction'
@@ -106,6 +106,27 @@ export const InterventionsTable: React.FC<InterventionsTableProps> = ({
     })
   }, [items])
 
+  if (isLoading && defaultExpanded) {
+    return (
+      <Card data-testid="time-interventions-card">
+        <CardContent className="gba:flex gba:items-center gba:justify-center gba:gap-2 gba:py-8">
+          <Spinner />
+          <span className="gba:text-sm gba:text-muted-foreground">{t('loading_time_data')}</span>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  if (error && defaultExpanded) {
+    return (
+      <Card data-testid="time-interventions-card">
+        <CardContent className="gba:flex gba:flex-col gba:items-center gba:gap-3 gba:py-8 gba:text-center">
+          <p className="gba:text-base gba:font-medium gba:text-destructive">{t('error_loading_interventions')}</p>
+        </CardContent>
+      </Card>
+    )
+  }
+
   const toggleExpanded = () => {
     setIsExpanded(prev => {
       const next = !prev
@@ -185,24 +206,21 @@ export const InterventionsTable: React.FC<InterventionsTableProps> = ({
 
         {isExpanded && (
           <>
-            {error && (
-              <Alert variant="destructive" className="gba:w-full gba:whitespace-normal gba:!inline-block gba:mb-3">
-                {error}
-              </Alert>
-            )}
-
             <div className="gba:w-full" data-testid="time-interventions-list" ref={listRef}>
-              {isLoading && (
-                <div className="gba:py-3">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:common.loading', 'Loading...')}
+              {error && (
+                <div className="gba:py-8 gba:text-center">
+                  <p className="gba:text-base gba:font-medium gba:text-destructive">
+                    {t('error_loading_interventions')}
+                  </p>
                 </div>
               )}
-              {!isLoading && visibleItems.length === 0 && (
+              {!error && isLoading && <div className="gba:py-3">{t('loading_time_data')}</div>}
+              {!error && !isLoading && visibleItems.length === 0 && (
                 <div className="gba:py-3">
                   {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.interventions.empty', 'No issues found')}
                 </div>
               )}
-              {!isLoading && visibleItems.length > 0 && (
+              {!error && !isLoading && visibleItems.length > 0 && (
                 <div className="gba:grid gba:grid-cols-1 gba:sm:grid-cols-2 gba:lg:grid-cols-3 gba:gap-3">
                   {visibleItems.map(item => {
                     const IconCmp = getReasonIcon(item.reason)

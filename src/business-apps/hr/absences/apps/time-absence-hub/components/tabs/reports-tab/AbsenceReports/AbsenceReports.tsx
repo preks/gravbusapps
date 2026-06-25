@@ -1,10 +1,12 @@
-import { Alert, AlertDescription, AlertTitle, Card, CardContent, Spinner } from '@newwork/nw-design-system'
+import { Card, CardContent, Spinner, useTranslation } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { ChartBarIcon } from '@phosphor-icons/react'
 import { useEffect, useState } from 'react'
 import { env } from '@/common/env/EnvUtils'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { ErrorStateCard } from '../../../views/shared/DataStateCards'
+import translations from '../../../../_i18n'
 
 interface MenuResource {
   url?: string
@@ -163,6 +165,7 @@ const ReportCard: React.FC<ReportCardProps> = ({ report }) => (
 )
 
 export const AbsenceReports: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
+  const { t } = useTranslation(translations)
   const [locale, setLocale] = useState<string>(getActiveLocale)
   const [report, setReport] = useState<LegacyAbsenceReport | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -171,7 +174,7 @@ export const AbsenceReports: React.FC<BusinessAppContextProps> = ({ accessToken 
 
   useEffect(() => {
     if (!accessToken) {
-      setErrorMessage('No access token available')
+      setErrorMessage(t('error-loading-absence-reports'))
       setReport(null)
       return
     }
@@ -187,19 +190,19 @@ export const AbsenceReports: React.FC<BusinessAppContextProps> = ({ accessToken 
         setIsPermissionError(result.isPermissionError)
 
         if (result.isPermissionError) {
-          setErrorMessage('Legacy absence reports are not available for your current permissions.')
+          setErrorMessage(t('legacy-reports-unavailable'))
         }
       } catch (error) {
         console.error('Error fetching menu items:', error)
         setReport(null)
-        setErrorMessage(error instanceof Error ? error.message : 'Failed to load menu items. Please try again later.')
+        setErrorMessage(t('error-loading-absence-reports'))
       } finally {
         setIsLoading(false)
       }
     }
 
     void loadReport()
-  }, [accessToken, locale])
+  }, [accessToken, locale, t])
 
   useEffect(() => {
     const localeInterval = setInterval(() => {
@@ -220,11 +223,8 @@ export const AbsenceReports: React.FC<BusinessAppContextProps> = ({ accessToken 
 
   if (errorMessage) {
     return (
-      <div className="gba:p-4">
-        <Alert variant={isPermissionError ? 'default' : 'destructive'}>
-          <AlertTitle>{isPermissionError ? 'Legacy reports unavailable' : 'Error'}</AlertTitle>
-          <AlertDescription>{errorMessage}</AlertDescription>
-        </Alert>
+      <div className="gba:p-4" data-testid="absence-reports-error">
+        <ErrorStateCard message={isPermissionError ? t('legacy-reports-unavailable') : errorMessage} />
       </div>
     )
   }
@@ -232,9 +232,7 @@ export const AbsenceReports: React.FC<BusinessAppContextProps> = ({ accessToken 
   if (!report) {
     return (
       <div className="gba:p-4">
-        <Alert>
-          <AlertTitle>No Absence Reports found</AlertTitle>
-        </Alert>
+        <ErrorStateCard message={t('no-absence-reports-found')} />
       </div>
     )
   }
