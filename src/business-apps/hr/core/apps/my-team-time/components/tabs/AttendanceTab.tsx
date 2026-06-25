@@ -15,7 +15,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useTeamMembers } from '../../hooks/useTeamMembers'
 import { useTeamAttendance } from '../../hooks/useTeamAttendance'
 import { useAbsenceTypeCatalog } from '@/business-apps/hr/absences/apps/personal-absences/hooks/useAbsenceTypeCatalog'
-import { TeamMember, TeamAttendanceEntry, TeamAbsenceToday, ViewMode } from '../../types/types'
+import { TeamMember, TeamAttendanceEntry, TeamAbsenceToday, ViewMode, PeriodSummary } from '../../types/types'
 import {
   formatTimeShort,
   formatMinutes,
@@ -26,7 +26,11 @@ import {
 } from '../../utils/timeUtils'
 import { toAvatarSrc, goToProfile } from '../../utils/employeeUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { isSickAbsence, isWorkAbsence } from '../../utils/teamTimeDomain'
+import {
+  buildAbsenceNetByEmployeeAndDay,
+  computeMemberPeriodSummaries,
+  isSickAbsence
+} from '../../utils/teamTimeDomain'
 
 type MapTypeFn = (codeOrId: string) => { label?: string; color?: string }
 
@@ -135,13 +139,6 @@ const EmployeeCell: React.FC<{ member: TeamMember }> = ({ member }) => (
     </div>
   </td>
 )
-
-interface PeriodSummary {
-  targetMinutes: number
-  actualMinutes: number
-  daysOff: number
-  diffMinutes: number
-}
 
 const EMPTY_PERIOD: PeriodSummary = { targetMinutes: 0, actualMinutes: 0, daysOff: 0, diffMinutes: 0 }
 
@@ -283,67 +280,19 @@ export const AttendanceTab: React.FC<BusinessAppContextProps> = props => {
     return { from: new Date(d.getFullYear(), d.getMonth(), 1), to: new Date(d.getFullYear(), d.getMonth() + 1, 0) }
   }, [currentDate, viewMode])
 
-  const netByEmployeeAndDay = useMemo((): Map<string, Map<string, number>> => {
-    const map = new Map<string, Map<string, number>>()
-    for (const row of absenceNet) {
-      const value = Number(row.netSignedEps ?? row.netConsumed) || 0
-      if (value <= 0) continue
-      if (!map.has(row.employeeId)) map.set(row.employeeId, new Map())
-      const dayMap = map.get(row.employeeId)!
-      dayMap.set(row.dayDate, (dayMap.get(row.dayDate) ?? 0) + value)
-    }
-    return map
-  }, [absenceNet])
+  const netByEmployeeAndDay = useMemo(() => buildAbsenceNetByEmployeeAndDay(absenceNet), [absenceNet])
 
   const periodSummaries = useMemo((): Record<string, PeriodSummary> => {
     if (viewMode === 'day') return {}
-    const result: Record<string, PeriodSummary> = {}
-    const { from, to } = dateRange
-
-    for (const member of members) {
-      const memberAttendance = attendance.filter(a => a.employeeId === member.id)
-      const memberNetByDay = netByEmployeeAndDay.get(member.id) ?? new Map<string, number>()
-      const holidayDates = holidayDatesByEmployeeId.get(member.id) ?? new Set<string>()
-
-      let targetMinutes = 0
-      let daysOff = 0
-      const d = new Date(from)
-      while (d <= to) {
-        const dateKey = toLocalDateKey(d)
-        const planned = getPlannedMinutesForDate(dateKey, member.workingHours)
-        if (planned > 0) {
-          if (holidayDates.has(dateKey)) {
-            d.setDate(d.getDate() + 1)
-            continue
-          }
-
-          const dayAbsences = absences.filter(
-            absence => absence.employeeId === member.id && absence.dayDate === dateKey && absence.status === 'APPROVED'
-          )
-          const nonWorkAbsence = dayAbsences.find(absence => !isWorkAbsence(absence))
-
-          if (nonWorkAbsence) {
-            const netFraction = Math.min(memberNetByDay.get(dateKey) ?? 1, 1)
-            daysOff += netFraction
-            targetMinutes += planned * (1 - netFraction)
-          } else {
-            targetMinutes += planned
-          }
-        }
-        d.setDate(d.getDate() + 1)
-      }
-
-      const actualMinutes = memberAttendance.reduce((sum, e) => sum + parseDurationToMinutes(e.effectiveTime), 0)
-      const diffMinutes = actualMinutes - targetMinutes
-
-      result[member.id] = {
-        targetMinutes: Math.round(targetMinutes),
-        actualMinutes,
-        daysOff: Math.round(daysOff * 10) / 10,
-        diffMinutes: Math.round(diffMinutes)
-      }
-    }
-    return result
+    return computeMemberPeriodSummaries({
+      members,
+      from: dateRange.from,
+      to: dateRange.to,
+      attendance,
+      absences,
+      netByEmployeeAndDay,
+      holidayDatesByEmployeeId
+    })
   }, [viewMode, dateRange, members, attendance, absences, holidayDatesByEmployeeId, netByEmployeeAndDay])
 
   const getMemberEntry = (memberId: string): TeamAttendanceEntry | null => {

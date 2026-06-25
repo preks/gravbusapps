@@ -437,16 +437,16 @@ export const CatalogSelectView = React.memo(
                 : 'Select...'}
           </SelectValue>
         </SelectTrigger>
-        <SelectContent className="gba:max-h-[300px] gba:overflow-y-auto gba:min-w-0 gba:max-w-[var(--radix-select-trigger-width)]">
+        <SelectContent className="gba:max-h-[300px] gba:overflow-y-auto gba:w-auto gba:min-w-(--radix-select-trigger-width) gba:max-w-(--radix-select-content-available-width)">
           {mergedOptions.map(option => (
             <SelectItem
               key={String(option.value)}
               value={String(option.value)}
               data-testid={`${testId}-item-${String(option.value)}`}
               title={option.label}
-              className="gba:max-w-full gba:overflow-hidden"
+              className="gba:whitespace-nowrap"
             >
-              {renderCatalogSelectOptionLabel(option.label, option.icon, 'gba:block')}
+              {renderCatalogSelectOptionLabel(option.label, option.icon, 'gba:block gba:whitespace-nowrap')}
             </SelectItem>
           ))}
           {wiredHasMore ? (

@@ -63,6 +63,11 @@ export interface StepDataRow {
   inputData: { [key: string]: any }
 }
 
+export interface StepResultDisplay {
+  mode?: 'include' | 'exclude'
+  fields: string[]
+}
+
 export interface StepDataResponse {
   data: StepDataRow[]
   totalCount: number
@@ -73,6 +78,7 @@ export interface StepDataResponse {
     offset: number
     limit: number
   }
+  resultDisplay?: StepResultDisplay
 }
 
 export type TaskCommentVisibility = 'INTERNAL_TASK' | 'INTERNAL_FLOW' | 'EXTERNAL'

@@ -1,5 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useTranslation } from '@newwork/nw-design-system'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+  useTranslation
+} from '@newwork/nw-design-system'
 import {
   Archive,
   ArrowCounterClockwise,
@@ -32,6 +38,46 @@ function getStatusStyle(status: string | undefined, t: (key: string) => string) 
   const style = STATUS_STYLE_CLASSES[status]
   if (style) return { label: t(style.key), className: style.className }
   return { label: status, className: 'gba:bg-muted gba:text-muted-foreground' }
+}
+
+const SKILL_ROW_ACTION_BTN =
+  'gba:inline-flex gba:shrink-0 gba:items-center gba:gap-0.5 gba:px-1.5 gba:py-0.5 gba:rounded-md gba:text-[11px] gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted gba:transition-colors gba:whitespace-nowrap'
+
+const SKILL_ROW_ARCHIVE_BTN = `${SKILL_ROW_ACTION_BTN} gba:hover:text-destructive gba:hover:bg-destructive/10`
+
+const SKILL_ROW_ACTIVE_PILL =
+  'gba:inline-flex gba:items-center gba:gap-1 gba:px-2.5 gba:py-1 gba:rounded-md gba:text-[11px] gba:font-medium gba:text-green-700 gba:bg-green-50 gba:shrink-0'
+
+/** Wrench + count on the skill row; hover lists tool refs (same pattern as agent skill chips). */
+const SkillRowToolsBadge: React.FC<{ skillId: string; tools: string[] }> = ({ skillId, tools }) => {
+  if (tools.length === 0) return null
+
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span
+            role="presentation"
+            className="gba:inline-flex gba:shrink-0 gba:cursor-default gba:items-center gba:gap-0.5 gba:rounded-full gba:bg-amber-100 gba:px-1.5 gba:py-0.5 gba:text-[10px] gba:font-medium gba:text-amber-800"
+            data-testid={`browse-skills-tool-count-${skillId}`}
+          >
+            <Wrench className="gba:h-2.5 gba:w-2.5 gba:shrink-0" />
+            {tools.length}
+          </span>
+        </TooltipTrigger>
+        <TooltipContent>
+          <div className="gba:flex gba:max-w-xs gba:flex-col gba:gap-0.5">
+            {tools.map(tool => (
+              <span key={tool} className="gba:flex gba:items-center gba:gap-1 gba:text-xs">
+                <Wrench className="gba:h-3 gba:w-3 gba:shrink-0" />
+                {tool}
+              </span>
+            ))}
+          </div>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  )
 }
 
 export type BrowseSkillManifestEntry = {
@@ -72,10 +118,8 @@ export interface BrowseSkillsViewProps {
 /**
  * Stand-alone, page-friendly narrow list of the skills manifest.
  *
- * Renders a single-column list of skill rows. Each row shows name, id, description, and
- * tool chips; a footer holds the Files/Export/Delete affordances. When `onEditSkill`
- * is provided the row body becomes a clickable region that selects the skill for
- * editing in a parent-rendered editor panel.
+ * Each card shows title, version/status badges, inline actions, a two-line description,
+ * and an Enabled pill. When `onEditSkill` is provided, the left column opens the editor.
  */
 export const BrowseSkillsView: React.FC<BrowseSkillsViewProps> = ({
   accessToken,
@@ -134,8 +178,8 @@ export const BrowseSkillsView: React.FC<BrowseSkillsViewProps> = ({
     void loadManifest(hasFetchedManifestRef.current ? { background: true } : undefined)
   }, [loadManifest])
 
-  // Background refresh whenever the parent bumps manifestVersion (e.g. after a save in the
-  // editor panel). Skip the initial mount (value 0) since `loadManifest` already fired above.
+  // Background refresh whenever the parent bumps manifestVersion (e.g. after a save in the editor
+  // panel). Skip the initial mount (value 0) since `loadManifest` already fired above.
   const lastManifestVersionRef = useRef<number | undefined>(manifestVersion)
   useEffect(() => {
     if (manifestVersion === undefined) return
@@ -400,19 +444,15 @@ export const BrowseSkillsView: React.FC<BrowseSkillsViewProps> = ({
           {filteredManifest.map(s => {
             const isSelected = selectedSkillId === s.skill_id
             const isRuntimeOnly = s.source === 'runtime_manifest'
-            const bodyClasses = [
-              'gba:w-full gba:text-left gba:p-4 gba:flex gba:flex-col gba:gap-2',
-              onEditSkill && !isRuntimeOnly
-                ? 'gba:cursor-pointer gba:hover:bg-muted/30 gba:transition-colors focus-visible:gba:outline-none focus-visible:gba:ring-2 focus-visible:gba:ring-primary/40'
-                : ''
-            ].join(' ')
+            const showSkillActions = s.skill_id !== 'skill-creator' && !isRuntimeOnly && s.status !== 'archived'
 
-            const body = (
-              <>
-                <div className="gba:flex gba:items-center gba:gap-2 gba:flex-wrap">
-                  <p className="gba:text-sm gba:font-semibold gba:text-foreground gba:truncate">
-                    {s.name || s.skill_id}
-                  </p>
+            const canEdit = Boolean(onEditSkill && !isRuntimeOnly)
+            const statusStyle = getStatusStyle(s.status, t)
+
+            const skillBody = (
+              <div className="gba:relative gba:z-[1] gba:pointer-events-none">
+                <p className="gba:text-sm gba:font-semibold gba:text-foreground">{s.name || s.skill_id}</p>
+                <div className="gba:mt-1 gba:flex gba:flex-wrap gba:items-center gba:gap-x-1.5 gba:gap-y-1">
                   {(s.current_version != null || s.version != null || s.published_version != null) && (
                     <span
                       className="gba:shrink-0 gba:rounded gba:bg-muted gba:px-1.5 gba:py-0.5 gba:text-[10px] gba:font-medium gba:text-muted-foreground"
@@ -432,52 +472,82 @@ export const BrowseSkillsView: React.FC<BrowseSkillsViewProps> = ({
                       {t('skills-browse-default-badge')}
                     </span>
                   )}
-                  {(() => {
-                    const style = getStatusStyle(s.status, t)
-                    if (!style) return null
-                    return (
-                      <span
-                        className={`gba:text-[10px] gba:font-medium gba:px-1.5 gba:py-0.5 gba:rounded ${style.className}`}
-                      >
-                        {style.label}
-                      </span>
-                    )
-                  })()}
-                  {s.is_active === false ? (
-                    <span className="gba:text-[10px] gba:font-medium gba:px-1.5 gba:py-0.5 gba:rounded gba:bg-red-100 gba:text-red-700">
-                      {t('skills-browse-status-inactive')}
-                    </span>
-                  ) : (
-                    <span className="gba:text-[10px] gba:font-medium gba:px-1.5 gba:py-0.5 gba:rounded gba:bg-green-100 gba:text-green-800">
-                      {t('skills-browse-status-enabled')}
+                  {statusStyle && (
+                    <span
+                      className={`gba:text-[10px] gba:font-medium gba:px-1.5 gba:py-0.5 gba:rounded ${statusStyle.className}`}
+                    >
+                      {statusStyle.label}
                     </span>
                   )}
-                </div>
-                {s.name && s.name !== s.skill_id && (
-                  <p className="gba:text-[11px] gba:font-mono gba:text-muted-foreground/70 gba:truncate">
-                    {s.skill_id}
-                  </p>
-                )}
-                <p className="gba:text-xs gba:text-muted-foreground gba:leading-relaxed gba:line-clamp-4">
-                  {s.description}
-                </p>
-                {s.tools && s.tools.length > 0 && (
-                  <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-1 gba:mt-1">
-                    <span className="gba:text-[10px] gba:font-medium gba:text-muted-foreground gba:mr-1">
-                      {t('skills-browse-tools-in-skill')}
-                    </span>
-                    {s.tools.map(tool => (
-                      <span
-                        key={tool}
-                        className="gba:inline-flex gba:items-center gba:gap-1 gba:rounded-full gba:border gba:border-primary/30 gba:bg-primary/10 gba:px-2 gba:py-0.5 gba:text-[10px] gba:font-medium gba:text-primary"
+                  <div className="gba:pointer-events-auto gba:flex gba:shrink-0 gba:items-center gba:gap-0.5 gba:flex-nowrap">
+                    {showSkillActions && (
+                      <button
+                        type="button"
+                        className={SKILL_ROW_ACTION_BTN}
+                        onClick={() => handleToggleFiles(s.skill_id)}
                       >
-                        <Wrench className="gba:h-2.5 gba:w-2.5" />
-                        {tool}
+                        <Folder className="gba:h-3 gba:w-3" />
+                        {expandedSkillId === s.skill_id ? t('skills-browse-hide-files') : t('skills-browse-files')}
+                        {s.has_files && s.file_count != null && s.file_count > 0 && (
+                          <span
+                            className="gba:ml-0.5 gba:text-[10px] gba:px-1 gba:py-0.5 gba:rounded-full gba:border gba:border-primary/30 gba:bg-primary/10 gba:text-primary gba:font-medium"
+                            data-testid={`browse-skills-file-count-${s.skill_id}`}
+                          >
+                            {s.file_count}
+                          </span>
+                        )}
+                      </button>
+                    )}
+                    {!isRuntimeOnly && (
+                      <button
+                        type="button"
+                        className={SKILL_ROW_ACTION_BTN}
+                        title={s.has_files ? `Export ${s.skill_id} as zip` : `Download ${s.skill_id} as .md`}
+                        onClick={() => void handleExportSkill(s)}
+                      >
+                        <UploadSimple className="gba:h-3 gba:w-3 gba:rotate-180" />
+                        {t('skills-browse-export')}
+                      </button>
+                    )}
+                    {isRuntimeOnly && (
+                      <span className="gba:shrink-0 gba:px-1.5 gba:py-0.5 gba:text-[11px] gba:text-muted-foreground gba:whitespace-nowrap">
+                        {t('skills-browse-runtime-skill')}
                       </span>
-                    ))}
+                    )}
+                    {showSkillActions && s.is_active !== false && (
+                      <button
+                        type="button"
+                        className={SKILL_ROW_ACTION_BTN}
+                        disabled={transitioningId === s.skill_id}
+                        onClick={() => void handleTransition(s.skill_id, 'disable')}
+                      >
+                        {t('skills-browse-disable')}
+                      </button>
+                    )}
+                    {showSkillActions && (
+                      <button
+                        type="button"
+                        className={SKILL_ROW_ARCHIVE_BTN}
+                        disabled={transitioningId === s.skill_id}
+                        onClick={() => void handleArchiveSkill(s.skill_id)}
+                        data-testid={`browse-skills-archive-${s.skill_id}`}
+                      >
+                        <Archive className="gba:h-3 gba:w-3" />
+                        {t('skills-browse-archive')}
+                      </button>
+                    )}
+                    <SkillRowToolsBadge skillId={s.skill_id} tools={s.tools ?? []} />
                   </div>
-                )}
-              </>
+                </div>
+                {s.description ? (
+                  <p
+                    className="gba:text-xs gba:text-muted-foreground/70 gba:mt-0.5 gba:line-clamp-2"
+                    data-testid={`browse-skills-description-${s.skill_id}`}
+                  >
+                    {s.description}
+                  </p>
+                ) : null}
+              </div>
             )
 
             return (
@@ -492,104 +562,49 @@ export const BrowseSkillsView: React.FC<BrowseSkillsViewProps> = ({
                 data-testid={`browse-skills-card-${s.skill_id}`}
                 data-selected={isSelected ? 'true' : undefined}
               >
-                {onEditSkill && !isRuntimeOnly ? (
-                  <button
-                    type="button"
-                    className={bodyClasses}
-                    onClick={() => onEditSkill(s.skill_id)}
-                    data-testid={`browse-skills-row-${s.skill_id}`}
-                    aria-pressed={isSelected}
-                  >
-                    {body}
-                  </button>
-                ) : (
-                  <div className={bodyClasses}>{body}</div>
-                )}
-
-                <div
-                  className="gba:flex gba:items-center gba:justify-between gba:gap-2 gba:border-t gba:border-border gba:bg-muted/10 gba:px-3 gba:py-2"
-                  // Footer is a sibling of the row button, so no stopPropagation is required —
-                  // clicks on these controls never bubble into the body button at all.
-                >
-                  <div className="gba:flex gba:items-center gba:gap-1">
-                    {s.skill_id !== 'skill-creator' && !isRuntimeOnly && (
+                <div className="gba:flex gba:items-center gba:justify-between gba:gap-3 gba:p-3">
+                  <div className="gba:relative gba:min-w-0 gba:flex-1">
+                    {canEdit && (
                       <button
                         type="button"
-                        className="gba:inline-flex gba:items-center gba:gap-1 gba:px-2 gba:py-1 gba:rounded-md gba:text-[11px] gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted gba:transition-colors"
-                        onClick={() => handleToggleFiles(s.skill_id)}
-                      >
-                        <Folder className="gba:h-3 gba:w-3" />
-                        {expandedSkillId === s.skill_id ? t('skills-browse-hide-files') : t('skills-browse-files')}
-                        {s.has_files && s.file_count != null && s.file_count > 0 && (
-                          <span
-                            className="gba:ml-1 gba:text-[10px] gba:px-1.5 gba:py-0.5 gba:rounded-full gba:border gba:border-primary/30 gba:bg-primary/10 gba:text-primary gba:font-medium"
-                            data-testid={`browse-skills-file-count-${s.skill_id}`}
-                          >
-                            {s.file_count}
-                          </span>
-                        )}
-                      </button>
+                        className="gba:absolute gba:inset-0 gba:z-0 gba:rounded-md gba:cursor-pointer gba:hover:bg-muted/20 gba:transition-colors focus-visible:gba:outline-none focus-visible:gba:ring-2 focus-visible:gba:ring-primary/40"
+                        onClick={() => onEditSkill!(s.skill_id)}
+                        data-testid={`browse-skills-row-${s.skill_id}`}
+                        aria-pressed={isSelected}
+                        aria-label={`Edit ${s.name || s.skill_id}`}
+                      />
                     )}
-                    {!isRuntimeOnly && (
-                      <button
-                        type="button"
-                        className="gba:inline-flex gba:items-center gba:gap-1 gba:px-2 gba:py-1 gba:rounded-md gba:text-[11px] gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted gba:transition-colors"
-                        title={s.has_files ? `Export ${s.skill_id} as zip` : `Download ${s.skill_id} as .md`}
-                        onClick={() => void handleExportSkill(s)}
-                      >
-                        <UploadSimple className="gba:h-3 gba:w-3 gba:rotate-180" />
-                        {t('skills-browse-export')}
-                      </button>
-                    )}
-                    {isRuntimeOnly && (
-                      <span className="gba:px-2 gba:py-1 gba:text-[11px] gba:text-muted-foreground">
-                        {t('skills-browse-runtime-skill')}
-                      </span>
-                    )}
+                    {skillBody}
                   </div>
 
-                  {s.skill_id !== 'skill-creator' && !isRuntimeOnly && s.status !== 'archived' && (
-                    <div className="gba:flex gba:items-center gba:gap-1">
-                      {s.is_active === false ? (
+                  <div className="gba:flex gba:shrink-0 gba:items-center">
+                    {showSkillActions &&
+                      (s.is_active === false ? (
                         <button
                           type="button"
-                          className="gba:inline-flex gba:items-center gba:gap-1 gba:px-2 gba:py-1 gba:rounded-md gba:text-[11px] gba:font-medium gba:text-green-700 gba:bg-green-50 gba:hover:bg-green-100 gba:transition-colors"
+                          className={`${SKILL_ROW_ACTIVE_PILL} gba:hover:bg-green-100 gba:transition-colors`}
                           disabled={transitioningId === s.skill_id}
                           onClick={() => void handleTransition(s.skill_id, 'enable')}
+                          data-testid={`browse-skills-enable-${s.skill_id}`}
                         >
                           <CheckCircle className="gba:h-3 gba:w-3" />
                           {t('skills-browse-enable')}
                         </button>
                       ) : (
-                        <button
-                          type="button"
-                          className="gba:inline-flex gba:items-center gba:gap-1 gba:px-2 gba:py-1 gba:rounded-md gba:text-[11px] gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted gba:transition-colors"
-                          disabled={transitioningId === s.skill_id}
-                          onClick={() => void handleTransition(s.skill_id, 'disable')}
-                        >
-                          {t('skills-browse-disable')}
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        className="gba:inline-flex gba:items-center gba:gap-1 gba:px-2 gba:py-1 gba:rounded-md gba:text-[11px] gba:text-muted-foreground gba:hover:text-destructive gba:hover:bg-destructive/10 gba:transition-colors"
-                        disabled={transitioningId === s.skill_id}
-                        onClick={() => void handleArchiveSkill(s.skill_id)}
-                        data-testid={`browse-skills-archive-${s.skill_id}`}
-                      >
-                        <Archive className="gba:h-3 gba:w-3" />
-                        {t('skills-browse-archive')}
-                      </button>
-                    </div>
-                  )}
+                        <span className={SKILL_ROW_ACTIVE_PILL} data-testid={`browse-skills-enabled-${s.skill_id}`}>
+                          <CheckCircle className="gba:h-3 gba:w-3" />
+                          {t('skills-browse-status-enabled')}
+                        </span>
+                      ))}
+                  </div>
                 </div>
 
                 {expandedSkillId === s.skill_id && (
                   <div className="gba:border-t gba:border-border gba:bg-muted/20 gba:px-3 gba:py-2.5 gba:space-y-2">
                     {skillFilesLoading ? (
-                      <p className="gba:text-[11px] gba:text-muted-foreground">{t('skills-browse-loading')}</p>
+                      <p className="gba:text-[11px] gba:text-muted-foreground">{t('skills-browse-loading-files')}</p>
                     ) : skillFiles.length === 0 ? (
-                      <p className="gba:text-[11px] gba:text-muted-foreground">{t('skills-browse-empty')}</p>
+                      <p className="gba:text-[11px] gba:text-muted-foreground">{t('skills-browse-no-aux-files')}</p>
                     ) : (
                       <div className="gba:space-y-1">
                         {skillFiles.map(f => (

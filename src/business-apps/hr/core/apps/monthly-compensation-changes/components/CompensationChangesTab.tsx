@@ -17,6 +17,7 @@ import { TabDataTable } from './TabDataTable'
 
 interface CompensationChangesTabProps {
   readonly t: TranslationFn
+  readonly accessToken: string
   readonly titleSections: Array<{ id: string; label: string; metadata?: { count: number } }>
   readonly currentSection: string
   readonly onSectionChange: (section: string) => void
@@ -37,6 +38,7 @@ interface CompensationChangesTabProps {
 
 export function CompensationChangesTab({
   t,
+  accessToken,
   titleSections,
   currentSection,
   onSectionChange,
@@ -89,7 +91,7 @@ export function CompensationChangesTab({
 
       <DetailSheet open={selectedRow !== null} onClose={() => setSelectedRow(null)} title={t('sheet-change-details')}>
         {selectedRow?.category === 'salary' && (
-          <SalaryDetailPanel record={selectedRow.raw as SalaryChangeRecord} t={t} />
+          <SalaryDetailPanel record={selectedRow.raw as SalaryChangeRecord} t={t} accessToken={accessToken} />
         )}
         {selectedRow?.category === 'bonus' && <BonusDetailPanel record={selectedRow.raw as BonusRecord} t={t} />}
         {selectedRow?.category === 'benefit' && (

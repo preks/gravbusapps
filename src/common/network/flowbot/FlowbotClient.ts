@@ -93,6 +93,7 @@ export interface ExtractFromFileRequest {
   mapping_json: string
   offset?: number
   max_rows?: number
+  investment_company_group_ref?: string
 }
 
 export interface CsvQuality {
@@ -104,8 +105,38 @@ export interface CsvQuality {
 }
 
 export interface ExtractFromFileResponse {
-  entityType: 'Lead' | 'Contact' | 'Account' | 'Opportunity'
+  entityType: string
   records: Array<Record<string, any>>
+  ownershipUpdates?: Array<{
+    rowIndex: number
+    companyName?: string | null
+    companyId?: string | null
+    ownerCompanyNames: string[]
+    ownerCompanyIds: string[]
+    ownedCompanyNames: string[]
+    ownedCompanyIds: string[]
+  }>
+  executiveUpdates?: Array<{
+    rowIndex: number
+    companyName?: string | null
+    companyId?: string | null
+    executiveNames: string[]
+    executiveEmployeeIds: string[]
+    executiveContactIds: string[]
+    executiveSourceTypes: string[]
+    executiveTypeRef?: string | null
+  }>
+  stakeholderUpdates?: Array<{
+    rowIndex: number
+    companyName?: string | null
+    companyId?: string | null
+    stakeholderNames: string[]
+    stakeholderContactIds: string[]
+    stakeholderAccountIds: string[]
+    stakeholderSourceTypes: string[]
+    stakeholderTypeRefs: (string | null)[]
+    stakeholderTypeLabels: (string | null)[]
+  }>
   totalRowsRead: number
   warnings: string[]
   fieldMappings: Array<{
@@ -346,6 +377,7 @@ export class FlowbotClient extends RestClient {
     requiredSubtypeKey?: string | null,
     additionalPropertiesFields?: readonly string[] | null,
     tileFieldKeys?: readonly string[] | null,
+    investmentCompanyGroupRef?: string | null,
     options: Omit<RequestOptions, 'body'> = {}
   ): Promise<ExtractFromFileResponse> {
     const formData = new FormData()
@@ -366,6 +398,9 @@ export class FlowbotClient extends RestClient {
     if (flowbotDomain === 'irm') {
       formData.append('additional_properties_fields', JSON.stringify(additionalPropertiesFields ?? []))
       formData.append('tile_fields', JSON.stringify(tileFieldKeys ?? []))
+    }
+    if (flowbotDomain === 'irm' && investmentCompanyGroupRef) {
+      formData.append('investment_company_group_ref', investmentCompanyGroupRef)
     }
     formData.append('offset', offset.toString())
     formData.append('max_rows', maxRows.toString())

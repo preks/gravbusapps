@@ -38,6 +38,8 @@ export const useCatalogData = ({ accessToken, travelRegionSetId }: UseCatalogDat
   const isLoadingRegionsRef = useRef(false)
   const currentCountryCodeRef = useRef<string | undefined>(undefined)
   const initialLoadDoneRef = useRef(false)
+  // Stores the full unfiltered list so client-side search can filter without re-fetching
+  const allTravelRegionsRef = useRef<CatalogOption[]>([])
 
   // Pagination state for countries
   const [isLoadingMoreCountries, setIsLoadingMoreCountries] = useState(false)
@@ -136,10 +138,10 @@ export const useCatalogData = ({ accessToken, travelRegionSetId }: UseCatalogDat
   }, [catalogClient])
 
   const fetchRegionsPage = useCallback(
-    async (countryCode?: string, offset = 0) => {
+    async (countryCode?: string, offset = 0, searchTerm?: string) => {
       if (!travelRegionSetId) return null
 
-      const query = GET_TRAVEL_REGIONS_WITH_COUNT(countryCode)
+      const query = GET_TRAVEL_REGIONS_WITH_COUNT(countryCode, searchTerm)
       return graphqlClient.request<{
         parent: Array<{ id: string; childEntriesAggregate: { aggregate: { count: number } } }>
         regions: any[]
@@ -168,15 +170,29 @@ export const useCatalogData = ({ accessToken, travelRegionSetId }: UseCatalogDat
         const totalCount = result.parent[0]?.childEntriesAggregate?.aggregate?.count ?? 0
         regionTotalRef.current = totalCount
 
-        const regions = result.regions.map((item: any) => ({
+        let regions = result.regions.map((item: any) => ({
           id: item.id,
           value: item.value,
           code: item.code
         }))
 
+        // If the country-code filter returned no results, fall back to all regions in the set
+        if (regions.length === 0 && countryCode) {
+          const fallbackResult = await fetchRegionsPage(undefined, 0)
+          if (fallbackResult) {
+            regions = fallbackResult.regions.map((item: any) => ({
+              id: item.id,
+              value: item.value,
+              code: item.code
+            }))
+            regionTotalRef.current = fallbackResult.parent[0]?.childEntriesAggregate?.aggregate?.count ?? 0
+          }
+        }
+
         setTravelRegions(regions)
+        allTravelRegionsRef.current = regions
         regionOffsetRef.current = regions.length
-        hasMoreRegionsRef.current = regions.length < totalCount
+        hasMoreRegionsRef.current = regions.length < regionTotalRef.current
       } catch (err) {
         console.error('Error loading travel regions:', err)
         setError('Failed to load travel regions')
@@ -213,6 +229,7 @@ export const useCatalogData = ({ accessToken, travelRegionSetId }: UseCatalogDat
       }))
 
       setTravelRegions(prev => [...prev, ...newRegions])
+      allTravelRegionsRef.current = [...allTravelRegionsRef.current, ...newRegions]
       regionOffsetRef.current += newRegions.length
       hasMoreRegionsRef.current = regionOffsetRef.current < regionTotalRef.current
     } catch (err) {
@@ -224,23 +241,51 @@ export const useCatalogData = ({ accessToken, travelRegionSetId }: UseCatalogDat
   }, [travelRegionSetId, fetchRegionsPage])
 
   const searchTravelRegions = useCallback(
-    (searchTerm: string) => {
+    async (searchTerm: string) => {
       if (!searchTerm.trim()) {
-        loadTravelRegions(currentCountryCodeRef.current)
+        // Restore full list when search is cleared
+        setTravelRegions(allTravelRegionsRef.current)
         return
       }
-      // Client-side filter on already-loaded regions is instant;
-      // if more pages exist, reload from server without country filter
-      // so the search covers the full set.
+
       if (hasMoreRegionsRef.current) {
-        loadTravelRegions(currentCountryCodeRef.current)
+        // More pages exist — do a server-side search so all regions are covered
+        if (isLoadingRegionsRef.current) return
+        isLoadingRegionsRef.current = true
+        setIsLoadingRegions(true)
+        try {
+          const result = await fetchRegionsPage(currentCountryCodeRef.current, 0, searchTerm)
+          if (result) {
+            const regions = result.regions.map((item: any) => ({
+              id: item.id,
+              value: item.value,
+              code: item.code
+            }))
+            setTravelRegions(regions)
+          }
+        } catch (err) {
+          console.error('Error searching travel regions:', err)
+        } finally {
+          isLoadingRegionsRef.current = false
+          setIsLoadingRegions(false)
+        }
+        return
       }
+
+      // All regions are already loaded — filter client-side instantly
+      const lower = searchTerm.toLowerCase()
+      const filtered = allTravelRegionsRef.current.filter(
+        region =>
+          region.value.toLowerCase().includes(lower) || (region.code && region.code.toLowerCase().includes(lower))
+      )
+      setTravelRegions(filtered)
     },
-    [loadTravelRegions]
+    [fetchRegionsPage]
   )
 
   const resetPagination = useCallback(() => {
     setTravelRegions([])
+    allTravelRegionsRef.current = []
     hasMoreRegionsRef.current = false
     regionOffsetRef.current = 0
     regionTotalRef.current = 0

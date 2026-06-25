@@ -10,6 +10,10 @@ interface CatalogRef {
   id: string
   code: string
   value: string
+  translations?: Array<{
+    localeCode: string
+    value: string
+  }>
 }
 
 interface EmployeeRef {
@@ -38,6 +42,7 @@ export interface SalaryChangeRecord {
   requestedPercent: number | null
   requestedAmount: number | null
   salaryAdjustReasonRef: string | null
+  salaryAdjustReason?: CatalogRef | null
   notes: string | null
   createdAt: string
 }

@@ -24,7 +24,8 @@ export function processStandardEntityResponse(response: any, entityTypePlural: s
           error: `${err.code || 'ERROR'}: ${err.detail || err.title || 'Unknown error'}`
         }))
       : [],
-    createdIds: createdEntities.map((entity: any) => entity.id)
+    createdIds: createdEntities.map((entity: any) => entity.id),
+    createdEntities
   }
 }
 

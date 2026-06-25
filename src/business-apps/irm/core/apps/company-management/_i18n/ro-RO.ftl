@@ -4,6 +4,7 @@ no-code = Fara cod
 investment-company-column = Companie de investitii
 registration-number-column = Nr. inregistrare
 tax-id-column = ID fiscal
+accounting-area-column = Zona contabila
 owner-column = Proprietar
 owns-property-column = Detine proprietate
 currency-column = Moneda

@@ -116,7 +116,7 @@ export function Compensation({ accessToken, prefixDataTestId = 'Compensation' }:
     if (gapExplanation.loading) return t('hr-data-filter-loading')
     if (gapExplanation.error) return 'Error'
     if (!gapExplanation.data) return 'N/A'
-    return formatPercentage(gapExplanation.data.unexplainedAbsolutePercent)
+    return formatPercentage(gapExplanation.data.unexplainedAbsolutePercent, 2)
   }, [gapExplanation, t])
 
   const getUnexplainedPayGapIcon = useCallback(() => {

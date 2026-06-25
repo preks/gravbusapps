@@ -30,6 +30,14 @@ export interface IrmEntityImportViewProps extends BusinessAppContextProps {
   headerDescription: string
   entityType: string
   entityTypeSingular: string
+  /**
+   * Additional enforced fields to merge with catalog-based enforced
+   * selects during conversion. Used for GraphQL entity-based selects
+   * (like InvestmentCompanyGroup) that can't use CatalogSelect.
+   */
+  additionalEnforcedFields?: Record<string, string>
+  /** Slot for custom select components rendered on the upload step */
+  customSelectsSlot?: React.ReactNode
   onBack?: () => void
   'data-testid'?: string
 }
@@ -40,6 +48,9 @@ export const IrmEntityImportView: React.FC<IrmEntityImportViewProps> = ({
   headerDescription,
   entityType,
   entityTypeSingular,
+  additionalEnforcedFields,
+  customSelectsSlot,
+  enableInvestmentCompanyGroupSelection = false,
   onBack,
   'data-testid': testId = 'irm-entity-import-view',
   ...context
@@ -70,8 +81,11 @@ export const IrmEntityImportView: React.FC<IrmEntityImportViewProps> = ({
       headerDescription={headerDescription}
       entityType={entityType}
       entityTypeSingular={entityTypeSingular}
+      enableInvestmentCompanyGroupSelection={enableInvestmentCompanyGroupSelection}
       submissionStrategy={submissionStrategy}
       analyzerContext={analyzerContext}
+      additionalEnforcedFields={additionalEnforcedFields}
+      customSelectsSlot={customSelectsSlot}
       onBack={onBack}
       data-testid={testId}
       {...context}

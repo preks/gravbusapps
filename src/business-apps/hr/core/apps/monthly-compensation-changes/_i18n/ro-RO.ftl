@@ -15,7 +15,7 @@ filter-changes-title = Filtrare Modificări Compensații
 filter-benefits-title = Filtrare Beneficii Active
 filter-changes-description = Configurează filtrele pentru datele privind modificările de compensații
 filter-benefits-description = Configurează filtrele pentru datele privind beneficiile active
-filter-group-legal-entity = Entitate Juridică
+filter-group-legal-entity = Companie
 filter-group-status = Status
 filter-group-provider = Furnizor
 
@@ -83,13 +83,23 @@ sheet-change-details = Detalii Modificare
 sheet-benefit-details = Detalii Beneficiu
 
 section-salary = Salariu
+section-previous-salary = Salariu anterior
+section-resulting-salary = Salariu rezultat
 field-monthly-gross = Brut Lunar
 field-annual-gross = Brut Anual
 field-hourly-gross = Brut Orar
 
 section-adjustment = Ajustare
-field-increase-percent = Creștere %
-field-increase-amount = Sumă Creștere
+field-change = Modificare
+field-change-details = Detalii modificare
+field-change-per-hour = Modificare pe oră
+field-change-per-month = Modificare pe lună
+field-change-per-year = Modificare pe an
+field-increase-percent = Modificare %
+field-increase-amount = Sumă modificare
+field-calculated-change-percent = Modificare calculată %
+field-calculated-change-amount = Sumă modificare calculată
+field-calculated-monthly-change-amount = Sumă modificare lunară calculată
 
 section-details = Detalii
 field-effective-from = Efectiv de la

@@ -197,6 +197,10 @@ value-na = K.A.
 action-acknowledge = Bestätigen
 action-retry = Erneut versuchen
 
+# Common Review Labels
+review-previous-values = Vorherige Werte
+review-new-values = Neue Werte
+
 # Common States
 loading = Wird geladen...
 
@@ -319,7 +323,23 @@ grant-bonus-pending-status = Ausstehend
 adjust-salary-process-title = Gehaltsanpassung
 adjust-salary-pending-status = Ausstehend
 
+# Change Working Hours Review Form
+working-hours-review-title = Änderungen der Arbeitszeiten prüfen
+working-hours-active-from = Gültig ab
+working-hours-active-to = Gültig bis
+working-hours-weekly-hours = Wöchentliche Arbeitszeit
+working-hours-working-days = Arbeitstage / Woche
+working-hours-fte = FTE (Vollzeitäquivalent)
+weekday-monday = Montag
+weekday-tuesday = Dienstag
+weekday-wednesday = Mittwoch
+weekday-thursday = Donnerstag
+weekday-friday = Freitag
+weekday-saturday = Samstag
+weekday-sunday = Sonntag
+
 # Update Working Conditions Form
+working-conditions-review-title = Änderungen der Arbeitsbedingungen prüfen
 working-conditions-title = Arbeitsbedingungen aktualisieren
 working-conditions-employment-start-date = Gültig ab
 working-conditions-employment-end-date = Gültig bis

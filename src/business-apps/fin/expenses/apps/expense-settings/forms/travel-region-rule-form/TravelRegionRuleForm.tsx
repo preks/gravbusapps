@@ -82,10 +82,8 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
     error: catalogError,
     isLoadingRegions,
     hasMoreRegions,
-    loadTravelRegions,
     loadMoreTravelRegions,
-    searchTravelRegions,
-    resetPagination
+    searchTravelRegions
   } = useCatalogData({ accessToken, travelRegionSetId })
 
   const { groupedDetails } = useGroupedDetails({ formData, countries, currencies })
@@ -205,17 +203,6 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
 
   // Update group details
   const updateGroupDetail = (groupKey: string, field: string, value: any) => {
-    // If country is being updated, load travel regions for that country
-    if (field === 'countryRef' && value) {
-      // Extract country code from format "Country:v1:BE" -> "BE"
-      const parts = value.split(':')
-      const countryCode = parts[parts.length - 1]
-
-      // Reset pagination and load travel regions for selected country
-      resetPagination()
-      loadTravelRegions(countryCode)
-    }
-
     setFormData(prev => ({
       ...prev,
       details: prev.details.map((detail, index) => {
@@ -270,10 +257,6 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
 
     if (!formData.name.trim()) {
       errors.push('Rule name is required')
-    }
-
-    if (formData.details.length === 0) {
-      errors.push('At least one allowance detail is required')
     }
 
     formData.details.forEach((detail, index) => {

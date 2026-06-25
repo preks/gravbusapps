@@ -5,11 +5,11 @@ import GaugeComponent from 'react-gauge-component'
 // Determine status and color based on score
 function getStatusInfo(score: number) {
   if (score >= 80) {
-    return { label: 'STABLE', color: '#10b981', bgColor: '#dcfce7' } // Green
+    return { label: 'STABLE', color: 'var(--nw-success-on-card)', bgColor: 'var(--nw-success-secondary)' } // Green
   } else if (score >= 60) {
-    return { label: 'WATCH', color: '#f59e0b', bgColor: '#fef3c7' } // Yellow/Orange
+    return { label: 'WATCH', color: 'var(--nw-warning-on-card)', bgColor: 'var(--nw-warning-secondary)' } // Yellow/Orange
   } else {
-    return { label: 'CRITICAL', color: '#dc2626', bgColor: '#fee2e2' } // Red
+    return { label: 'CRITICAL', color: 'var(--nw-destructive-on-card)', bgColor: 'var(--nw-destructive-secondary)' } // Red
   }
 }
 
@@ -86,15 +86,15 @@ export default function EquityHealthGauge({ score, loading = false, error = null
           subArcs: [
             {
               limit: 60,
-              color: '#dc2626',
+              color: 'var(--nw-destructive)',
               showTick: true
             },
             {
               limit: 80,
-              color: '#f59e0b',
+              color: 'var(--nw-warning)',
               showTick: true
             },
-            { color: '#10b981' }
+            { color: 'var(--nw-success)' }
           ],
           subArcsStrokeWidth: 0,
           effects: { glow: false, innerShadow: false }

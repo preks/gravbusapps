@@ -26,7 +26,10 @@ import type {
   ImportAnalyzerResponse,
   ImportConfig,
   ImportResult,
-  ImportStep
+  ImportStep,
+  InvestmentCompanyOwnershipUpdate,
+  InvestmentCompanyExecutiveUpdate,
+  InvestmentCompanyStakeholderUpdate
 } from '@/common/components/common-relations/apps/data-import/types'
 import { env } from '@/common/env/EnvUtils'
 import { flowbotClient } from '@/common/network/flowbot'
@@ -37,6 +40,7 @@ import {
   applyEnforcedSelectDefaults,
   buildTargetFieldAdapters,
   extractErrorMessage,
+  extractOwnershipFromFile,
   extractWithRetry,
   normalizeEntityForImport,
   resolveInitialTargetField,
@@ -45,6 +49,15 @@ import {
 } from './shared'
 import type { ImportSubmissionStrategy } from './types'
 
+function mergeEnforcedFieldsJson(
+  enforcedFieldsJson: string | undefined,
+  investmentCompanyGroupId: string
+): string | undefined {
+  const base = enforcedFieldsJson ? (JSON.parse(enforcedFieldsJson) as Record<string, string>) : {}
+  const merged = investmentCompanyGroupId.length > 0 ? { ...base, investmentCompanyGroupId } : base
+  return Object.keys(merged).length > 0 ? JSON.stringify(merged) : undefined
+}
+
 export interface UseEntityImportReturn<T> {
   file: File | null
   agentResponse: ImportAnalyzerResponse | null
@@ -52,6 +65,8 @@ export interface UseEntityImportReturn<T> {
   campaignId: string
   campaignName: string
   setCampaign: (id: string | null, name?: string | null) => void
+  investmentCompanyGroupId: string
+  setInvestmentCompanyGroup: (id: string | null) => void
   step: ImportStep
   isLoading: boolean
   error: string | null
@@ -63,6 +78,15 @@ export interface UseEntityImportReturn<T> {
    */
   csvQuality: CsvQuality | null
   extractionWarnings: string[]
+  ownershipUpdates: InvestmentCompanyOwnershipUpdate[]
+  executiveUpdates: InvestmentCompanyExecutiveUpdate[]
+  stakeholderUpdates: InvestmentCompanyStakeholderUpdate[]
+  ownershipFile: File | null
+  ownershipExtractionWarnings: string[]
+  ownershipImportResult: ImportResult | null
+  createdCompaniesForOwnership: Record<string, any>[]
+  sourceEntitiesForOwnership: Record<string, any>[]
+  deferOwnershipSubmission: boolean
   handleFileChange: (file: File | null) => Promise<void>
   analyzeWithAgent: () => Promise<void>
   convertData: (
@@ -77,6 +101,12 @@ export interface UseEntityImportReturn<T> {
    */
   retryWithHardRepair: () => Promise<void>
   importToBackend: () => Promise<void>
+  goToOwnershipStep: () => void
+  skipOwnershipStep: () => void
+  setOwnershipFile: (file: File | null) => void
+  usePreviousFileForOwnership: () => void
+  extractOwnershipFromFile: () => Promise<void>
+  importOwnershipToBackend: () => Promise<void>
   downloadJSON: () => void
   reset: () => void
 }
@@ -100,12 +130,23 @@ export function useEntityImport<T = ConvertedEntity>(
   const [convertedEntities, setConvertedEntities] = useState<T[]>([])
   const [campaignId, setCampaignId] = useState<string>('')
   const [campaignName, setCampaignName] = useState<string>('')
+  const [investmentCompanyGroupId, setInvestmentCompanyGroupId] = useState<string>('')
   const [step, setStep] = useState<ImportStep>('upload')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [importResult, setImportResult] = useState<ImportResult | null>(null)
   const [csvQuality, setCsvQuality] = useState<CsvQuality | null>(null)
   const [extractionWarnings, setExtractionWarnings] = useState<string[]>([])
+  const [ownershipUpdates, setOwnershipUpdates] = useState<InvestmentCompanyOwnershipUpdate[]>([])
+  const [executiveUpdates, setExecutiveUpdates] = useState<InvestmentCompanyExecutiveUpdate[]>([])
+  const [stakeholderUpdates, setStakeholderUpdates] = useState<InvestmentCompanyStakeholderUpdate[]>([])
+  const [ownershipFile, setOwnershipFile] = useState<File | null>(null)
+  const [ownershipExtractionWarnings, setOwnershipExtractionWarnings] = useState<string[]>([])
+  const [ownershipImportResult, setOwnershipImportResult] = useState<ImportResult | null>(null)
+  const [createdCompaniesForOwnership, setCreatedCompaniesForOwnership] = useState<Record<string, any>[]>([])
+  const [sourceEntitiesForOwnership, setSourceEntitiesForOwnership] = useState<Record<string, any>[]>([])
+
+  const deferOwnershipSubmission = Boolean(config.deferOwnershipSubmission)
 
   // Snapshot of the last `convertData` arguments so `retryWithHardRepair`
   // can replay the call without making the user re-pick mappings.
@@ -118,6 +159,10 @@ export function useEntityImport<T = ConvertedEntity>(
   const setCampaign = useCallback((id: string | null, name?: string | null) => {
     setCampaignId(id || '')
     setCampaignName(name || '')
+  }, [])
+
+  const setInvestmentCompanyGroup = useCallback((id: string | null) => {
+    setInvestmentCompanyGroupId(id || '')
   }, [])
 
   const aiServiceRef = useRef<ImportAnalyzer | null>(null)
@@ -229,16 +274,18 @@ export function useEntityImport<T = ConvertedEntity>(
         return
       }
 
+      const resolvedEnforcedFieldsJson = mergeEnforcedFieldsJson(enforcedFieldsJson, investmentCompanyGroupId)
       lastConvertArgsRef.current = { mappings, enforcedFieldsJson, transformFn }
 
       setIsLoading(true)
       setError(null)
       setImportResult(null)
       setCsvQuality(null)
+      setOwnershipUpdates([])
 
       try {
-        const enforcedKeys = enforcedFieldsJson
-          ? new Set(Object.keys(JSON.parse(enforcedFieldsJson) as Record<string, string>))
+        const enforcedKeys = resolvedEnforcedFieldsJson
+          ? new Set(Object.keys(JSON.parse(resolvedEnforcedFieldsJson) as Record<string, string>))
           : new Set<string>()
         const filteredMappings =
           enforcedKeys.size > 0 ? mappings.filter(m => !enforcedKeys.has(toShortAlias(m.targetField))) : mappings
@@ -252,12 +299,15 @@ export function useEntityImport<T = ConvertedEntity>(
           records,
           usedUiMappings,
           csvQuality: extractedCsvQuality,
-          warnings: backendWarnings
+          warnings: backendWarnings,
+          ownershipUpdates: extractedOwnershipUpdates,
+          executiveUpdates: extractedExecutiveUpdates,
+          stakeholderUpdates: extractedStakeholderUpdates
         } = await extractWithRetry(
           file,
           config,
           filteredMappings,
-          enforcedFieldsJson,
+          resolvedEnforcedFieldsJson,
           adapters,
           'auto',
           analyzerContext?.requiredSubtypeKey,
@@ -282,6 +332,13 @@ export function useEntityImport<T = ConvertedEntity>(
         setConvertedEntities(finalEntities as T[])
         setCsvQuality(extractedCsvQuality)
         setExtractionWarnings(backendWarnings)
+        if (deferOwnershipSubmission) {
+          setOwnershipUpdates([])
+        } else {
+          setOwnershipUpdates(extractedOwnershipUpdates)
+        }
+        setExecutiveUpdates(extractedExecutiveUpdates)
+        setStakeholderUpdates(extractedStakeholderUpdates)
         setStep('result')
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Conversion failed')
@@ -289,7 +346,7 @@ export function useEntityImport<T = ConvertedEntity>(
         setIsLoading(false)
       }
     },
-    [file, config, strategy, analyzerContext]
+    [file, config, strategy, analyzerContext, investmentCompanyGroupId, deferOwnershipSubmission]
   )
 
   const retryWithHardRepair = useCallback(async () => {
@@ -304,9 +361,10 @@ export function useEntityImport<T = ConvertedEntity>(
 
     try {
       const { mappings, enforcedFieldsJson, transformFn } = args
+      const resolvedEnforcedFieldsJson = mergeEnforcedFieldsJson(enforcedFieldsJson, investmentCompanyGroupId)
 
-      const enforcedKeys = enforcedFieldsJson
-        ? new Set(Object.keys(JSON.parse(enforcedFieldsJson) as Record<string, string>))
+      const enforcedKeys = resolvedEnforcedFieldsJson
+        ? new Set(Object.keys(JSON.parse(resolvedEnforcedFieldsJson) as Record<string, string>))
         : new Set<string>()
       const filteredMappings =
         enforcedKeys.size > 0 ? mappings.filter(m => !enforcedKeys.has(toShortAlias(m.targetField))) : mappings
@@ -320,12 +378,15 @@ export function useEntityImport<T = ConvertedEntity>(
         records,
         usedUiMappings,
         csvQuality: repairedCsvQuality,
-        warnings: backendWarnings
+        warnings: backendWarnings,
+        ownershipUpdates: repairedOwnershipUpdates,
+        executiveUpdates: repairedExecutiveUpdates,
+        stakeholderUpdates: repairedStakeholderUpdates
       } = await extractWithRetry(
         file,
         config,
         filteredMappings,
-        enforcedFieldsJson,
+        resolvedEnforcedFieldsJson,
         adapters,
         'hard',
         analyzerContext?.requiredSubtypeKey,
@@ -346,12 +407,19 @@ export function useEntityImport<T = ConvertedEntity>(
       setConvertedEntities(finalEntities as T[])
       setCsvQuality(repairedCsvQuality)
       setExtractionWarnings(backendWarnings)
+      if (deferOwnershipSubmission) {
+        setOwnershipUpdates([])
+      } else {
+        setOwnershipUpdates(repairedOwnershipUpdates)
+      }
+      setExecutiveUpdates(repairedExecutiveUpdates)
+      setStakeholderUpdates(repairedStakeholderUpdates)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Hard repair failed')
     } finally {
       setIsLoading(false)
     }
-  }, [file, config, strategy, analyzerContext])
+  }, [file, config, strategy, analyzerContext, investmentCompanyGroupId, deferOwnershipSubmission])
 
   const importToBackend = useCallback(async () => {
     if (convertedEntities.length === 0) {
@@ -370,8 +438,14 @@ export function useEntityImport<T = ConvertedEntity>(
         const normalized = normalizeEntityForImport(entity)
         const withOwnerAndCampaign = {
           ...normalized,
-          ownerEmployee: ownerEmployeeId || entity.ownerEmployee || entity.ownerEmployeeId,
-          ...(campaignId ? { salesCampaign: campaignId } : {})
+          // Prefer a per-row owner already resolved by Flowbot (e.g. from an
+          // "Owned By" column) over the current importer's employee id; the
+          // importer is only used as a fallback when the row didn't specify
+          // one. `resolveOwnerEmployeeId` enforces the same precedence
+          // downstream in each IRM payload builder.
+          ownerEmployee: entity.ownerEmployee || entity.ownerEmployeeId || ownerEmployeeId,
+          ...(campaignId ? { salesCampaign: campaignId } : {}),
+          ...(investmentCompanyGroupId ? { investmentCompanyGroupId } : {})
         }
         const withEnforcedDefaults = applyEnforcedSelectDefaults(withOwnerAndCampaign, config.enforcedSelects)
         const domainPrepared = strategy.prepareEntityForSubmission
@@ -385,7 +459,11 @@ export function useEntityImport<T = ConvertedEntity>(
         graphQLClient,
         accessToken,
         ownerEmployeeId,
-        config
+        config,
+        ownershipUpdates: deferOwnershipSubmission ? [] : ownershipUpdates,
+        executiveUpdates,
+        stakeholderUpdates,
+        deferOwnershipSubmission
       })
 
       if (result.success === false) {
@@ -395,6 +473,16 @@ export function useEntityImport<T = ConvertedEntity>(
       }
 
       setImportResult(result)
+      if (deferOwnershipSubmission) {
+        const createdCompanies =
+          result.createdEntities ??
+          (result.createdIds ?? []).map((id, index) => ({
+            id,
+            name: preparedEntities[index]?.name
+          }))
+        setCreatedCompaniesForOwnership(createdCompanies)
+        setSourceEntitiesForOwnership(preparedEntities)
+      }
       setError(null)
     } catch (err) {
       console.error(`Bulk create ${config.entityType}s failed:`, err)
@@ -405,7 +493,150 @@ export function useEntityImport<T = ConvertedEntity>(
     } finally {
       setIsLoading(false)
     }
-  }, [convertedEntities, config, props.userInfo, restClient, graphQLClient, accessToken, campaignId, strategy])
+  }, [
+    convertedEntities,
+    config,
+    props.userInfo,
+    restClient,
+    graphQLClient,
+    accessToken,
+    campaignId,
+    strategy,
+    ownershipUpdates,
+    executiveUpdates,
+    stakeholderUpdates,
+    deferOwnershipSubmission
+  ])
+
+  const goToOwnershipStep = useCallback(() => {
+    setStep('ownership')
+    setOwnershipImportResult(null)
+    setOwnershipExtractionWarnings([])
+    setOwnershipUpdates([])
+    setOwnershipFile(null)
+    setError(null)
+  }, [])
+
+  const reset = useCallback(() => {
+    setFile(null)
+    setAgentResponse(null)
+    setConvertedEntities([])
+    setCampaignId('')
+    setCampaignName('')
+    setInvestmentCompanyGroupId('')
+    setStep('upload')
+    setError(null)
+    setImportResult(null)
+    setCsvQuality(null)
+    setExtractionWarnings([])
+    setOwnershipUpdates([])
+    setExecutiveUpdates([])
+    setStakeholderUpdates([])
+    setOwnershipFile(null)
+    setOwnershipExtractionWarnings([])
+    setOwnershipImportResult(null)
+    setCreatedCompaniesForOwnership([])
+    setSourceEntitiesForOwnership([])
+    lastConvertArgsRef.current = null
+  }, [])
+
+  const skipOwnershipStep = useCallback(() => {
+    reset()
+  }, [reset])
+
+  const handleOwnershipFileChange = useCallback((selectedFile: File | null) => {
+    setOwnershipFile(selectedFile)
+    setOwnershipUpdates([])
+    setOwnershipExtractionWarnings([])
+    setOwnershipImportResult(null)
+    setError(null)
+  }, [])
+
+  const usePreviousFileForOwnership = useCallback(() => {
+    if (!file) {
+      setError('No file available from Step 1')
+      return
+    }
+    handleOwnershipFileChange(file)
+  }, [file, handleOwnershipFileChange])
+
+  const extractOwnershipFromFileAction = useCallback(async () => {
+    if (!ownershipFile) {
+      setError('Please upload an ownership file first')
+      return
+    }
+
+    setIsLoading(true)
+    setError(null)
+    setOwnershipImportResult(null)
+
+    try {
+      const { ownershipUpdates: extractedOwnershipUpdates, warnings } = await extractOwnershipFromFile(
+        ownershipFile,
+        config
+      )
+      setOwnershipUpdates(extractedOwnershipUpdates)
+      setOwnershipExtractionWarnings(warnings)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Ownership extraction failed')
+    } finally {
+      setIsLoading(false)
+    }
+  }, [ownershipFile, config])
+
+  const importOwnershipToBackend = useCallback(async () => {
+    if (!strategy.submitOwnership) {
+      setError('Ownership import is not supported for this entity type')
+      return
+    }
+
+    if (ownershipUpdates.length === 0) {
+      setError('No ownership relationships to import')
+      return
+    }
+
+    setIsLoading(true)
+    setError(null)
+    setOwnershipImportResult(null)
+
+    try {
+      const result = await strategy.submitOwnership(ownershipUpdates, {
+        restClient,
+        graphQLClient,
+        accessToken,
+        ownerEmployeeId: props.userInfo?.employeeDetails?.employeeId,
+        config,
+        createdCompaniesForOwnership,
+        sourceEntitiesForOwnership,
+        deferOwnershipSubmission: true
+      })
+
+      if (result.success === false) {
+        setError('Ownership import failed')
+        setOwnershipImportResult(result)
+        throw new Error('Ownership import failed')
+      }
+
+      setOwnershipImportResult(result)
+      setError(null)
+    } catch (err) {
+      const friendlyMessage = strategy.normalizeError?.(err) ?? extractErrorMessage(err)
+      setError(friendlyMessage)
+      throw err
+    } finally {
+      setIsLoading(false)
+    }
+  }, [
+    strategy,
+    ownershipUpdates,
+    restClient,
+    graphQLClient,
+    accessToken,
+    props.userInfo,
+    config,
+    createdCompaniesForOwnership,
+    sourceEntitiesForOwnership
+  ])
 
   const downloadJSON = useCallback(() => {
     const dataStr = JSON.stringify(convertedEntities, null, 2)
@@ -418,20 +649,6 @@ export function useEntityImport<T = ConvertedEntity>(
     URL.revokeObjectURL(url)
   }, [convertedEntities, config.entityType])
 
-  const reset = useCallback(() => {
-    setFile(null)
-    setAgentResponse(null)
-    setConvertedEntities([])
-    setCampaignId('')
-    setCampaignName('')
-    setStep('upload')
-    setError(null)
-    setImportResult(null)
-    setCsvQuality(null)
-    setExtractionWarnings([])
-    lastConvertArgsRef.current = null
-  }, [])
-
   return {
     file,
     agentResponse,
@@ -439,17 +656,34 @@ export function useEntityImport<T = ConvertedEntity>(
     campaignId,
     campaignName,
     setCampaign,
+    investmentCompanyGroupId,
+    setInvestmentCompanyGroup,
     step,
     isLoading,
     error,
     importResult,
     csvQuality,
     extractionWarnings,
+    ownershipUpdates,
+    executiveUpdates,
+    stakeholderUpdates,
+    ownershipFile,
+    ownershipExtractionWarnings,
+    ownershipImportResult,
+    createdCompaniesForOwnership,
+    sourceEntitiesForOwnership,
+    deferOwnershipSubmission,
     handleFileChange,
     analyzeWithAgent,
     convertData,
     retryWithHardRepair,
     importToBackend,
+    goToOwnershipStep,
+    skipOwnershipStep,
+    setOwnershipFile: handleOwnershipFileChange,
+    usePreviousFileForOwnership,
+    extractOwnershipFromFile: extractOwnershipFromFileAction,
+    importOwnershipToBackend,
     downloadJSON,
     reset
   }

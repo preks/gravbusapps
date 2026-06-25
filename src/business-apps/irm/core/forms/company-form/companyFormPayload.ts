@@ -10,6 +10,9 @@ type InvestmentCompanyMutationPayload = Record<string, unknown> & {
   investmentCompanyOwnership?: unknown[]
   investmentCompanyOwnerships?: unknown[]
   ownerships?: unknown[]
+  investmentCompanyStakeholder?: unknown[]
+  investmentCompanyStakeholders?: unknown[]
+  stakeholders?: unknown[]
   picture?: string
   pictureThumbnail?: string
 }
@@ -32,6 +35,7 @@ export const buildCompanySubmitPayload = async (
     taxIdentificationNumber: data.taxIdentificationNumber?.trim() || undefined,
     taxNumber: data.taxNumber?.trim() || undefined,
     valueAddedTaxNumber: data.valueAddedTaxNumber?.trim() || undefined,
+    accountingArea: data.accountingArea?.trim() || undefined,
     currencyRef: data.currencyRef || undefined,
     ownerEmployeeId: data.ownerEmployeeId || undefined,
     ownsProperty: data.ownsProperty,
@@ -123,6 +127,48 @@ export const buildCompanySubmitPayload = async (
     }))
   }
 
+  const stakeholders =
+    data.stakeholders
+      ?.map(stakeholder => {
+        const investmentContactId =
+          stakeholder.sourceType === 'investmentContact' ? stakeholder.investmentContactId : undefined
+        const investmentAccountId =
+          stakeholder.sourceType === 'investmentAccount' ? stakeholder.investmentAccountId : undefined
+        const name = stakeholder.sourceType === 'external' ? stakeholder.name?.trim() : undefined
+
+        if (!investmentContactId && !investmentAccountId && !name) {
+          return null
+        }
+
+        return {
+          id: stakeholder.id,
+          version: stakeholder.version,
+          investmentCompanyId: data.id,
+          investmentCompany: data.id,
+          investmentContactId,
+          investmentContact: investmentContactId,
+          investmentAccountId,
+          investmentAccount: investmentAccountId,
+          name,
+          investmentCompanyStakeholderTypeRef: stakeholder.investmentCompanyStakeholderTypeRef
+        } satisfies RelationPayload
+      })
+      .filter(isDefined) || []
+
+  if (data.stakeholders !== undefined) {
+    investmentCompany.investmentCompanyStakeholder = stakeholders
+    investmentCompany.investmentCompanyStakeholders = stakeholders
+    investmentCompany.stakeholders = stakeholders.map(stakeholder => ({
+      id: stakeholder.id,
+      version: stakeholder.version,
+      investmentCompany: stakeholder.investmentCompany,
+      investmentContact: stakeholder.investmentContact,
+      investmentAccount: stakeholder.investmentAccount,
+      name: stakeholder.name,
+      investmentCompanyStakeholderTypeRef: stakeholder.investmentCompanyStakeholderTypeRef
+    }))
+  }
+
   if (pictureFile) {
     investmentCompany.picture = await readFile(pictureFile)
   } else if (data.pictureModified && !picturePreview) {
@@ -132,11 +178,13 @@ export const buildCompanySubmitPayload = async (
 
   const investmentCompanyExecutives = data.executives === undefined ? undefined : executives
   const investmentCompanyOwnerships = data.ownerships === undefined ? undefined : ownerships
+  const investmentCompanyStakeholders = data.stakeholders === undefined ? undefined : stakeholders
 
   return {
     investmentCompany,
     investmentCompanyExecutives,
     investmentCompanyOwnerships,
+    investmentCompanyStakeholders,
     investmentCompanyGroupAssociations: data.investmentCompanyGroupId
       ? investmentCompany.investmentCompanyGroupAssociations
       : undefined,

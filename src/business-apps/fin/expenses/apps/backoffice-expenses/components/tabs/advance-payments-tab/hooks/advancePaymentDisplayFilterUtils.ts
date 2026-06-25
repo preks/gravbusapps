@@ -97,7 +97,7 @@ export function buildAdvancePaymentFilterConfiguration({
             field: 'reporterIds',
             label: t('filter-employee'),
             type: 'multi-select',
-            config: { options: reporterOptions, showSearch: false, showSelectAll: false }
+            config: { options: reporterOptions, showSearch: true, showSelectAll: false }
           }
         ]
       },
@@ -118,14 +118,14 @@ export function buildAdvancePaymentFilterConfiguration({
       },
       {
         id: 'date-range-group',
-        label: t('filter-date-range'),
+        label: t('advance-payment-filter-plan-start-date'),
         collapsible: true,
         defaultExpanded: false,
         filters: [
           {
             id: 'dateRange',
             field: 'dateRange',
-            label: t('filter-date-range'),
+            label: t('advance-payment-filter-plan-start-date'),
             type: 'date',
             config: createDateRangeConfig(t)
           }
@@ -192,8 +192,10 @@ export function buildAdvancePaymentFiltersObject({
 
 export function buildReporterOptions(
   selectedReporters: string[],
-  reporterSearchResults: string[]
+  availableReporters: string[]
 ): Array<{ id: string; label: string }> {
-  const unique = new Set<string>([...selectedReporters, ...reporterSearchResults])
-  return Array.from(unique).map(value => ({ id: value, label: value }))
+  const unique = new Set<string>([...selectedReporters, ...availableReporters])
+  return Array.from(unique)
+    .sort((a, b) => a.localeCompare(b))
+    .map(value => ({ id: value, label: value }))
 }

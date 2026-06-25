@@ -38,7 +38,6 @@ export interface WorkforceFeedItem {
   pendingFlowApproval: boolean
 }
 
-const FEED_CAP = 30
 const HOUR_MS = 60 * 60 * 1000
 const BUCKET_MS = 5 * 60 * 1000
 const BUCKET_COUNT = 12
@@ -113,9 +112,14 @@ function flowPendingItem(run: WorkforceActiveRun): WorkforceFeedItem {
 }
 
 /**
- * Build the merged, capped, newest-first feed from an overview snapshot.
+ * Build the merged, newest-first feed from an overview snapshot.
  * ``newActiveIds`` flags runs that appeared since the previous snapshot so the
  * UI can animate "just started" items.
+ *
+ * The feed is intentionally NOT globally truncated: the grouped sections each
+ * cap how many cards they show (with "Show N more"), and the "Needs you"
+ * section must reflect every action-required run so its count matches the
+ * server-side ribbon gauge. The backend already bounds the active-run query.
  */
 export function buildFeed(
   overview: WorkforceActiveOverview | null,
@@ -142,7 +146,105 @@ export function buildFeed(
   }
 
   items.sort((a, b) => tsMs(b.timestamp) - tsMs(a.timestamp))
-  return items.slice(0, FEED_CAP)
+  return items
+}
+
+// ---------------------------------------------------------------------------
+// Section grouping
+//
+// The live feed is short but mixes everything together, so finding the run
+// that needs a human, or telling active from finished, is hard. We partition
+// the already-sorted feed into three attention-ordered buckets that the
+// sidebar renders as collapsible sections. Pure + React-free so it stays
+// trivially unit-testable.
+// ---------------------------------------------------------------------------
+
+export type WorkforceFeedSectionId = 'needsYou' | 'active' | 'recentlyDone'
+
+export interface WorkforceFeedSection {
+  id: WorkforceFeedSectionId
+  items: WorkforceFeedItem[]
+}
+
+export interface GroupedWorkforceFeed {
+  needsYou: WorkforceFeedItem[]
+  active: WorkforceFeedItem[]
+  recentlyDone: WorkforceFeedItem[]
+}
+
+// Action-required states: the agent is blocked and a human must intervene
+// (approve a draft, resolve an escalation, or lift a budget cap). These are
+// the most important things to surface, so they get their own always-open
+// section at the top.
+const NEEDS_YOU_STATUSES: ReadonlySet<WorkforceRunStatus> = new Set<WorkforceRunStatus>([
+  'waiting_for_human',
+  'escalated',
+  'budget_paused'
+])
+
+// Per-section presentation config.
+// - ``initialVisible`` caps how many cards a section shows before a "Show N
+//   more" toggle. The header always shows the full count, so the cap only
+//   affects density, never the reported number.
+// - ``collapsible`` controls whether the whole section can be collapsed away.
+//   "Needs you" is NOT collapsible: action items must never be fully hidden
+//   behind a collapse (though they may sit behind a "Show N more").
+// - ``order`` fixes the top-to-bottom layout. ``labelKey`` is the Fluent key
+//   (the model holds the key, not the text, so this file stays React/i18n-free);
+//   icons are mapped in the component.
+export interface WorkforceFeedSectionConfig {
+  id: WorkforceFeedSectionId
+  labelKey: string
+  order: number
+  initialVisible: number
+  collapsible: boolean
+}
+
+export const WORKFORCE_FEED_SECTION_CONFIG: Record<WorkforceFeedSectionId, WorkforceFeedSectionConfig> = {
+  needsYou: {
+    id: 'needsYou',
+    labelKey: 'command-center-section-needs-you',
+    order: 0,
+    initialVisible: 6,
+    collapsible: false
+  },
+  active: { id: 'active', labelKey: 'command-center-section-active', order: 1, initialVisible: 3, collapsible: true },
+  recentlyDone: {
+    id: 'recentlyDone',
+    labelKey: 'command-center-section-recently-done',
+    order: 2,
+    initialVisible: 2,
+    collapsible: true
+  }
+}
+
+// Sections in render order, for components that iterate without re-sorting.
+export const WORKFORCE_FEED_SECTION_ORDER: readonly WorkforceFeedSectionId[] = ['needsYou', 'active', 'recentlyDone']
+
+/**
+ * Partition a feed (newest-first) into attention-ordered sections.
+ *
+ * - ``needsYou``: runs blocked on a human (waiting / escalated / budget paused).
+ * - ``active``: live runs still working (running / pending).
+ * - ``recentlyDone``: everything finished (completed / failed / cancelled / filtered).
+ *
+ * Relative order inside each bucket is preserved from the input, so callers
+ * keep the newest-first ordering ``buildFeed`` produced.
+ */
+export function groupFeed(items: readonly WorkforceFeedItem[]): GroupedWorkforceFeed {
+  const grouped: GroupedWorkforceFeed = { needsYou: [], active: [], recentlyDone: [] }
+  for (const item of items) {
+    // A completed run whose flow is paused on a human approval is action-required
+    // too, even though its kind is "finished".
+    if (NEEDS_YOU_STATUSES.has(item.status) || item.pendingFlowApproval) {
+      grouped.needsYou.push(item)
+    } else if (item.kind === 'active') {
+      grouped.active.push(item)
+    } else {
+      grouped.recentlyDone.push(item)
+    }
+  }
+  return grouped
 }
 
 export interface ThroughputSnapshot {

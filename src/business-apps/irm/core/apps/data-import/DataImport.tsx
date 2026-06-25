@@ -58,6 +58,11 @@ export const DataImport: React.FC<DataImportProps> = props => {
           description: t('card-opportunity-description'),
           buttonLabel: t('card-opportunity-button')
         },
+        companyCard: {
+          title: t('card-company-title'),
+          description: t('card-company-description'),
+          buttonLabel: t('card-company-button')
+        },
         investmentsCard: {
           title: t('card-investments-title'),
           description: t('card-investments-description')
@@ -65,6 +70,11 @@ export const DataImport: React.FC<DataImportProps> = props => {
         investmentReportsCard: {
           title: t('card-investment-reports-title'),
           description: t('card-investment-reports-description')
+        },
+        equityRoundsCard: {
+          title: t('card-equity-rounds-title'),
+          description: t('card-equity-rounds-description'),
+          buttonLabel: t('card-equity-rounds-button')
         }
       }),
     [investmentGroups, t]

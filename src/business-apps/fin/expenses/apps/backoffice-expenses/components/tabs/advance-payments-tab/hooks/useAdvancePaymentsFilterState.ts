@@ -1,7 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useDebounce } from '@/common/hooks/useDebounce'
-import useCloseDropdownOnOutsideClick from '../../common/useCloseDropdownOnOutsideClick'
-import { useBackofficeAsyncSearch } from '../../../../hooks/useBackofficeAsyncSearch'
 import { getErrorMessage } from '../../../../utils/errorUtils'
 import type { TranslateFn } from '../../../../utils/utils'
 import {
@@ -11,19 +9,32 @@ import {
 } from './advancePaymentDisplayFilterUtils'
 import { applyAdvancePaymentDisplayFilters } from './advancePaymentDisplayFilterApply'
 import { hasActiveAdvancePaymentFilters, type AdvancePaymentFilterState } from './advancePaymentQueryBuilder'
-import type { CustomGroupRenderProps } from '../../../../common/components/BackofficeFilterSheet'
 
 interface DepartmentOption {
   id: string
   name: string
 }
 
+interface AdvancePaymentReporterSearchOptions {
+  searchTerm?: string
+  status?: string
+  amountMin?: string
+  amountMax?: string
+  advanceMin?: string
+  advanceMax?: string
+  currencyRef?: string
+  departmentId?: string
+  dateFrom?: string
+  dateTo?: string
+}
+
 interface UseAdvancePaymentsFilterStateParams {
   t: TranslateFn
   searchStatuses: () => Promise<string[]>
-  searchReporters: (searchTerm: string) => Promise<string[]>
+  searchReporters: (searchTerm: string, options?: AdvancePaymentReporterSearchOptions) => Promise<string[]>
   departmentOptions: DepartmentOption[]
   currencyRef: string
+  searchTerm: string
   setCurrentPage: (page: number) => void
 }
 
@@ -33,6 +44,7 @@ export function useAdvancePaymentsFilterState({
   searchReporters,
   departmentOptions,
   currencyRef,
+  searchTerm,
   setCurrentPage
 }: UseAdvancePaymentsFilterStateParams) {
   const [statusFilter, setStatusFilter] = useState<string[]>([])
@@ -41,25 +53,17 @@ export function useAdvancePaymentsFilterState({
   const [advanceMinFilter, setAdvanceMinFilter] = useState('')
   const [advanceMaxFilter, setAdvanceMaxFilter] = useState('')
   const [reporterFilter, setReporterFilter] = useState('')
-  const [reporterSearchText, setReporterSearchText] = useState('')
-  const [showReporterDropdown, setShowReporterDropdown] = useState(false)
   const [selectedReporters, setSelectedReporters] = useState<string[]>([])
   const [departmentId, setDepartmentId] = useState<string>('')
   const [dateFrom, setDateFrom] = useState<string>('')
   const [dateTo, setDateTo] = useState<string>('')
   const [availableStatuses, setAvailableStatuses] = useState<string[]>([])
+  const [availableReporters, setAvailableReporters] = useState<string[]>([])
 
   const debouncedAmountMin = useDebounce(amountMinFilter, 500)
   const debouncedAmountMax = useDebounce(amountMaxFilter, 500)
   const debouncedAdvanceMin = useDebounce(advanceMinFilter, 500)
   const debouncedAdvanceMax = useDebounce(advanceMaxFilter, 500)
-  const debouncedReporterSearchText = useDebounce(reporterSearchText, 300)
-
-  const { results: reporterSearchResults, loading: reporterSearchLoading } = useBackofficeAsyncSearch<string>({
-    query: debouncedReporterSearchText,
-    searchFn: searchReporters,
-    logContext: 'Error searching reporters:'
-  })
 
   useEffect(() => {
     const loadAvailableStatuses = async () => {
@@ -73,15 +77,6 @@ export function useAdvancePaymentsFilterState({
 
     loadAvailableStatuses()
   }, [searchStatuses])
-
-  useCloseDropdownOnOutsideClick({
-    containerClassName: 'reporter-search-container',
-    onOutsideClick: () => setShowReporterDropdown(false)
-  })
-
-  const resetPage = useCallback(() => {
-    setCurrentPage(1)
-  }, [setCurrentPage])
 
   const filterState = useMemo<AdvancePaymentFilterState>(
     () => ({
@@ -110,11 +105,55 @@ export function useAdvancePaymentsFilterState({
     ]
   )
 
+  useEffect(() => {
+    let isCancelled = false
+
+    const loadAvailableReporters = async () => {
+      try {
+        const reporters = await searchReporters('', {
+          searchTerm,
+          status: statusFilter.join(','),
+          amountMin: debouncedAmountMin,
+          amountMax: debouncedAmountMax,
+          advanceMin: debouncedAdvanceMin,
+          advanceMax: debouncedAdvanceMax,
+          currencyRef,
+          departmentId,
+          dateFrom,
+          dateTo
+        })
+        if (!isCancelled) {
+          setAvailableReporters(reporters)
+        }
+      } catch (error) {
+        console.error('Error loading available reporters:', getErrorMessage(error))
+      }
+    }
+
+    void loadAvailableReporters()
+
+    return () => {
+      isCancelled = true
+    }
+  }, [
+    searchReporters,
+    searchTerm,
+    statusFilter,
+    debouncedAmountMin,
+    debouncedAmountMax,
+    debouncedAdvanceMin,
+    debouncedAdvanceMax,
+    currencyRef,
+    departmentId,
+    dateFrom,
+    dateTo
+  ])
+
   const hasActiveFilters = useMemo(() => hasActiveAdvancePaymentFilters(filterState), [filterState])
 
   const reporterOptions = useMemo(
-    () => buildReporterOptions(selectedReporters, reporterSearchResults),
-    [reporterSearchResults, selectedReporters]
+    () => buildReporterOptions(selectedReporters, availableReporters),
+    [availableReporters, selectedReporters]
   )
 
   const filterConfiguration = useMemo(
@@ -185,33 +224,13 @@ export function useAdvancePaymentsFilterState({
     [debouncedAdvanceMax, debouncedAdvanceMin, debouncedAmountMax, debouncedAmountMin, filterState]
   )
 
-  const reporterFilterRenderProps = useMemo(
-    () =>
-      ({
-        selectedIds: selectedReporters,
-        onSelectedIdsChange: reporterIds => {
-          setSelectedReporters(reporterIds)
-          setReporterFilter(reporterIds.join(','))
-          resetPage()
-        }
-      }) satisfies CustomGroupRenderProps,
-    [resetPage, selectedReporters]
-  )
-
   return {
     filterState,
     queryFilterState,
     filterConfiguration,
     filtersObject,
     handleFilterChangeFromDisplay,
-    reporterFilterRenderProps,
     hasActiveFilters,
-    reporterSearchText,
-    setReporterSearchText,
-    showReporterDropdown,
-    setShowReporterDropdown,
-    reporterSearchResults,
-    reporterSearchLoading,
     selectedReporters,
     setSelectedReporters,
     setReporterFilter

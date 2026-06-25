@@ -1,5 +1,6 @@
 import React from 'react'
 import { Tabs, TabsList, TabsTrigger, TabsContent, Toaster, useTranslation } from '@newwork/nw-design-system'
+import { useTranslation as useI18nextTranslation } from 'react-i18next'
 import { PageLayout } from '@/components/layout/pageLayout/PageLayout'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { BriefcaseIcon } from '@phosphor-icons/react'
@@ -22,12 +23,13 @@ const DATA_TEST_ID = 'EmploymentData'
 
 const EmploymentData: React.FC<EmploymentDataProps> = ({ className, prefixDataTestId, ...contextProps }) => {
   const { t } = useTranslation(translations)
+  const { t: tGlobal } = useI18nextTranslation()
   const [selectedTab, onChangeTab] = useTabQueryParamSync(EmploymentDataTabs, EmploymentDataTabs.EMPLOYMENT_TYPES)
 
   return (
     <PageLayout
       headerIcon={<BriefcaseIcon weight="duotone" color="var(--nw-decorative)" />}
-      headerLabel={t('page-title')}
+      headerLabel={tGlobal('hr.employment_data', 'Employment Data')}
       className={className ?? ''}
       contentContainer={
         <div

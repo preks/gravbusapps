@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import type { AgentStreamEvent, DeepAgentSession } from '../types/enterpriseAgent'
-import { buildTraceModel, EMPTY_TRACE_MODEL, type TraceModel } from '../utils/traceModel'
+import { buildMeshTraceModel, buildTraceModel, EMPTY_TRACE_MODEL, type TraceModel } from '../utils/traceModel'
 
 interface UseTraceModelOptions {
   /** SSE events for the active session (preferred when streaming). */
@@ -9,6 +9,11 @@ interface UseTraceModelOptions {
   session: DeepAgentSession | null
   /** True when a session is actively streaming. */
   isStreaming?: boolean
+  /**
+   * When true, build an execution-only graph (drops catalog ``tool_available``
+   * rows, merges agent nodes, etc.). Used by the session mesh — not trace explorer.
+   */
+  meshMode?: boolean
 }
 
 interface UseTraceModelResult {
@@ -77,7 +82,7 @@ export function mergeEvents(a: AgentStreamEvent[], b: AgentStreamEvent[]): Agent
  * and the runtime stat to whatever fragment SSE delivered.
  *
  * Merging is safe because:
- *   - `buildTraceModel` sorts events internally, so feed order does not
+ *   - `buildMeshTraceModel` sorts events internally, so feed order does not
  *     matter.
  *   - Events from both layers carry stable `event_id` / `seq`, so an event
  *     that arrives via both sources is deduped exactly once.
@@ -86,7 +91,7 @@ export function mergeEvents(a: AgentStreamEvent[], b: AgentStreamEvent[]): Agent
  *     reduces to the live events. No behaviour change for active runs.
  */
 export function useTraceModel(options: UseTraceModelOptions): UseTraceModelResult {
-  const { liveEvents, session, isStreaming } = options
+  const { liveEvents, session, isStreaming, meshMode = false } = options
 
   return useMemo(() => {
     const restEvents = (session?.trace ?? []) as AgentStreamEvent[]
@@ -105,8 +110,9 @@ export function useTraceModel(options: UseTraceModelOptions): UseTraceModelResul
       source = 'rest'
     }
 
-    return { model: buildTraceModel(merged), source }
+    const build = meshMode ? buildMeshTraceModel : buildTraceModel
+    return { model: build(merged), source }
     // `isStreaming` participates in the dep array so a transition from
     // running → completed re-evaluates even if the event list reference is stable.
-  }, [liveEvents, session?.trace, isStreaming])
+  }, [liveEvents, session?.trace, isStreaming, meshMode])
 }

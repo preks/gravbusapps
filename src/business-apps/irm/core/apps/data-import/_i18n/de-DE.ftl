@@ -26,6 +26,10 @@ card-opportunity-title = Opportunities importieren
 card-opportunity-description = Opportunities aus einer Tabelle hinzufügen – mit Pipeline-Phase, Prognose und Opportunity-Details. Wir schlagen passende Spaltenzuordnungen vor.
 card-opportunity-button = Opportunity-Import starten
 
+card-company-title = Investment-Unternehmen importieren
+card-company-description = Importieren Sie juristische Personen aus CSV oder Excel mit Unternehmensdaten, Adressen, Führungskräften und Beteiligungen. Optional eine Unternehmensgruppe auf dem Upload-Schritt; die KI ordnet Ihre Spalten dem Schema zu.
+card-company-button = Unternehmens-Import starten
+
 # Multi-entry investments card
 card-investments-title = Investitionen importieren
 card-investments-description = Investitionen aus einer Tabelle hinzufügen. Wir schlagen passende Spaltenzuordnungen vor.
@@ -33,3 +37,8 @@ card-investments-description = Investitionen aus einer Tabelle hinzufügen. Wir 
 # Multi-entry investment reports card
 card-investment-reports-title = Investitionsberichte importieren
 card-investment-reports-description = Investitionsberichte aus einer Tabelle hinzufügen. Wir schlagen passende Spaltenzuordnungen vor.
+
+# Single-entity equity investment rounds card
+card-equity-rounds-title = Eigenkapital-Investitionsrunden importieren
+card-equity-rounds-description = Eigenkapital-Investitionsrunden aus einer Tabelle hinzufügen – mit Rundenname, Jahr, Bewertung und Anteilsdetails. Jede Zeile wird per Name der passenden Eigenkapital-Investition zugeordnet.
+card-equity-rounds-button = Runden-Import starten

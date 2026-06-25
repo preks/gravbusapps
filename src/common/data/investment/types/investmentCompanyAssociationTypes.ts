@@ -1,6 +1,7 @@
 import { BASE_ENTITY_DESCRIPTORS, type BaseEntity, type CatalogEntry } from '@/common/network/graphql/commonTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import type { Employee } from '@/common/data/employee/types/employeeBaseTypes'
+import type { InvestmentAccount } from './investmentAccountTypes'
 import type { InvestmentContact } from './investmentContactTypes'
 import type { InvestmentCompany } from './investmentCompanyTypes'
 import type { InvestmentCompanyGroup } from './investmentCompanyGroupTypes'
@@ -37,6 +38,20 @@ export interface InvestmentCompanyGroupAssociation extends BaseEntity {
   investmentCompanyGroup?: InvestmentCompanyGroup
 }
 
+export interface InvestmentCompanyStakeholder extends BaseEntity {
+  id: string
+  name?: string
+  investmentCompanyId?: string
+  investmentAccountId?: string
+  investmentContactId?: string
+  investmentCompanyStakeholderTypeRef?: string
+
+  investmentCompany?: InvestmentCompany
+  investmentAccount?: InvestmentAccount
+  investmentContact?: InvestmentContact
+  investmentCompanyStakeholderType?: CatalogEntry
+}
+
 export const InvestmentCompanyExecutiveFields = {
   id: 'id',
   investmentCompanyId: 'investmentCompanyId',
@@ -66,6 +81,19 @@ export const InvestmentCompanyGroupAssociationFields = {
   investmentCompanyGroup: 'investmentCompanyGroup'
 } as const
 
+export const InvestmentCompanyStakeholderFields = {
+  id: 'id',
+  name: 'name',
+  investmentCompanyId: 'investmentCompanyId',
+  investmentAccountId: 'investmentAccountId',
+  investmentContactId: 'investmentContactId',
+  investmentCompanyStakeholderTypeRef: 'investmentCompanyStakeholderTypeRef',
+  investmentCompany: 'investmentCompany',
+  investmentAccount: 'investmentAccount',
+  investmentContact: 'investmentContact',
+  investmentCompanyStakeholderType: 'investmentCompanyStakeholderType'
+} as const
+
 export const investmentCompanyExecutiveFormFields = {
   id: 'id',
   version: 'version',
@@ -88,6 +116,16 @@ export const investmentCompanyGroupAssociationFormFields = {
   version: 'version',
   investmentCompanyId: 'investmentCompany',
   investmentCompanyGroupId: 'investmentCompanyGroup'
+} as const
+
+export const investmentCompanyStakeholderFormFields = {
+  id: 'id',
+  version: 'version',
+  name: 'name',
+  investmentCompanyId: 'investmentCompany',
+  investmentAccountId: 'investmentAccount',
+  investmentContactId: 'investmentContact',
+  investmentCompanyStakeholderTypeRef: 'investmentCompanyStakeholderTypeRef'
 } as const
 
 export const INVESTMENT_COMPANY_EXECUTIVE_DESCRIPTORS: Descriptor[] = [
@@ -156,6 +194,49 @@ export const INVESTMENT_COMPANY_GROUP_ASSOCIATION_DESCRIPTORS: Descriptor[] = [
     key: 'groupIds',
     path: InvestmentCompanyGroupAssociationFields.investmentCompanyGroupId,
     filterLabel: 'Group',
+    kind: 'inIds'
+  }
+]
+
+export const INVESTMENT_COMPANY_STAKEHOLDER_DESCRIPTORS: Descriptor[] = [
+  ...BASE_ENTITY_DESCRIPTORS,
+  {
+    key: 'name',
+    searchPaths: [InvestmentCompanyStakeholderFields.name],
+    sortPath: InvestmentCompanyStakeholderFields.name,
+    type: 'text'
+  },
+  {
+    key: 'investmentCompanyIds',
+    path: InvestmentCompanyStakeholderFields.investmentCompanyId,
+    filterLabel: 'Company',
+    kind: 'inIds'
+  },
+  {
+    key: 'investmentAccountIds',
+    path: InvestmentCompanyStakeholderFields.investmentAccountId,
+    filterLabel: 'Investment Account',
+    kind: 'inIds'
+  },
+  {
+    key: 'investmentContactIds',
+    path: InvestmentCompanyStakeholderFields.investmentContactId,
+    filterLabel: 'Investment Contact',
+    kind: 'inIds'
+  },
+  {
+    key: 'stakeholderTypeIds',
+    path: InvestmentCompanyStakeholderFields.investmentCompanyStakeholderTypeRef,
+    filterLabel: 'Stakeholder Type',
+    optionSelectPaths: [
+      `${InvestmentCompanyStakeholderFields.investmentCompanyStakeholderType}.id`,
+      `${InvestmentCompanyStakeholderFields.investmentCompanyStakeholderType}.value`
+    ],
+    optionSearchPaths: [
+      `${InvestmentCompanyStakeholderFields.investmentCompanyStakeholderType}.value`,
+      `${InvestmentCompanyStakeholderFields.investmentCompanyStakeholderType}.code`
+    ],
+    optionDistinctOn: [InvestmentCompanyStakeholderFields.investmentCompanyStakeholderTypeRef],
     kind: 'inIds'
   }
 ]

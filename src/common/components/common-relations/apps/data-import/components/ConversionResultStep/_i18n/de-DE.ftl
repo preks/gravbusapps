@@ -8,6 +8,8 @@ download-json-button = Datendatei herunterladen
 start-over-button = Neu starten
 import-more-button = Mehr importieren
 done-button = Fertig
+continue-ownership-button = Weiter zu Eigentumsbeziehungen
+skip-ownership-button = Eigentum überspringen
 
 # Success Messages
 import-success-title = Import wird verarbeitet
@@ -28,6 +30,38 @@ size-badge = Größe
 
 # Extraction Warnings Section
 extraction-warnings-title = Import-Warnungen
+
+# Ownership Summary Section
+ownership-summary-title = Eigentumsbeziehungen
+ownership-summary-description = { $count } Eigentumsbeziehung(en) erkannt. Für { $unresolvedCount } Beziehung(en) fehlt noch eine aufgelöste Unternehmens-ID.
+ownership-summary-unknown-company = Unbekanntes Unternehmen
+ownership-summary-owned-by = Im Besitz von: { $names }
+ownership-summary-owns = Besitzt: { $names }
+ownership-summary-more = ... und { $count } weitere Unternehmenszeile(n) mit Eigentumsbeziehungen
+ownership-company-unresolved-suffix =  (Nicht aufgelöst)
+
+# Executive Summary Section
+executive-summary-title = Unternehmensführung
+executive-summary-description = { $count } Führungskraft/-kräfte erkannt. { $resolvedCount } aufgelöst, { $unresolvedCount } nicht aufgelöst.
+executive-summary-unknown-company = Unbekanntes Unternehmen
+executive-summary-executives = Führungskräfte: { $names }
+executive-summary-executives-label = Führungskräfte:
+executive-summary-type = Typ: { $type }
+executive-summary-more = ... und { $count } weitere Unternehmenszeile(n) mit Führungskräften
+executive-source-employee-suffix = (Mitarbeiter)
+executive-source-contact-suffix = (Kontakt)
+executive-source-unresolved-suffix = (Nicht aufgelöst)
+executive-source-unresolved-tooltip = Es wurde kein passender Mitarbeiter oder Investment-Kontakt im System gefunden, daher wird diese Führungskraft nicht importiert.
+
+# Stakeholder Summary Section
+stakeholder-summary-title = Unternehmens-Stakeholder
+stakeholder-summary-description = { $count } Stakeholder erkannt. { $contactCount } als Investment-Kontakt, { $accountCount } als Investment-Konto, { $externalCount } extern.
+stakeholder-summary-unknown-company = Unbekanntes Unternehmen
+stakeholder-summary-stakeholders = Stakeholder: { $names }
+stakeholder-summary-more = ... und { $count } weitere Unternehmenszeile(n) mit Stakeholdern
+stakeholder-source-contact-suffix = (Investment-Kontakt)
+stakeholder-source-account-suffix = (Investment-Konto)
+stakeholder-source-external-suffix = (Extern)
 
 # Data Quality Section
 data-quality-warnings-title = Datenqualitätswarnungen

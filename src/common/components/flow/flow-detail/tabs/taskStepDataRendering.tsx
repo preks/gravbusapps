@@ -8,7 +8,14 @@ import {
   resolveFlowTemplateText
 } from '@/common/network/flows/resolveFlowTemplateText'
 import type { FlowStep, StepAssignmentInfo } from '../types'
-import { FieldValueDisplay, buildStepDataTableRows, generateFieldLabel, isFileLikeValue } from './stepDataRendering'
+import {
+  FieldValueDisplay,
+  buildStepDataTableRows,
+  generateFieldLabel,
+  isFieldVisibleForDisplay,
+  isFileLikeValue,
+  type StepResultDisplayConfig
+} from './stepDataRendering'
 
 function hasVisibleFormValue(value: unknown): boolean {
   if (value === null || value === undefined) return false
@@ -38,9 +45,10 @@ export function getCapturedDataRows(args: {
   actorNames: Record<string, string>
   employeeMap: Map<string, { displayName?: string; avatarUrl?: string }>
 }) {
+  const resultDisplay = args.stepData?.resultDisplay
   return buildStepDataTableRows(args).filter(row => {
     if (row.hasSubmission === false) return false
-    const entries = Object.entries(row.formData || {})
+    const entries = Object.entries(row.formData || {}).filter(([key]) => isFieldVisibleForDisplay(key, resultDisplay))
     if (entries.length === 0) return false
     return entries.some(([, value]) => hasVisibleFormValue(value))
   })
@@ -49,10 +57,13 @@ export function getCapturedDataRows(args: {
 interface KeyValueFormDataProps {
   formData: Record<string, unknown>
   accessToken?: string
+  resultDisplay?: StepResultDisplayConfig
 }
 
-export const KeyValueFormData: React.FC<KeyValueFormDataProps> = ({ formData, accessToken }) => {
-  const entries = Object.entries(formData).filter(([, value]) => hasVisibleFormValue(value))
+export const KeyValueFormData: React.FC<KeyValueFormDataProps> = ({ formData, accessToken, resultDisplay }) => {
+  const entries = Object.entries(formData).filter(
+    ([key, value]) => isFieldVisibleForDisplay(key, resultDisplay) && hasVisibleFormValue(value)
+  )
 
   if (entries.length === 0) {
     return (
@@ -163,7 +174,13 @@ export const TaskStepDataView: React.FC<TaskStepDataViewProps> = props => {
   }
 
   if (capturedRows.length === 1) {
-    return <KeyValueFormData formData={capturedRows[0].formData} accessToken={props.accessToken} />
+    return (
+      <KeyValueFormData
+        formData={capturedRows[0].formData}
+        accessToken={props.accessToken}
+        resultDisplay={props.stepData?.resultDisplay}
+      />
+    )
   }
 
   return (
@@ -171,7 +188,11 @@ export const TaskStepDataView: React.FC<TaskStepDataViewProps> = props => {
       {capturedRows.map(row => (
         <div key={`${row.taskId}-${row.userId}`} className="gba:space-y-2">
           <div className="gba:text-sm gba:font-medium gba:text-foreground">{row.userName}</div>
-          <KeyValueFormData formData={row.formData} accessToken={props.accessToken} />
+          <KeyValueFormData
+            formData={row.formData}
+            accessToken={props.accessToken}
+            resultDisplay={props.stepData?.resultDisplay}
+          />
         </div>
       ))}
     </div>

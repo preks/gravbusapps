@@ -1,6 +1,7 @@
 export * from './FileUploadStep'
 export * from './MappingReviewStep'
 export * from './ConversionResultStep'
+export * from './OwnershipAssociationStep'
 export * from './EntityImportView'
 export * from './CrmEntityImportView'
 export * from './HrEntityImportView'

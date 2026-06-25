@@ -103,6 +103,48 @@ describe('sessionStreamRegistry', () => {
     __testing__.disposeAll()
   })
 
+  it('coalesces cumulative response_stream snapshots in place', async () => {
+    const mod = await import('../sessionStreamRegistry')
+    const { acquireSessionStream, getSessionStreamState, subscribeSessionStream, __testing__ } = mod
+
+    const { release } = acquireSessionStream('s3b', 'token-a')
+    const src = FakeSseConnection.instances[0]
+
+    let notifyCount = 0
+    const unsubscribe = subscribeSessionStream('s3b', () => {
+      notifyCount++
+    })
+
+    src.emitOpen()
+    src.emitMessage({
+      type: 'agent_chunk',
+      role: 'ai',
+      chunk_kind: 'response_stream',
+      event_id: 'rs-1',
+      seq: 3,
+      content: 'Hello',
+      metadata: { stream_key: 'primary', segment_id: 0 }
+    })
+    src.emitMessage({
+      type: 'agent_chunk',
+      role: 'ai',
+      chunk_kind: 'response_stream',
+      event_id: 'rs-2',
+      seq: 4,
+      content: 'Hello world',
+      metadata: { stream_key: 'primary', segment_id: 0 }
+    })
+
+    const state = getSessionStreamState('s3b')!
+    expect(state.events).toHaveLength(1)
+    expect(state.events[0]).toMatchObject({ content: 'Hello world', seq: 4 })
+    expect(notifyCount).toBeGreaterThanOrEqual(2)
+
+    unsubscribe()
+    release()
+    __testing__.disposeAll()
+  })
+
   it('closes source on terminal event', async () => {
     const mod = await import('../sessionStreamRegistry')
     const { acquireSessionStream, __testing__ } = mod

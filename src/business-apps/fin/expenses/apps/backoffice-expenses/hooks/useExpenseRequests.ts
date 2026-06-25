@@ -7,8 +7,24 @@ import { extractUniqueStatuses, extractUniqueEmployees } from '../utils/sharedUt
 import { buildBackofficeExpenseRequestOrderBy } from '../components/tabs/expence-requests-tab/config/backofficeExpenseRequestOrderBy'
 import type { ExpenseRequestListSortField } from '../components/tabs/expence-requests-tab/config/expenseRequestListSortTypes'
 import { useBackofficeExpenseRequestsOverviewData } from './useBackofficeExpenseRequestsOverviewData'
+import {
+  buildExpenseRequestSearchOrConditions,
+  buildNumericRangeCondition,
+  buildSearchCondition
+} from './queryFilterUtils'
+import {
+  buildDateRangeCondition,
+  buildRequestEffectiveDateFilter,
+  buildRequestTypeFilter
+} from './backofficeSharedOverview'
 
 export type { ExpenseRequestListSortField } from '../components/tabs/expence-requests-tab/config/expenseRequestListSortTypes'
+
+function appendPresentCondition(conditions: unknown[], condition: unknown): void {
+  if (condition) {
+    conditions.push(condition)
+  }
+}
 
 export const useExpenseRequests = (context: BusinessAppContextProps, t: TranslateFn, isActive: boolean = true) => {
   const { accessToken } = context
@@ -188,34 +204,84 @@ export const useExpenseRequests = (context: BusinessAppContextProps, t: Translat
   }
 
   const searchEmployees = useCallback(
-    async (searchTerm: string): Promise<Array<{ id: string; name: string }>> => {
-      if (!accessToken || !client || !searchTerm.trim()) return []
+    async (employeeSearchTerm: string): Promise<Array<{ id: string; name: string }>> => {
+      if (!accessToken || !client) return []
 
       try {
-        const searchValue = `%${searchTerm.trim()}%`
+        const trimmedSearchTerm = employeeSearchTerm.trim()
+        const statusValues = statusFilter
+          .split(',')
+          .map(status => status.trim())
+          .filter(Boolean)
+        const baseConditions: unknown[] = [
+          { isDeleted: { _eq: false } },
+          statusValues.length > 0 ? { status: { _in: statusValues } } : { status: { _nin: ['DISCARDED', 'CREATED'] } },
+          ...buildNumericRangeCondition(amountMinFilter, amountMaxFilter, range => ({ totalAmount: range })),
+          ...buildNumericRangeCondition(remainingMinFilter, remainingMaxFilter, range => ({
+            totalRemainingAmount: range
+          })),
+          ...buildSearchCondition(searchTerm, buildExpenseRequestSearchOrConditions)
+        ]
+
+        if (departmentFilter) {
+          const departmentIds = departmentFilter
+            .split(',')
+            .map(departmentId => departmentId.trim())
+            .filter(Boolean)
+          baseConditions.push({
+            employee: { employeePosition: { organizationalUnitId: { _in: departmentIds } } }
+          })
+        }
+
+        if (currencyRefFilter) {
+          baseConditions.push({ currencyRef: { _eq: currencyRefFilter } })
+        }
+
+        appendPresentCondition(baseConditions, buildRequestEffectiveDateFilter(effectiveDateRangeFilter))
+        const requestDateCondition = buildDateRangeCondition(requestDateRangeFilter?.from, requestDateRangeFilter?.to)
+        if (requestDateCondition) {
+          baseConditions.push({ createdAt: requestDateCondition })
+        }
+        appendPresentCondition(baseConditions, buildRequestTypeFilter(requestTypeFilter))
+
+        if (trimmedSearchTerm) {
+          const searchValue = `%${trimmedSearchTerm}%`
+          baseConditions.push({
+            _or: [
+              { employee: { firstName: { _ilike: searchValue } } },
+              { employee: { lastName: { _ilike: searchValue } } }
+            ]
+          })
+        }
+
         const data = await client.request(GET_EXPENSE_REQUESTS, {
           where: {
-            _and: [
-              { isDeleted: { _eq: false } },
-              { status: { _neq: 'DISCARDED' } },
-              {
-                _or: [
-                  { employee: { firstName: { _ilike: searchValue } } },
-                  { employee: { lastName: { _ilike: searchValue } } }
-                ]
-              }
-            ]
+            _and: baseConditions
           },
           limit: 1000,
           offset: 0
         })
 
-        return extractUniqueEmployees(data?.ExpenseRequest || [], (request: any) => request.employee, searchTerm)
+        return extractUniqueEmployees(data?.ExpenseRequest || [], (request: any) => request.employee, trimmedSearchTerm)
       } catch {
         return []
       }
     },
-    [client, accessToken]
+    [
+      client,
+      accessToken,
+      statusFilter,
+      amountMinFilter,
+      amountMaxFilter,
+      remainingMinFilter,
+      remainingMaxFilter,
+      searchTerm,
+      departmentFilter,
+      currencyRefFilter,
+      effectiveDateRangeFilter,
+      requestDateRangeFilter,
+      requestTypeFilter
+    ]
   )
 
   const searchStatuses = useCallback(async (): Promise<string[]> => {

@@ -314,6 +314,7 @@ advance-payment-not-specified = Nespecificat
 advance-payment-no-description = Fără descriere
 advance-payment-no-expense-plan = Fără Plan de Cheltuieli
 advance-payment-search = Caută în Plăți în Avans
+advance-payment-filter-plan-start-date = Data de Început a Planului
 advance-payment-loading-reporters = Se încarcă raportori...
 advance-payment-no-reporters = Nu s-au găsit raportori
 advance-payment-reporter-label = Raportor:

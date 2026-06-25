@@ -149,6 +149,11 @@ command-center-stat-running = running
 command-center-stat-waiting = waiting
 command-center-stat-pending = pending
 command-center-done-today = done today
+command-center-section-needs-you = Needs you
+command-center-section-active = Active
+command-center-section-recently-done = Recently done
+command-center-show-more = Show { $count } more
+command-center-show-less = Show less
 
 # Run detail header
 run-detail-back = Back
@@ -382,6 +387,14 @@ knowledge-ref-id-placeholder = Reference ID or URL
 knowledge-title-placeholder = Optional title
 knowledge-empty = No knowledge references yet.
 knowledge-open-policy = Open policy in a new tab (ID: { $id })
+
+# Connections section
+connections-section-title = Connections
+connections-section-desc = External connections this { -platform-ai-agent-product.inline } activates on every run. Binding a connection (e.g. Salesforce) enables its connector tools.
+connections-empty = No connections available to bind.
+connections-none-selected = No connections bound — runs use no connector tools.
+connections-loading = Loading connections…
+connections-load-error = Could not load connections.
 
 # Skills & policies section
 skills-section-title = Skills & policies

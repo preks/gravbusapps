@@ -42,7 +42,7 @@ const AgentMeshScreenInner: React.FC<AgentMeshScreenProps> = ({ activeSessions, 
   const { t, getScopeTitle, getScopeSubtitle } = useAgentMeshI18n()
   const { emit } = useMeshTelemetry()
 
-  const { model, source } = useTraceModel({ liveEvents: events, session, isStreaming })
+  const { model, source } = useTraceModel({ liveEvents: events, session, isStreaming, meshMode: true })
   const isLive = isStreaming === true && (source === 'live' || source === 'merged')
 
   const clock = useReplayClock({

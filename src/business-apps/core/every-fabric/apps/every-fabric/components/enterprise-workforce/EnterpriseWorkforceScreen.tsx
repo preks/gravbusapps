@@ -440,7 +440,6 @@ export const EnterpriseWorkforceScreen: React.FC<EnterpriseWorkforceScreenProps>
               <LiveCommandCenter
                 variant="sidebar"
                 feed={liveActivity.feed}
-                overview={liveActivity.overview}
                 completedToday={liveActivity.completedToday}
                 throughputBuckets={liveActivity.throughputBuckets}
                 isConnected={liveActivity.isConnected}

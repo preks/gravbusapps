@@ -8,6 +8,8 @@ download-json-button = Descarcă fișierul de date
 start-over-button = Reîncepe
 import-more-button = Importă mai multe
 done-button = Terminat
+continue-ownership-button = Continuă la relațiile de proprietate
+skip-ownership-button = Omite proprietatea
 
 # Success Messages
 import-success-title = Import în curs
@@ -28,6 +30,38 @@ size-badge = Dimensiune
 
 # Extraction Warnings Section
 extraction-warnings-title = Avertismente de import
+
+# Ownership Summary Section
+ownership-summary-title = Relații de proprietate
+ownership-summary-description = { $count } relație/relații de proprietate detectate. { $unresolvedCount } relație/relații mai au nevoie de un ID de companie rezolvat.
+ownership-summary-unknown-company = Companie necunoscută
+ownership-summary-owned-by = Deținută de: { $names }
+ownership-summary-owns = Deține: { $names }
+ownership-summary-more = ... și încă { $count } rând(uri) de companie cu relații de proprietate
+ownership-company-unresolved-suffix =  (Nerezolvat)
+
+# Executive Summary Section
+executive-summary-title = Conducere companie
+executive-summary-description = { $count } executiv(i) detectat(i). { $resolvedCount } rezolvat(i), { $unresolvedCount } nerezolvat(i).
+executive-summary-unknown-company = Companie necunoscută
+executive-summary-executives = Executivi: { $names }
+executive-summary-executives-label = Executivi:
+executive-summary-type = Tip: { $type }
+executive-summary-more = ... și încă { $count } rând(uri) de companie cu executivi
+executive-source-employee-suffix = (Angajat)
+executive-source-contact-suffix = (Contact)
+executive-source-unresolved-suffix = (Nerezolvat)
+executive-source-unresolved-tooltip = Nu s-a găsit niciun Angajat sau Investment Contact corespunzător în sistem, așa că acest executiv nu va fi importat.
+
+# Stakeholder Summary Section
+stakeholder-summary-title = Stakeholderii companiei
+stakeholder-summary-description = { $count } stakeholder(i) detectat(i). { $contactCount } ca Investment Contact, { $accountCount } ca Investment Account, { $externalCount } extern(i).
+stakeholder-summary-unknown-company = Companie necunoscută
+stakeholder-summary-stakeholders = Stakeholderi: { $names }
+stakeholder-summary-more = ... și încă { $count } rând(uri) de companie cu stakeholderi
+stakeholder-source-contact-suffix = (Investment Contact)
+stakeholder-source-account-suffix = (Investment Account)
+stakeholder-source-external-suffix = (Extern)
 
 # Data Quality Section
 data-quality-warnings-title = Avertismente privind calitatea datelor

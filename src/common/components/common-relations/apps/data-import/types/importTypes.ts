@@ -34,6 +34,43 @@ export interface ConvertedEntity {
   communicationChannels?: CommunicationChannel[]
 }
 
+export interface InvestmentCompanyOwnershipUpdate {
+  rowIndex: number
+  companyName?: string | null
+  companyId?: string | null
+  ownerCompanyNames: string[]
+  ownerCompanyIds: string[]
+  ownerCompanyPercentages?: (number | null)[]
+  ownedCompanyNames: string[]
+  ownedCompanyIds: string[]
+  ownedCompanyPercentages?: (number | null)[]
+}
+
+export interface InvestmentCompanyExecutiveUpdate {
+  rowIndex: number
+  companyName?: string | null
+  companyId?: string | null
+  executiveNames: string[]
+  executiveEmployeeIds: string[]
+  executiveContactIds: string[]
+  executiveSourceTypes: string[]
+  executiveTypeRef?: string | null
+}
+
+export type InvestmentCompanyStakeholderSourceType = 'investmentContact' | 'investmentAccount' | 'external'
+
+export interface InvestmentCompanyStakeholderUpdate {
+  rowIndex: number
+  companyName?: string | null
+  companyId?: string | null
+  stakeholderNames: string[]
+  stakeholderContactIds: string[]
+  stakeholderAccountIds: string[]
+  stakeholderSourceTypes: string[]
+  stakeholderTypeRefs: (string | null)[]
+  stakeholderTypeLabels: (string | null)[]
+}
+
 /**
  * Declarative description of a catalog-backed select whose value is
  * enforced across every imported row. Rendered through `CatalogSelect`
@@ -83,6 +120,21 @@ export interface EnforcedSelectConfig {
   labelKey: string
 }
 
+export interface EnforcedDirectFieldConfig {
+  /** Stable id; doubles as the react-hook-form field name for this input. */
+  id: string
+  /** Dotted UI target field that Flowbot injects into every extracted row. */
+  targetField: string
+  /** Native input type rendered on the upload step. */
+  inputType: 'date'
+  /** When true, the Analyze button is disabled until the user enters a value. */
+  required?: boolean
+  /** i18n key for the label. */
+  labelKey: string
+  /** Optional i18n key for helper text below the input. */
+  hintKey?: string
+}
+
 /**
  * Hook that runs against a single investment request inside
  * `toInvestmentBatchPayload`, after flat keys have been re-nested but before
@@ -109,6 +161,14 @@ export interface ImportConfig {
   investmentPayloadKey?: string
   investmentReportPayloadKey?: 'equityInvestmentReport' | 'realEstateInvestmentReport' | 'liquidFundInvestmentReport'
   /**
+   * Marks the config as an Equity Investment Round batch import. When set,
+   * `submitIrmImport` routes the payload through `toEquityInvestmentRoundBatchPayload`
+   * and posts to `/investment-relations/createEquityInvestmentRounds`.
+   * Currently only one valid value, but kept as a string union so future
+   * round subtypes can be added the same way the report key was extended.
+   */
+  equityInvestmentRoundPayloadKey?: 'equityInvestmentRound'
+  /**
    * Fallback `InvestmentGroup` code (e.g. 'EQUITY') used by
    * `submitIrmImport` only when `investmentGroupRef` is not pre-resolved.
    * The standard registry path always sets `investmentGroupRef`, so this
@@ -124,6 +184,10 @@ export interface ImportConfig {
   investmentGroupRef?: string
   /** Optional list of catalog selects enforced across every imported row. */
   enforcedSelects?: EnforcedSelectConfig[]
+  /** Optional list of direct field values enforced across every imported row. */
+  enforcedDirectFields?: EnforcedDirectFieldConfig[]
+  /** Import-specific relationship-column guidance shown in the mapping step. */
+  relationshipColumnHints?: string[]
   /** Declarative preview-card layout for the converted entity. */
   preview?: EntityPreviewConfig
   /**
@@ -131,6 +195,15 @@ export interface ImportConfig {
    * `toInvestmentBatchPayload` (investment-domain only).
    */
   payloadExtensions?: InvestmentPayloadExtension[]
+  /**
+   * When true, company import submits only companies and executives in Step 3.
+   * Ownership links are deferred to the optional Step 4 ownership flow.
+   */
+  deferOwnershipSubmission?: boolean
+  /** Configuration for the optional Step 4 ownership association flow. */
+  ownershipStep?: {
+    relationshipColumnHints?: string[]
+  }
 }
 
 // Target field definition
@@ -211,6 +284,10 @@ export interface ImportResult {
   errorCount: number
   errors?: ImportError[]
   createdIds?: string[]
+  relationshipSuccessCount?: number
+  relationshipErrorCount?: number
+  /** Full created entity records when the backend returns them (e.g. companies). */
+  createdEntities?: Record<string, any>[]
 }
 
 // Import error details
@@ -221,4 +298,4 @@ export interface ImportError {
 }
 
 // Import step types
-export type ImportStep = 'upload' | 'mapping' | 'result'
+export type ImportStep = 'upload' | 'mapping' | 'result' | 'ownership'

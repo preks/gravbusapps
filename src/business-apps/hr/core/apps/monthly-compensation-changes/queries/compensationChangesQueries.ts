@@ -59,6 +59,10 @@ const BONUS_FIELDS = `
     id
     code
     value
+    translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+      localeCode
+      value
+    }
   }
   amount
   currency {
@@ -82,11 +86,19 @@ const BENEFIT_FIELDS = `
     id
     code
     value
+    translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+      localeCode
+      value
+    }
   }
   benefitProvider {
     id
     code
     value
+    translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+      localeCode
+      value
+    }
   }
   benefitStatus
   monthlyAmount
@@ -120,7 +132,7 @@ export const GET_MONTHLY_SALARY_CHANGES = `
 `
 
 export const GET_MONTHLY_BONUSES = `
-  query GetMonthlyBonuses($monthStart: date!, $monthEnd: date!) {
+  query GetMonthlyBonuses($monthStart: date!, $monthEnd: date!, $activeUserLocale: String!) {
     EmployeeBonus(
       where: {
         isDeleted: {_eq: false}
@@ -134,7 +146,7 @@ export const GET_MONTHLY_BONUSES = `
 `
 
 export const GET_MONTHLY_BENEFIT_CHANGES = `
-  query GetMonthlyBenefitChanges($monthStart: date!, $monthEnd: date!) {
+  query GetMonthlyBenefitChanges($monthStart: date!, $monthEnd: date!, $activeUserLocale: String!) {
     BenefitActivations: EmployeeBenefit(
       where: {
         isDeleted: {_eq: false}
@@ -170,12 +182,58 @@ export const GET_EMPLOYEE_IDS_BY_COMPANY = `
   }
 `
 
+export const GET_SALARY_ADJUST_REASON_CATALOG = `
+  query GetSalaryAdjustReasonCatalog($activeUserLocale: String!) {
+    CatalogEntry(
+      where: {
+        catalog: {identifier: {_eq: "SalaryAdjustReason"}, version: {_eq: "v1"}}
+        isDeleted: {_neq: true}
+      }
+    ) {
+      id
+      code
+      value
+      translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+        localeCode
+        value
+      }
+    }
+  }
+`
+
+export const GET_PREVIOUS_EMPLOYEE_SALARY = `
+  query GetPreviousEmployeeSalary($employeeId: uuid!, $startDate: date!) {
+    EmployeeSalary(
+      where: {
+        employeeId: {_eq: $employeeId}
+        isDeleted: {_eq: false}
+        requestStatus: {_eq: "APPROVED_SALARY_ADJUSTMENT"}
+        startDate: {_lt: $startDate}
+      }
+      orderBy: [{startDate: DESC_NULLS_LAST}, {createdAt: DESC}]
+      limit: 1
+    ) {
+      id
+      annualGrossSalary
+      monthlyGrossSalary
+      hourlyGrossSalary
+      currency {
+        id
+        code
+        value
+      }
+      startDate
+      createdAt
+    }
+  }
+`
+
 /**
  * Active benefits for a given month: started on or before monthEnd AND
  * (no endDate OR endDate >= monthStart).
  */
 export const GET_ACTIVE_BENEFITS_FOR_MONTH = `
-  query GetActiveBenefitsForMonth($monthStart: date!, $monthEnd: date!) {
+  query GetActiveBenefitsForMonth($monthStart: date!, $monthEnd: date!, $activeUserLocale: String!) {
     ActiveBenefits: EmployeeBenefit(
       where: {
         isDeleted: {_eq: false}

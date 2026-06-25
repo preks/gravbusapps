@@ -16,7 +16,10 @@ import { flowbotClient } from '@/common/network/flowbot'
 import type {
   CsvQuality,
   FieldMapping,
-  ImportConfig
+  ImportConfig,
+  InvestmentCompanyOwnershipUpdate,
+  InvestmentCompanyExecutiveUpdate,
+  InvestmentCompanyStakeholderUpdate
 } from '@/common/components/common-relations/apps/data-import/types'
 import { shouldRetryWithUiMappings } from './errorHandling'
 import { toBackendMappings, type TargetFieldAdapters } from './targetFieldAdapters'
@@ -26,6 +29,26 @@ export interface ExtractWithRetryResult {
   usedUiMappings: boolean
   csvQuality: CsvQuality | null
   warnings: string[]
+  ownershipUpdates: InvestmentCompanyOwnershipUpdate[]
+  executiveUpdates: InvestmentCompanyExecutiveUpdate[]
+  stakeholderUpdates: InvestmentCompanyStakeholderUpdate[]
+}
+
+function getInvestmentCompanyGroupRef(
+  config: ImportConfig,
+  enforcedFieldsJson: string | undefined
+): string | undefined {
+  if ((config.flowbotEntityType ?? config.entityType) !== 'InvestmentCompany' || !enforcedFieldsJson) {
+    return undefined
+  }
+
+  try {
+    const enforcedFields = JSON.parse(enforcedFieldsJson) as Record<string, unknown>
+    const value = enforcedFields.investmentCompanyGroupRef
+    return typeof value === 'string' && value ? value : undefined
+  } catch {
+    return undefined
+  }
 }
 
 export async function extractWithRetry(
@@ -43,6 +66,7 @@ export async function extractWithRetry(
   const backendMappingJson = JSON.stringify({ fieldMappings: backendMappings })
   const uiMappingJson = JSON.stringify({ fieldMappings: mappings })
   const flowbotEntityType = config.flowbotEntityType ?? config.entityType
+  const investmentCompanyGroupRef = getInvestmentCompanyGroupRef(config, enforcedFieldsJson)
 
   try {
     const response = await flowbotClient.extractFromFile(
@@ -57,13 +81,17 @@ export async function extractWithRetry(
       repairCsv,
       requiredSubtypeKey,
       additionalPropertiesFields,
-      tileFieldKeys
+      tileFieldKeys,
+      investmentCompanyGroupRef
     )
     return {
       records: response.records,
       usedUiMappings: false,
       csvQuality: response.csvQuality ?? null,
-      warnings: response.warnings ?? []
+      warnings: response.warnings ?? [],
+      ownershipUpdates: response.ownershipUpdates ?? [],
+      executiveUpdates: response.executiveUpdates ?? [],
+      stakeholderUpdates: response.stakeholderUpdates ?? []
     }
   } catch (error) {
     if (config.domain === 'investment' && shouldRetryWithUiMappings(error)) {
@@ -80,13 +108,17 @@ export async function extractWithRetry(
         repairCsv,
         requiredSubtypeKey,
         additionalPropertiesFields,
-        tileFieldKeys
+        tileFieldKeys,
+        investmentCompanyGroupRef
       )
       return {
         records: response.records,
         usedUiMappings: true,
         csvQuality: response.csvQuality ?? null,
-        warnings: response.warnings ?? []
+        warnings: response.warnings ?? [],
+        ownershipUpdates: response.ownershipUpdates ?? [],
+        executiveUpdates: response.executiveUpdates ?? [],
+        stakeholderUpdates: response.stakeholderUpdates ?? []
       }
     }
     throw error

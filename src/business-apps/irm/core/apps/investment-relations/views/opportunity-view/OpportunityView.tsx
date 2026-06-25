@@ -1,10 +1,12 @@
 import React, { useMemo, useState, useCallback, useRef } from 'react'
+import type { FilterConfiguration } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGetInvestmentOpportunities } from '@/common/data/investment/hooks/useInvestmentOpportunities'
 import { useViewPreferencesStorage } from '@/common/hooks/useViewPreferencesStorage'
 import { OpportunityLayout } from '@/common/components/common-relations/view-layouts/opportunity-layout'
 import type { QuickFiltersRenderProps } from '@/common/components/common-relations/view-layouts/opportunity-layout'
 import { createOpportunityConfig } from '@/common/components/common-relations/view-layouts/opportunity-layout/utils/opportunityConfigBuilder'
+import { opportunityFilterConfig } from '@/common/components/common-relations/view-layouts/opportunity-layout/config/opportunityFilters'
 import type { InvestmentOpportunity } from '@/common/data/investment/types/investmentOpportunityTypes'
 import type { InvestmentOpportunityQueryVariables } from '@/common/data/investment/queries/investmentOpportunityQueries'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
@@ -15,6 +17,47 @@ import { OpportunityStatisticsLayout } from '@/common/components/common-relation
 import type { OpportunityStatisticsData } from '@/common/components/common-relations/view-layouts/opportunity-layout/components/OpportunityStatisticsLayout'
 import { OpportunityQuickFilters, type QuickFilterType } from './components'
 import { stripRecordScopeFilterKeys } from '@/common/components/common-relations/view-layouts/opportunity-layout/utils/layoutHelpers'
+
+// Custom filter configuration for IRM Opportunity View - adds Investment Type and Investment Group filters
+// Filter ids match the INVESTMENT_OPPORTUNITY_DESCRIPTORS keys
+// (investmentTypeIds → investmentTypeRef, investmentGroupIds → investmentGroupRef),
+// and their options are populated via the filter hook's extraFilterOptions map.
+const irmOpportunityFilterConfig: FilterConfiguration = {
+  ...opportunityFilterConfig,
+  groups: [
+    ...opportunityFilterConfig.groups,
+    {
+      id: 'investment-type-group',
+      label: 'Investment Type',
+      collapsible: true,
+      defaultExpanded: false,
+      filters: [
+        {
+          id: 'investmentTypeIds',
+          field: 'investmentTypeIds',
+          label: 'Investment Type',
+          type: 'multi-select',
+          config: { options: [] }
+        }
+      ]
+    },
+    {
+      id: 'investment-group-group',
+      label: 'Investment Group',
+      collapsible: true,
+      defaultExpanded: false,
+      filters: [
+        {
+          id: 'investmentGroupIds',
+          field: 'investmentGroupIds',
+          label: 'Investment Group',
+          type: 'multi-select',
+          config: { options: [] }
+        }
+      ]
+    }
+  ]
+}
 
 /**
  * Map quickFilter type to opportunity status codes for statistics filtering
@@ -161,92 +204,92 @@ export const OpportunityView: React.FC<OpportunityViewProps> = props => {
   // They are accessed via refs so that statistics refreshes and context reference changes
   // do not recreate config, which would cascade into new listQueryVariables / loadListData
   // references and re-fire GetOpportunities.
-  const config = useMemo(
-    () =>
-      createOpportunityConfig<InvestmentOpportunity, InvestmentOpportunityQueryVariables>({
-        contextType: 'investment',
+  const config = useMemo(() => {
+    return createOpportunityConfig<InvestmentOpportunity, InvestmentOpportunityQueryVariables>({
+      contextType: 'investment',
 
-        extendQueryVariables: vars => ({
-          ...vars,
-          dealType: 'INVESTMENT_DEAL'
-        }),
-
-        fetchOpportunities: async variables => {
-          const [result, aggregates] = await Promise.all([
-            fetchInvestmentOpportunities(variables),
-            fetchInvestmentOpportunityAggregates(variables)
-          ])
-          return {
-            opportunities: result.InvestmentOpportunity,
-            total: result.InvestmentOpportunityAggregate.aggregate.count,
-            aggregates
-          }
-        },
-
-        filterDataHook: useInvestmentOpportunityFilters,
-
-        viewDescriptors: INVESTMENT_OPPORTUNITY_DESCRIPTORS,
-
-        columnMappings: {
-          pipeline: 'opportunityPipeline',
-          stage: 'opportunityPipelineStage'
-        },
-
-        flowContexts: {
-          entity: FlowContextName.investmentOpportunityEntity,
-          create: FlowContextName.investmentOpportunityCreate,
-          createContextData: {
-            dealType: 'INVESTMENT_DEAL',
-            ...(accountId ? { accountId } : {}),
-            ...(contactId ? { contactId } : {})
-          }
-        },
-
-        urlPaths: {
-          opportunityRecord: '/platform/irm/opportunity-record',
-          accountRecord: '/platform/irm/account-record',
-          source: 'investment-relations'
-        },
-
-        boardConfig: {
-          pipelineCatalog: 'InvestmentOpportunityPipeline',
-          pipelineStageCatalog: 'InvestmentOpportunityPipelineStage',
-          opportunityType: 'InvestmentOpportunity',
-          processName: 'transitionInvestmentOpportunity',
-          processDomain: 'investment-relations',
-          preferForecastedProfit: true
-        },
-
-        fetchBoardOpportunities: fetchInvestmentOpportunities,
-        extractBoardOpportunities: result => result.InvestmentOpportunity || [],
-        extractBoardTotalCount: result => result.InvestmentOpportunityAggregate?.aggregate?.count || 0,
-
-        opportunityStatistics: isRecordScoped ? undefined : opportunityStatisticsData,
-
-        renderStatistics: isRecordScoped
-          ? undefined
-          : (selectedCurrency?: string, quickFilter?: string) => (
-              <InvestmentOpportunityStatistics
-                key={statisticsRefreshKeyRef.current}
-                context={contextRef.current}
-                selectedCurrency={selectedCurrency}
-                quickFilter={quickFilter}
-              />
-            ),
-        rowActionsContextArray: [FlowContextName.investmentOpportunityEntity],
-        buildRowActionsExternalContextData: (row: { original: InvestmentOpportunity }) => ({
-          opportunityId: row.original.id
-        })
+      extendQueryVariables: vars => ({
+        ...vars,
+        dealType: 'INVESTMENT_DEAL'
       }),
-    [
-      fetchInvestmentOpportunities,
-      fetchInvestmentOpportunityAggregates,
-      opportunityStatisticsData,
-      isRecordScoped,
-      accountId,
-      contactId
-    ]
-  )
+
+      fetchOpportunities: async variables => {
+        const [result, aggregates] = await Promise.all([
+          fetchInvestmentOpportunities(variables),
+          fetchInvestmentOpportunityAggregates(variables)
+        ])
+        return {
+          opportunities: result.InvestmentOpportunity,
+          total: result.InvestmentOpportunityAggregate.aggregate.count,
+          aggregates
+        }
+      },
+
+      filterDataHook: useInvestmentOpportunityFilters,
+
+      baseFilterConfig: irmOpportunityFilterConfig,
+
+      viewDescriptors: INVESTMENT_OPPORTUNITY_DESCRIPTORS,
+
+      columnMappings: {
+        pipeline: 'opportunityPipeline',
+        stage: 'opportunityPipelineStage'
+      },
+
+      flowContexts: {
+        entity: FlowContextName.investmentOpportunityEntity,
+        create: FlowContextName.investmentOpportunityCreate,
+        createContextData: {
+          dealType: 'INVESTMENT_DEAL',
+          ...(accountId ? { accountId } : {}),
+          ...(contactId ? { contactId } : {})
+        }
+      },
+
+      urlPaths: {
+        opportunityRecord: '/platform/irm/opportunity-record',
+        accountRecord: '/platform/irm/account-record',
+        source: 'investment-relations'
+      },
+
+      boardConfig: {
+        pipelineCatalog: 'InvestmentOpportunityPipeline',
+        pipelineStageCatalog: 'InvestmentOpportunityPipelineStage',
+        opportunityType: 'InvestmentOpportunity',
+        processName: 'transitionInvestmentOpportunity',
+        processDomain: 'investment-relations',
+        preferForecastedProfit: true
+      },
+
+      fetchBoardOpportunities: fetchInvestmentOpportunities,
+      extractBoardOpportunities: result => result.InvestmentOpportunity || [],
+      extractBoardTotalCount: result => result.InvestmentOpportunityAggregate?.aggregate?.count || 0,
+
+      opportunityStatistics: isRecordScoped ? undefined : opportunityStatisticsData,
+
+      renderStatistics: isRecordScoped
+        ? undefined
+        : (selectedCurrency?: string, quickFilter?: string) => (
+            <InvestmentOpportunityStatistics
+              key={statisticsRefreshKeyRef.current}
+              context={contextRef.current}
+              selectedCurrency={selectedCurrency}
+              quickFilter={quickFilter}
+            />
+          ),
+      rowActionsContextArray: [FlowContextName.investmentOpportunityEntity],
+      buildRowActionsExternalContextData: (row: { original: InvestmentOpportunity }) => ({
+        opportunityId: row.original.id
+      })
+    })
+  }, [
+    fetchInvestmentOpportunities,
+    fetchInvestmentOpportunityAggregates,
+    opportunityStatisticsData,
+    isRecordScoped,
+    accountId,
+    contactId
+  ])
 
   return (
     <OpportunityLayout

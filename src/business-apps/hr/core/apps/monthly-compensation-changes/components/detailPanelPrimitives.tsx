@@ -10,8 +10,10 @@ export const Section: React.FC<Readonly<{ title: string; children: React.ReactNo
 )
 
 export const FieldRow: React.FC<Readonly<{ label: string; value: React.ReactNode }>> = ({ label, value }) => (
-  <div className="gba:flex gba:items-start gba:justify-between gba:gap-3 gba:py-1.5 gba:text-sm">
-    <span className="gba:text-muted-foreground">{label}</span>
-    <span className="gba:max-w-64 gba:text-right gba:font-medium gba:text-foreground">{value || '-'}</span>
+  <div className="gba:flex gba:min-w-0 gba:items-start gba:justify-between gba:gap-3 gba:py-1.5 gba:text-sm">
+    <span className="gba:min-w-0 gba:shrink gba:text-muted-foreground">{label}</span>
+    <span className="gba:min-w-0 gba:max-w-48 gba:shrink-0 gba:overflow-hidden gba:text-right gba:font-medium gba:text-foreground">
+      {value || '-'}
+    </span>
   </div>
 )

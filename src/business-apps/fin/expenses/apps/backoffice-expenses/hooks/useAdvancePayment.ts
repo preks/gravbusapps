@@ -50,7 +50,7 @@ interface AdvancePaymentsResult {
   advancePaymentStats: AdvancePaymentStatisticsData | null
   /** @deprecated Statistics are now automatically fetched with fetchPayments(). This function is a no-op. */
   fetchAdvancePaymentStatistics: () => Promise<void>
-  searchReporters: (searchTerm: string) => Promise<string[]>
+  searchReporters: (searchTerm: string, options?: FetchPaymentsOptions) => Promise<string[]>
   searchStatuses: () => Promise<string[]>
   setOrderBy: (orderBy: OrderByClause) => void
 }
@@ -108,7 +108,14 @@ export const useAdvancePayments = (props?: UseAdvancePaymentsProps): AdvancePaym
       .filter(Boolean)
     if (reporterNames.length === 0) return []
 
-    const reporterConditions = reporterNames.map(reporterName => {
+    const exactNameCondition = {
+      _or: [
+        { expensePlan: { employee: { fullName: { _in: reporterNames } } } },
+        { expensePlan: { employee: { displayName: { _in: reporterNames } } } }
+      ]
+    }
+
+    const splitNameConditions = reporterNames.map(reporterName => {
       const nameParts = reporterName.split(' ').filter(part => part.length > 0)
       const namePartConditions = nameParts.map(part => {
         const partValue = `%${part.trim()}%`
@@ -123,7 +130,7 @@ export const useAdvancePayments = (props?: UseAdvancePaymentsProps): AdvancePaym
       return { _and: namePartConditions }
     })
 
-    return [{ _or: reporterConditions }]
+    return [{ _or: [exactNameCondition, ...splitNameConditions] }]
   }
 
   // ⚡ OPTIMIZED: Build proper where clause for better performance
@@ -188,6 +195,27 @@ export const useAdvancePayments = (props?: UseAdvancePaymentsProps): AdvancePaym
       offset: offset,
       orderBy: orderBy && orderBy.length > 0 ? orderBy : [{ createdAt: 'DESC' }]
     }
+  }
+
+  const appendReporterSearchCondition = (where: any, searchTerm: string): any => {
+    const trimmedSearchTerm = searchTerm.trim()
+    if (!trimmedSearchTerm) return where
+
+    const searchValue = `%${trimmedSearchTerm}%`
+    const searchCondition = {
+      _or: [
+        { expensePlan: { employee: { firstName: { _ilike: searchValue } } } },
+        { expensePlan: { employee: { lastName: { _ilike: searchValue } } } },
+        { expensePlan: { employee: { fullName: { _ilike: searchValue } } } },
+        { expensePlan: { employee: { displayName: { _ilike: searchValue } } } }
+      ]
+    }
+
+    if (Array.isArray(where?._and)) {
+      return { _and: [...where._and, searchCondition] }
+    }
+
+    return { _and: [where, searchCondition] }
   }
 
   const mapResponseToPayments = (data: any): AdvancePaymentItem[] => {
@@ -340,20 +368,30 @@ export const useAdvancePayments = (props?: UseAdvancePaymentsProps): AdvancePaym
 
   // ⚡ OPTIMIZED: Use lightweight query that only fetches employee names
   const searchReporters = useCallback(
-    async (searchTerm: string): Promise<string[]> => {
+    async (searchTerm: string, options: FetchPaymentsOptions = {}): Promise<string[]> => {
       if (!accessToken) {
         throw new Error('Access token not found.')
       }
 
-      if (!searchTerm.trim()) {
-        return []
-      }
-
       try {
-        const searchValue = `%${searchTerm.trim()}%`
-        const data = await client.request(GET_ADVANCE_PAYMENT_REPORTERS, { searchTerm: searchValue })
+        const variables = buildQueryVariables(
+          options.searchTerm ?? '',
+          1,
+          1000,
+          options.status,
+          options.amountMin,
+          options.amountMax,
+          options.advanceMin,
+          options.advanceMax,
+          undefined,
+          options.currencyRef,
+          options.departmentId,
+          options.dateFrom,
+          options.dateTo
+        )
+        const where = appendReporterSearchCondition(variables.where, searchTerm)
+        const data = await client.request(GET_ADVANCE_PAYMENT_REPORTERS, { where })
 
-        // Extract unique reporter names from the results
         const reporters = new Set<string>()
         data?.AdvancePayment?.forEach((payment: any) => {
           if (payment.expensePlan?.employee) {

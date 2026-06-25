@@ -212,10 +212,7 @@ const InvestmentDataPage: React.FC<InvestmentDataPageProps> = ({
         </Alert>
       )}
 
-      <div
-        className="gba:sticky gba:top-0 gba:z-50 gba:isolate gba:bg-background gba:py-2 -gba:mx-1 gba:px-1 gba:border-b gba:border-border gba:shadow-sm"
-        data-testid={`${prefixDataTestId}-${DATA_TEST_ID}-selector-sticky`}
-      >
+      <div className="gba:py-2" data-testid={`${prefixDataTestId}-${DATA_TEST_ID}-selector`}>
         <GroupTypeSelector
           catalogData={catalogData}
           selectedGroup={selectedGroup}

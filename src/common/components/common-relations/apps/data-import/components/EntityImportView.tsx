@@ -39,18 +39,24 @@ import {
 import { extractErrorMessage } from '@/common/components/common-relations/apps/data-import/hooks/useEntityImport/shared/errorHandling'
 import {
   allEnforcedRequiredSatisfied,
+  allEnforcedDirectFieldsRequiredSatisfied,
+  buildEnforcedDirectFieldDefaults,
+  buildEnforcedDirectFieldMap,
   buildEnforcedSelectDefaults,
   buildEnforcedSelectMap,
   downloadImportTemplate,
+  type EnforcedDirectFieldValues,
   type EnforcedSelectValues
 } from '@/common/components/common-relations/apps/data-import/utils'
 import { FileUploadStep } from './FileUploadStep'
 import { MappingReviewStep } from './MappingReviewStep'
 import { ConversionResultStep } from './ConversionResultStep'
+import { OwnershipAssociationStep } from './OwnershipAssociationStep'
 import { ImportErrorCard } from './ImportErrorCard'
 import fileUploadTranslations from './FileUploadStep/_i18n'
 import mappingReviewTranslations from './MappingReviewStep/_i18n'
 import conversionResultTranslations from './ConversionResultStep/_i18n'
+import ownershipAssociationTranslations from './OwnershipAssociationStep/_i18n'
 
 export interface EntityImportViewProps extends BusinessAppContextProps {
   config: ImportConfig
@@ -62,6 +68,8 @@ export interface EntityImportViewProps extends BusinessAppContextProps {
   entityTypeSingular: string
   /** When true, shows the CRM campaign selection dropdown on the upload step */
   enableCampaignSelection?: boolean
+  /** When true, requires an investment company group before Analyze (IRM company import) */
+  enableInvestmentCompanyGroupSelection?: boolean
   /**
    * Domain-specific submission strategy. REQUIRED: the core view never
    * decides which domain to target. Use `CrmEntityImportView` /
@@ -75,6 +83,14 @@ export interface EntityImportViewProps extends BusinessAppContextProps {
    * InvestmentGroup `requiredSubtypeKey`. Never surfaced in the UI.
    */
   analyzerContext?: ImportAnalyzerContext
+  /**
+   * Additional enforced fields to merge with catalog-based enforced
+   * selects during conversion. Used for GraphQL entity-based selects
+   * (like InvestmentCompanyGroup) that can't use CatalogSelect.
+   */
+  additionalEnforcedFields?: Record<string, string>
+  /** Slot for custom select components rendered on the upload step */
+  customSelectsSlot?: React.ReactNode
   onBack?: () => void
   'data-testid'?: string
 }
@@ -86,8 +102,11 @@ export const EntityImportView: React.FC<EntityImportViewProps> = ({
   entityType,
   entityTypeSingular,
   enableCampaignSelection = false,
+  enableInvestmentCompanyGroupSelection = false,
   submissionStrategy,
   analyzerContext,
+  additionalEnforcedFields,
+  customSelectsSlot,
   onBack,
   'data-testid': testId = 'entity-import-view',
   ...context
@@ -97,6 +116,7 @@ export const EntityImportView: React.FC<EntityImportViewProps> = ({
   const { t: tFileUpload } = useTranslation(fileUploadTranslations)
   useTranslation(mappingReviewTranslations)
   useTranslation(conversionResultTranslations)
+  useTranslation(ownershipAssociationTranslations)
 
   const {
     file,
@@ -105,17 +125,32 @@ export const EntityImportView: React.FC<EntityImportViewProps> = ({
     campaignId,
     campaignName,
     setCampaign,
+    investmentCompanyGroupId,
+    setInvestmentCompanyGroup,
     step,
     isLoading,
     error,
     importResult,
     csvQuality,
     extractionWarnings,
+    ownershipUpdates,
+    executiveUpdates,
+    stakeholderUpdates,
+    ownershipFile,
+    ownershipExtractionWarnings,
+    ownershipImportResult,
+    deferOwnershipSubmission,
     handleFileChange,
     analyzeWithAgent,
     convertData,
     retryWithHardRepair,
     importToBackend,
+    goToOwnershipStep,
+    skipOwnershipStep,
+    setOwnershipFile,
+    usePreviousFileForOwnership,
+    extractOwnershipFromFile,
+    importOwnershipToBackend,
     downloadJSON,
     reset
   } = useEntityImport(context, config, submissionStrategy, analyzerContext)
@@ -135,16 +170,26 @@ export const EntityImportView: React.FC<EntityImportViewProps> = ({
   )
 
   const enforcedSelectConfigs = config.enforcedSelects
+  const enforcedDirectFieldConfigs = config.enforcedDirectFields
   const enforcedFormDefaults = React.useMemo(
-    () => buildEnforcedSelectDefaults(enforcedSelectConfigs),
-    [enforcedSelectConfigs]
+    () => ({
+      ...buildEnforcedSelectDefaults(enforcedSelectConfigs),
+      ...buildEnforcedDirectFieldDefaults(enforcedDirectFieldConfigs)
+    }),
+    [enforcedSelectConfigs, enforcedDirectFieldConfigs]
   )
-  const enforcedForm = useForm<EnforcedSelectValues>({ defaultValues: enforcedFormDefaults })
+  const enforcedForm = useForm<EnforcedSelectValues & EnforcedDirectFieldValues>({
+    defaultValues: enforcedFormDefaults
+  })
   const enforcedValues = enforcedForm.watch()
   const allRequiredEnforcedSatisfied = React.useMemo(
-    () => allEnforcedRequiredSatisfied(enforcedSelectConfigs, enforcedValues),
-    [enforcedSelectConfigs, enforcedValues]
+    () =>
+      allEnforcedRequiredSatisfied(enforcedSelectConfigs, enforcedValues) &&
+      allEnforcedDirectFieldsRequiredSatisfied(enforcedDirectFieldConfigs, enforcedValues),
+    [enforcedSelectConfigs, enforcedDirectFieldConfigs, enforcedValues]
   )
+
+  const canProceedFromUpload = allRequiredEnforcedSatisfied
 
   React.useEffect(() => {
     if (agentResponse) {
@@ -154,10 +199,18 @@ export const EntityImportView: React.FC<EntityImportViewProps> = ({
   }, [agentResponse, setMappings, setUnmappedSourceFields])
 
   const handleConvert = React.useCallback(async () => {
-    const enforced = buildEnforcedSelectMap(enforcedSelectConfigs, enforcedForm.getValues())
-    const enforcedFieldsJson = enforced ? JSON.stringify(enforced) : undefined
+    const values = enforcedForm.getValues()
+    const catalogEnforced = buildEnforcedSelectMap(enforcedSelectConfigs, values)
+    const enforcedDirectFields = buildEnforcedDirectFieldMap(enforcedDirectFieldConfigs, values)
+    const mergedEnforced = {
+      ...catalogEnforced,
+      ...enforcedDirectFields,
+      ...additionalEnforcedFields
+    }
+    const hasEnforcedFields = Object.keys(mergedEnforced).length > 0
+    const enforcedFieldsJson = hasEnforcedFields ? JSON.stringify(mergedEnforced) : undefined
     await convertData(mappings, enforcedFieldsJson)
-  }, [convertData, mappings, enforcedSelectConfigs, enforcedForm])
+  }, [convertData, mappings, enforcedSelectConfigs, enforcedDirectFieldConfigs, enforcedForm, additionalEnforcedFields])
 
   const [isDownloadingTemplate, setIsDownloadingTemplate] = React.useState(false)
   const [downloadTemplateError, setDownloadTemplateError] = React.useState<string | null>(null)
@@ -202,8 +255,16 @@ export const EntityImportView: React.FC<EntityImportViewProps> = ({
                   setCampaign(campaign?.id ?? null, campaign?.name),
                 businessAppContext: context
               })}
+              {...(enableInvestmentCompanyGroupSelection && {
+                investmentCompanyGroupId: investmentCompanyGroupId || null,
+                onInvestmentCompanyGroupChange: (group: { id: string; name: string } | null) =>
+                  setInvestmentCompanyGroup(group?.id ?? null),
+                businessAppContext: context
+              })}
               enforcedSelectConfigs={enforcedSelectConfigs}
-              allRequiredEnforcedSatisfied={allRequiredEnforcedSatisfied}
+              enforcedDirectFieldConfigs={enforcedDirectFieldConfigs}
+              allRequiredEnforcedSatisfied={canProceedFromUpload}
+              customSelectsSlot={customSelectsSlot}
               data-testid={`${testId}-upload-step`}
             />
           </Form>
@@ -217,6 +278,7 @@ export const EntityImportView: React.FC<EntityImportViewProps> = ({
           unmappedSourceFields={unmappedSourceFields}
           targetFieldsConfig={config.targetFields}
           entityType={entityType}
+          relationshipColumnHints={config.relationshipColumnHints}
           isLoading={isLoading}
           onUpdateTargetFromUnmapped={updateTargetFromUnmapped}
           onRemoveMapping={removeMapping}
@@ -234,16 +296,42 @@ export const EntityImportView: React.FC<EntityImportViewProps> = ({
           config={config}
           businessAppContext={context}
           entityType={entityTypeSingular}
+          entityTypePlural={entityType}
           isLoading={isLoading}
           importResult={importResult}
           campaignName={campaignName || undefined}
           extractionWarnings={extractionWarnings}
+          ownershipUpdates={ownershipUpdates}
+          executiveUpdates={executiveUpdates}
+          stakeholderUpdates={stakeholderUpdates}
           csvQuality={csvQuality}
+          deferOwnershipSubmission={deferOwnershipSubmission}
           onHardRepair={retryWithHardRepair}
           onDownloadJSON={downloadJSON}
           onImportToBackend={importToBackend}
+          onContinueToOwnership={goToOwnershipStep}
+          onSkipOwnership={skipOwnershipStep}
           onReset={reset}
           data-testid={`${testId}-result-step`}
+        />
+      )}
+
+      {step === 'ownership' && deferOwnershipSubmission && (
+        <OwnershipAssociationStep
+          config={config}
+          ownershipFile={ownershipFile}
+          ownershipUpdates={ownershipUpdates}
+          ownershipExtractionWarnings={ownershipExtractionWarnings}
+          ownershipImportResult={ownershipImportResult}
+          hasPreviousFile={Boolean(file)}
+          isLoading={isLoading}
+          onOwnershipFileChange={setOwnershipFile}
+          onUsePreviousFile={usePreviousFileForOwnership}
+          onExtract={extractOwnershipFromFile}
+          onImportOwnership={importOwnershipToBackend}
+          onSkip={skipOwnershipStep}
+          onDone={reset}
+          data-testid={`${testId}-ownership-step`}
         />
       )}
     </PageLayout>

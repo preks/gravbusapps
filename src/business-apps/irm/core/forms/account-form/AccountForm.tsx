@@ -1,6 +1,6 @@
-import React, { useEffect, useRef, useCallback } from 'react'
+import React, { useEffect, useRef, useCallback, useMemo } from 'react'
 import type { InvestmentAccount } from '@/common/data/investment/types/investmentAccountTypes'
-import { useForm } from 'react-hook-form'
+import { useForm, type UseFormReturn } from 'react-hook-form'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useInvestmentAccount } from '@/common/data/investment/hooks/useInvestmentAccount'
 import { useInvestmentContactsList } from '@/common/data/investment/hooks/useInvestmentContacts'
@@ -28,6 +28,94 @@ export { accountSchema as investmentAccountSchema } from '@/common/components/co
 
 type AccountFormProps = BusinessAppContextProps
 
+type AccountFormValues = z.infer<typeof accountSchema>
+
+// The rendered form subtree is isolated behind React.memo on purpose (mirrors CompanyForm). After a
+// failed submit, the disabled address "region" CatalogSelect (requireSourceForEnable) calls
+// form.trigger(), which toggles RHF's isValidating. Because the design-system FormFields subscribe to
+// isValidating, the useForm host re-renders on every toggle. If that re-render reached the
+// design-system <Form>, it would hand out a new FormProvider/context identity, the region
+// CatalogSelect effect would re-fire trigger(), and the cycle would never settle (the screen freeze
+// observed when pressing Create Account without the required fields). Keeping every prop below
+// referentially stable lets React.memo skip re-rendering the <Form> subtree, so the provider identity
+// stays constant and the trigger() effect runs once instead of looping.
+type AccountFormViewProps = Readonly<{
+  accessToken: AccountFormProps['accessToken']
+  userInfo: AccountFormProps['userInfo']
+  additionalData: AccountFormProps['additionalData']
+  form: UseFormReturn<AccountFormValues>
+  businessAppContext: BusinessAppContextProps
+  processType: 'create' | 'update'
+  submitButtonText: string
+  isSubmitDisabled: boolean
+  isEditMode: boolean
+  entityId?: string
+  accountContacts: InvestmentAccount['accountContacts']
+  ownerEmployee: InvestmentAccount['ownerEmployee']
+  useContacts: ReturnType<typeof useInvestmentContactsList>
+  avatarFileRef: React.MutableRefObject<{ file: File; thumbnail: string } | null>
+  layoutLoading: boolean
+  onSubmit: (data: AccountFormValues) => Promise<unknown>
+  onCancel: () => Promise<void>
+  handlePreSubmit: (formData: any) => Promise<any>
+  inlineContactCreate: ReturnType<typeof createInlineEntityPopupRenderer>
+}>
+
+const AccountFormView = React.memo<AccountFormViewProps>(
+  ({
+    accessToken,
+    userInfo,
+    additionalData,
+    form,
+    businessAppContext,
+    processType,
+    submitButtonText,
+    isSubmitDisabled,
+    isEditMode,
+    entityId,
+    accountContacts,
+    ownerEmployee,
+    useContacts,
+    avatarFileRef,
+    layoutLoading,
+    onSubmit,
+    onCancel,
+    handlePreSubmit,
+    inlineContactCreate
+  }) => (
+    <CatalogSelect.Provider accessToken={accessToken} userInfo={userInfo} additionalData={additionalData} form={form}>
+      <AppActionForm
+        processType={processType}
+        onSubmit={onSubmit}
+        onCancel={onCancel}
+        handlePreSubmit={handlePreSubmit}
+        formData={form.getValues()}
+        form={form}
+        schema={accountSchema}
+        data-testid={formatDataTestId('investment-account-form', 'Form')}
+        submitButtonText={submitButtonText}
+        isSubmitDisabled={isSubmitDisabled}
+      >
+        <AccountAiEnrichButton accessToken={accessToken} entityKind="investment_account" isEditMode={isEditMode} />
+        <AccountLayout
+          businessAppContext={businessAppContext}
+          accountContacts={accountContacts}
+          ownerEmployee={ownerEmployee}
+          entityId={entityId}
+          annualRevenueCatalogIdentifier={ANNUAL_REVENUE}
+          companySizeCatalogIdentifier={COMPANY_SIZE}
+          accountPriorityCatalogIdentifier={ACCOUNT_PRIORITY}
+          useContacts={useContacts}
+          avatarFileRef={avatarFileRef}
+          inlineContactCreate={inlineContactCreate}
+          loading={layoutLoading}
+        />
+      </AppActionForm>
+    </CatalogSelect.Provider>
+  )
+)
+AccountFormView.displayName = 'AccountFormView'
+
 const AccountFormContent: React.FC<AccountFormProps> = ({ accessToken, userInfo, additionalData }) => {
   const accountId = additionalData?.accountId || additionalData?.psi_taskPayload?.psi_initialParameters?.accountId
 
@@ -40,11 +128,15 @@ const AccountFormContent: React.FC<AccountFormProps> = ({ accessToken, userInfo,
 
   const avatarFileRef = useRef<{ file: File; thumbnail: string } | null>(null)
 
-  const form = useForm<z.infer<typeof accountSchema>>({
+  const form = useForm<AccountFormValues>({
     resolver: zodResolver(accountSchema),
     defaultValues: mapToFormValues(account || {}, accountSchema) as Partial<InvestmentAccount>,
     mode: 'onSubmit',
-    reValidateMode: 'onSubmit'
+    reValidateMode: 'onSubmit',
+    // Do not auto-focus the first errored field on a failed submit. Focusing a disabled
+    // `requireSourceForEnable` CatalogSelect re-enters the disabled-field revalidation path and can
+    // re-drive the render loop that freezes the screen (mirrors CompanyForm).
+    shouldFocusError: false
   })
 
   const accountRef = useRef(account)
@@ -70,7 +162,26 @@ const AccountFormContent: React.FC<AccountFormProps> = ({ accessToken, userInfo,
     }
   }, [])
 
-  const renderInlineContactCreate = React.useMemo(
+  const handleCancel = useCallback(async () => {
+    // AppActionForm handles cancellation via process events
+  }, [])
+
+  const accountIdForUpload = account?.id
+
+  const handlePreSubmit = useMemo(
+    () =>
+      buildAvatarPreSubmit(
+        fileClient,
+        avatarFileRef,
+        FILE_ENTITY.ACCOUNT,
+        FILE_CONTEXT.PICTURE,
+        APP_NAME,
+        formData => formData.id || accountIdForUpload || null
+      ),
+    [fileClient, accountIdForUpload]
+  )
+
+  const renderInlineContactCreate = useMemo(
     () =>
       createInlineEntityPopupRenderer({
         entity: 'contact',
@@ -84,6 +195,39 @@ const AccountFormContent: React.FC<AccountFormProps> = ({ accessToken, userInfo,
         }
       }),
     [accessToken, userInfo, additionalData]
+  )
+
+  const businessAppContext = useMemo(
+    () => ({ accessToken, userInfo, additionalData }),
+    [accessToken, userInfo, additionalData]
+  )
+
+  // Stable bundle for the contacts hook result. The hook returns a fresh object literal on every
+  // render; re-bundling it keyed on the underlying primitives keeps AccountFormView memoizable so the
+  // <Form> subtree is not re-created on RHF isValidating churn.
+  const contactsBundle = useMemo(
+    () => ({
+      contacts: useContacts.contacts,
+      total: useContacts.total,
+      loading: useContacts.loading,
+      error: useContacts.error,
+      hasMore: useContacts.hasMore,
+      search: useContacts.search,
+      loadMore: useContacts.loadMore,
+      refetch: useContacts.refetch,
+      fetchInvestmentContacts: useContacts.fetchInvestmentContacts
+    }),
+    [
+      useContacts.contacts,
+      useContacts.total,
+      useContacts.loading,
+      useContacts.error,
+      useContacts.hasMore,
+      useContacts.search,
+      useContacts.loadMore,
+      useContacts.refetch,
+      useContacts.fetchInvestmentContacts
+    ]
   )
 
   // Collect all errors for centralized early return (AFTER all hooks)
@@ -102,51 +246,30 @@ const AccountFormContent: React.FC<AccountFormProps> = ({ accessToken, userInfo,
     return <ErrorAlert errors={errors} prefixDataTestId="investment-account-form" />
   }
 
-  const handleCancel = async () => {
-    // AppActionForm handles cancellation via process events
-  }
-
-  const handlePreSubmit = buildAvatarPreSubmit(
-    fileClient,
-    avatarFileRef,
-    FILE_ENTITY.ACCOUNT,
-    FILE_CONTEXT.PICTURE,
-    APP_NAME,
-    formData => formData.id || account?.id || null
-  )
-
   const processType = account?.id ? 'update' : 'create'
 
   return (
-    <CatalogSelect.Provider accessToken={accessToken} userInfo={userInfo} additionalData={additionalData} form={form}>
-      <AppActionForm
-        processType={processType}
-        onSubmit={handleSubmit}
-        onCancel={handleCancel}
-        handlePreSubmit={handlePreSubmit}
-        formData={form.getValues()}
-        form={form}
-        schema={accountSchema}
-        data-testid={formatDataTestId('investment-account-form', 'Form')}
-        submitButtonText={account?.id ? 'Update Account' : 'Create Account'}
-        isSubmitDisabled={loading}
-      >
-        <AccountAiEnrichButton accessToken={accessToken} entityKind="investment_account" isEditMode={!!account?.id} />
-        <AccountLayout
-          businessAppContext={{ accessToken, userInfo, additionalData }}
-          accountContacts={account?.accountContacts}
-          ownerEmployee={account?.ownerEmployee}
-          entityId={account?.id || accountId}
-          annualRevenueCatalogIdentifier={ANNUAL_REVENUE}
-          companySizeCatalogIdentifier={COMPANY_SIZE}
-          accountPriorityCatalogIdentifier={ACCOUNT_PRIORITY}
-          useContacts={useContacts}
-          avatarFileRef={avatarFileRef}
-          inlineContactCreate={renderInlineContactCreate}
-          loading={loading && !!accountId}
-        />
-      </AppActionForm>
-    </CatalogSelect.Provider>
+    <AccountFormView
+      accessToken={accessToken}
+      userInfo={userInfo}
+      additionalData={additionalData}
+      form={form}
+      businessAppContext={businessAppContext}
+      processType={processType}
+      submitButtonText={account?.id ? 'Update Account' : 'Create Account'}
+      isSubmitDisabled={loading}
+      isEditMode={!!account?.id}
+      entityId={account?.id || accountId}
+      accountContacts={account?.accountContacts}
+      ownerEmployee={account?.ownerEmployee}
+      useContacts={contactsBundle}
+      avatarFileRef={avatarFileRef}
+      layoutLoading={loading && !!accountId}
+      onSubmit={handleSubmit}
+      onCancel={handleCancel}
+      handlePreSubmit={handlePreSubmit}
+      inlineContactCreate={renderInlineContactCreate}
+    />
   )
 }
 

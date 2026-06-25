@@ -100,6 +100,18 @@ export interface PendingActionItem {
   }
 }
 
+export interface PeriodSummary {
+  targetMinutes: number
+  actualMinutes: number
+  daysOff: number
+  diffMinutes: number
+}
+
+export interface MonthOvertimeRow {
+  employee: TeamMember
+  overtimeMinutes: number
+}
+
 export interface OperationalStatus {
   workingNow: TeamMember[]
   notClockedIn: TeamMember[]

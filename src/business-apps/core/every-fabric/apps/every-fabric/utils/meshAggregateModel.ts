@@ -13,7 +13,7 @@
 
 import type { AgentStreamEvent, DeepAgentSession } from '../types/enterpriseAgent'
 import {
-  buildTraceModel,
+  buildMeshTraceModel,
   ORCHESTRATOR_NODE_ID,
   type MeshEdge,
   type MeshNode,
@@ -125,7 +125,7 @@ export function buildAggregateModel(
     const events = (sessionData.trace ?? []) as AgentStreamEvent[]
     if (events.length === 0) continue
 
-    const sessionModel = buildTraceModel(events)
+    const sessionModel = buildMeshTraceModel(events)
     const nodeKeyMap = new Map<string, string>()
 
     for (const node of sessionModel.nodes) {

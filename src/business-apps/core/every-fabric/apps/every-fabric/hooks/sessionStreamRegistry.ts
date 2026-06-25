@@ -23,7 +23,7 @@
  */
 
 import { PROMPT_MANAGER_API_URL } from '@/common/utils/serviceResolver'
-import type { AgentStreamEvent } from '../types/enterpriseAgent'
+import type { AgentChunkEvent, AgentStreamEvent } from '../types/enterpriseAgent'
 import { connectPromptManagerSse, type PromptManagerSseConnection } from '../utils/promptManagerSse'
 
 export interface SessionStreamEntry {
@@ -57,10 +57,6 @@ interface InternalEntry {
   lastAccess: number
   disposed: boolean
   listeners: Set<Listener>
-  /** Pending coalesced-notify handle (rAF id or timeout id), or null. */
-  notifyHandle: number | null
-  /** Whether events arrived during the current frame and need a trailing emit. */
-  pendingTrailing: boolean
 }
 
 const entries = new Map<string, InternalEntry>()
@@ -81,67 +77,99 @@ const buildStreamUrl = (sessionId: string, sinceSeq: number): string => {
   return `${base}/deep-agent/sessions/${sessionId}/stream${sinceParam}`
 }
 
-const scheduleFrame = (cb: () => void): number => {
-  if (typeof requestAnimationFrame === 'function') return requestAnimationFrame(cb)
-  return setTimeout(cb, 16) as unknown as number
-}
-
-const cancelFrame = (handle: number): void => {
-  if (typeof cancelAnimationFrame === 'function') {
-    cancelAnimationFrame(handle)
-    return
-  }
-  clearTimeout(handle as unknown as ReturnType<typeof setTimeout>)
-}
-
-const emit = (entry: InternalEntry) => {
+const notify = (entry: InternalEntry) => {
   for (const listener of entry.listeners) listener()
 }
 
-const notify = (entry: InternalEntry) => {
-  // An immediate notify delivers the latest state, so it supersedes any
-  // pending coalesced emit for this entry.
-  if (entry.notifyHandle !== null) {
-    cancelFrame(entry.notifyHandle)
-    entry.notifyHandle = null
+const pendingNotifyEntries = new Set<InternalEntry>()
+let notifyRafId: number | null = null
+
+/** Batch subscriber notifications to one paint frame for smoother streaming UI. */
+const scheduleNotify = (entry: InternalEntry, immediate = false) => {
+  if (immediate) {
+    pendingNotifyEntries.delete(entry)
+    notify(entry)
+    return
   }
-  entry.pendingTrailing = false
-  emit(entry)
+  pendingNotifyEntries.add(entry)
+  if (notifyRafId !== null) return
+  notifyRafId = requestAnimationFrame(() => {
+    notifyRafId = null
+    const batch = Array.from(pendingNotifyEntries)
+    pendingNotifyEntries.clear()
+    for (const target of batch) notify(target)
+  })
+}
+
+const isResponseStreamChunk = (event: AgentStreamEvent): event is AgentChunkEvent =>
+  event.type === 'agent_chunk' && event.role === 'ai' && event.chunk_kind === 'response_stream'
+
+const responseStreamCoalesceKey = (event: AgentChunkEvent): string => {
+  const streamKey =
+    typeof event.metadata?.stream_key === 'string' && event.metadata.stream_key.trim().length > 0
+      ? event.metadata.stream_key
+      : 'primary'
+  const segmentId =
+    typeof event.metadata?.segment_id === 'number' && Number.isFinite(event.metadata.segment_id)
+      ? event.metadata.segment_id
+      : 0
+  return `${streamKey}:${segmentId}`
 }
 
 /**
- * Coalesce high-frequency stream updates with a per-frame leading+trailing
- * throttle. Streamed answer/thinking chunks arrive in *cumulative* mode (each
- * event carries the full text so far), so subscribers always read the latest
- * `entry.state` snapshot — meaning we can safely collapse a burst into far
- * fewer notifications without losing content.
- *
- * - Leading edge: the first event of a burst notifies immediately so the UI
- *   reacts instantly (and so synchronous callers see a synchronous emit).
- * - Trailing edge: any further events that land within the same frame are
- *   collapsed into a single follow-up emit at frame end.
- *
- * This turns "one full FabricContext re-render + markdown re-parse per token"
- * into at most ~2 per frame, which is what stops a fast stream from pinning
- * the main thread.
+ * Cumulative response_stream snapshots replace the prior snapshot for the same
+ * segment instead of appending — fewer array copies and less React churn.
  */
-const scheduleNotify = (entry: InternalEntry) => {
-  if (entry.disposed) return
-  if (entry.notifyHandle !== null) {
-    // A burst is already in-flight this frame — remember to flush the latest
-    // state once when the frame closes.
-    entry.pendingTrailing = true
-    return
+const ingestStreamEvent = (
+  entry: InternalEntry,
+  event: AgentStreamEvent
+): { applied: boolean; immediateNotify: boolean } => {
+  const key = dedupeKey(event)
+  if (entry.seenEventKeys.has(key)) {
+    return { applied: false, immediateNotify: false }
   }
-  entry.notifyHandle = scheduleFrame(() => {
-    entry.notifyHandle = null
-    if (entry.disposed) return
-    if (entry.pendingTrailing) {
-      entry.pendingTrailing = false
-      emit(entry)
+  entry.seenEventKeys.add(key)
+
+  let lastSeq = entry.state.lastSeq
+  if ('seq' in event && typeof event.seq === 'number' && event.seq > lastSeq) {
+    lastSeq = event.seq
+  }
+
+  const terminalReached = isStreamEndEvent(event)
+  let nextEvents = entry.state.events
+
+  if (isResponseStreamChunk(event)) {
+    const coalesceKey = responseStreamCoalesceKey(event)
+    for (let i = nextEvents.length - 1; i >= 0; i -= 1) {
+      const existing = nextEvents[i]
+      if (!isResponseStreamChunk(existing)) continue
+      if (responseStreamCoalesceKey(existing) === coalesceKey) {
+        nextEvents = [...nextEvents]
+        nextEvents[i] = event
+        entry.state = {
+          ...entry.state,
+          events: nextEvents,
+          lastSeq,
+          errorCount: 0,
+          terminalReached: entry.state.terminalReached || terminalReached
+        }
+        // Paint each cumulative snapshot immediately — rAF batching here made
+        // long answers appear to "dump" at turn end when SSE delivered many
+        // upserts in one frame.
+        return { applied: true, immediateNotify: true }
+      }
+      break
     }
-  })
-  emit(entry)
+  }
+
+  entry.state = {
+    ...entry.state,
+    events: [...nextEvents, event],
+    lastSeq,
+    errorCount: 0,
+    terminalReached: entry.state.terminalReached || terminalReached
+  }
+  return { applied: true, immediateNotify: terminalReached }
 }
 
 const closeSource = (entry: InternalEntry) => {
@@ -161,10 +189,6 @@ const disposeEntry = (entry: InternalEntry) => {
   if (entry.reconnectTimer) {
     clearTimeout(entry.reconnectTimer)
     entry.reconnectTimer = null
-  }
-  if (entry.notifyHandle !== null) {
-    cancelFrame(entry.notifyHandle)
-    entry.notifyHandle = null
   }
   closeSource(entry)
   entries.delete(entry.sessionId)
@@ -211,32 +235,12 @@ const connect = (entry: InternalEntry) => {
     if (entry.disposed) return
     try {
       const event = JSON.parse(raw) as AgentStreamEvent
-      const key = dedupeKey(event)
-      if (entry.seenEventKeys.has(key)) return
-      entry.seenEventKeys.add(key)
+      const { applied, immediateNotify } = ingestStreamEvent(entry, event)
+      if (!applied) return
+      scheduleNotify(entry, immediateNotify)
 
-      let lastSeq = entry.state.lastSeq
-      if ('seq' in event && typeof event.seq === 'number' && event.seq > lastSeq) {
-        lastSeq = event.seq
-      }
-
-      const terminalReached = isStreamEndEvent(event)
-      entry.state = {
-        ...entry.state,
-        events: [...entry.state.events, event],
-        lastSeq,
-        errorCount: 0,
-        terminalReached: entry.state.terminalReached || terminalReached
-      }
-
-      if (terminalReached) {
-        // Terminal transitions must reach the UI immediately (final answer,
-        // stop-streaming, panel state) — never defer behind the frame coalescer.
-        notify(entry)
+      if (entry.state.terminalReached) {
         closeSource(entry)
-      } else {
-        // High-frequency incremental chunk: coalesce to one notify per frame.
-        scheduleNotify(entry)
       }
     } catch {
       // malformed payload — ignore
@@ -306,9 +310,7 @@ const createEntry = (sessionId: string, accessToken: string): InternalEntry => (
   disposeAt: null,
   lastAccess: Date.now(),
   disposed: false,
-  listeners: new Set(),
-  notifyHandle: null,
-  pendingTrailing: false
+  listeners: new Set()
 })
 
 export const ensureSessionStreamEntry = (sessionId: string, accessToken = ''): void => {
@@ -328,28 +330,26 @@ export const appendSessionStreamEvents = (
 
   let lastSeq = entry.state.lastSeq
   let terminalReached = entry.state.terminalReached
-  const nextEvents = [...entry.state.events]
+  let appliedAny = false
+  let immediateNotify = false
   for (const event of eventsToAppend) {
-    const key = dedupeKey(event)
-    if (entry.seenEventKeys.has(key)) continue
-    entry.seenEventKeys.add(key)
-    nextEvents.push(event)
-    if ('seq' in event && typeof event.seq === 'number' && event.seq > lastSeq) {
-      lastSeq = event.seq
-    }
-    if (isStreamEndEvent(event)) {
-      terminalReached = true
-    }
+    const result = ingestStreamEvent(entry, event)
+    if (!result.applied) continue
+    appliedAny = true
+    immediateNotify = immediateNotify || result.immediateNotify
+    lastSeq = entry.state.lastSeq
+    terminalReached = entry.state.terminalReached
   }
+
+  if (!appliedAny) return
 
   entry.state = {
     ...entry.state,
-    events: nextEvents,
     isConnected: !terminalReached,
     lastSeq,
     terminalReached
   }
-  notify(entry)
+  scheduleNotify(entry, immediateNotify)
 }
 
 export const acquireSessionStream = (

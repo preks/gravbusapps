@@ -56,6 +56,20 @@ const updateFilterOptions = (
   }
 }
 
+// Helper: Update options for a filter found anywhere in the config by its filter id.
+// Used to populate view-specific filter groups (e.g. IRM investment type/group) whose options
+// are supplied by the filterDataHook via `extraFilterOptions`, keyed by filter id.
+const updateFilterOptionsByFilterId = (
+  filterConfig: FilterConfiguration,
+  filterId: string,
+  options: Array<{ id: string; label: string }>
+) => {
+  if (options.length === 0) return
+  const group = filterConfig.groups.find(g => g.filters.some(f => f.id === filterId))
+  if (!group) return
+  updateFilterOptions(filterConfig, group.id, filterId, options)
+}
+
 // Helper: Determine opportunity filter from board filters
 const determineOpportunityFilter = (
   boardFilters: Record<string, any>,
@@ -110,6 +124,8 @@ export interface OpportunityViewConfig<TOpportunity extends { id: string }, TQue
     pipelines: Array<{ id: string; label: string }>
     accounts: Array<{ id: string; label: string }>
     statuses: Array<{ id: string; label: string }>
+    /** Options for view-specific filter groups, keyed by filter id (matches the descriptor key). */
+    extraFilterOptions?: Record<string, Array<{ id: string; label: string }>>
   }
 
   createColumns: () => ColumnDef<TOpportunity>[]
@@ -379,10 +395,12 @@ function buildDynamicListFilterConfig(
     statuses: Array<{ id: string; label: string }>
     forecasts: Array<{ id: string; label: string }>
     amountRange: { min: number; max: number }
+    /** Options for view-specific filters, keyed by filter id (matches the descriptor key). */
+    extraFilterOptions?: Record<string, Array<{ id: string; label: string }>>
   }
 ): FilterConfiguration {
   const filterConfig = { ...baseFilterConfig }
-  const { owners, stages, pipelines, accounts, statuses, forecasts, amountRange } = filterData
+  const { owners, stages, pipelines, accounts, statuses, forecasts, amountRange, extraFilterOptions } = filterData
   updateFilterOptions(
     filterConfig,
     'stage-group',
@@ -419,6 +437,11 @@ function buildDynamicListFilterConfig(
     'accountIds',
     accounts.map(a => ({ id: a.id, label: a.label }))
   )
+  if (extraFilterOptions) {
+    for (const [filterId, options] of Object.entries(extraFilterOptions)) {
+      updateFilterOptionsByFilterId(filterConfig, filterId, options ?? [])
+    }
+  }
   updateAmountRangeFilter(filterConfig, amountRange)
   return filterConfig
 }
@@ -632,6 +655,9 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
     'amountRange' in filterData && typeof filterData.amountRange === 'object'
       ? (filterData.amountRange as { min: number; max: number })
       : { min: 0, max: 1000000 }
+  const extraFilterOptions = ('extraFilterOptions' in filterData ? filterData.extraFilterOptions : undefined) as
+    | Record<string, Array<{ id: string; label: string }>>
+    | undefined
 
   // Fetch available currencies efficiently using distinctOn
   const { currencies: currencyOptions, isLoading: currenciesLoading } = useAvailableCurrencies(context, {
@@ -662,6 +688,7 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
   }, [boardEmployees])
 
   // Dynamic Filter Configuration for List
+  const extraFilterOptionsKey = useMemo(() => JSON.stringify(extraFilterOptions ?? null), [extraFilterOptions])
   const dynamicFilterConfig = useMemo(
     () =>
       buildDynamicListFilterConfig(config.baseFilterConfig, {
@@ -671,9 +698,20 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
         accounts,
         statuses,
         forecasts,
-        amountRange
+        amountRange,
+        extraFilterOptions
       }),
-    [owners, stages, pipelines, accounts, statuses, forecasts, amountRange, config.baseFilterConfig]
+    [
+      owners,
+      stages,
+      pipelines,
+      accounts,
+      statuses,
+      forecasts,
+      amountRange,
+      extraFilterOptionsKey,
+      config.baseFilterConfig
+    ]
   )
 
   // Scope search to the visible columns only while a search is active. Passing `undefined`

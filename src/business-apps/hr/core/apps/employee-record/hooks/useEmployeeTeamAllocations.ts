@@ -193,6 +193,24 @@ const GET_EMPLOYEE_PROJECT_WORKING_HOURS = `
   }
 `
 
+const GET_EMPLOYEE_PROJECT_WORKING_HOURS_BY_RANGE = `
+  query GetEmployeeProjectWorkingHoursByRange($employeeId: uuid!, $dateFrom: date!, $dateTo: date!) {
+    EmployeeProjectWorkingHours(
+      where: {
+        employeeId: {_eq: $employeeId}
+        workingDate: {_gte: $dateFrom, _lte: $dateTo}
+        isDeleted: {_eq: false}
+      }
+    ) {
+      id
+      workingDate
+      projectId
+      version
+      actualWorkingHours
+    }
+  }
+`
+
 export interface HistoricalProject {
   projectId: string
   projectName: string
@@ -210,6 +228,20 @@ export interface WorkingHoursPerDay {
   friday: number
   saturday: number
   sunday: number
+}
+
+export interface YearlyProjectHoursProject {
+  projectId: string
+  projectName: string
+}
+
+export interface YearlyProjectHours {
+  year: number
+  projects: YearlyProjectHoursProject[]
+  monthlyHours: Record<number, Record<string, number>>
+  recordedHours: number
+  recordedDays: number
+  projectDays: number
 }
 
 interface EmployeeWorkingHoursResponse {
@@ -264,9 +296,18 @@ export const useEmployeeTeamAllocations = ({
   >({})
   const [isLoading, setIsLoading] = useState(true)
   const [isLoadingWeekData, setIsLoadingWeekData] = useState(false)
+  const [isLoadingYearData, setIsLoadingYearData] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [workingHoursPerDay, setWorkingHoursPerDay] = useState<WorkingHoursPerDay | null>(null)
+  const [yearlyProjectHours, setYearlyProjectHours] = useState<YearlyProjectHours>({
+    year: new Date().getFullYear(),
+    projects: [],
+    monthlyHours: {},
+    recordedHours: 0,
+    recordedDays: 0,
+    projectDays: 0
+  })
   const graphqlClient = useGraphqlClient(accessToken)
   const restClient = useRestClient(env('NEXT_PUBLIC_BASE_URL') || '')
 
@@ -518,6 +559,111 @@ export const useEmployeeTeamAllocations = ({
     [employeeId, graphqlClient]
   )
 
+  const fetchYearProjectHours = useCallback(
+    async (year: number) => {
+      if (!employeeId || employeeId === '') {
+        setError('Employee ID is missing')
+        return
+      }
+
+      setIsLoadingYearData(true)
+      setError(null)
+
+      try {
+        const dateFrom = `${year}-01-01`
+        const dateTo = `${year}-12-31`
+        const [workingHoursResponse, attendanceResponse] = await Promise.all([
+          graphqlClient.request<EmployeeProjectWorkingHoursResponse>(GET_EMPLOYEE_PROJECT_WORKING_HOURS_BY_RANGE, {
+            employeeId,
+            dateFrom,
+            dateTo
+          }),
+          graphqlClient.request<EmployeeAttendanceResponse>(GET_EMPLOYEE_ATTENDANCE, {
+            employeeId,
+            dateFrom,
+            dateTo
+          })
+        ])
+
+        const monthlyHours: Record<number, Record<string, number>> = {}
+        const projectIds = new Set<string>()
+        const projectNames = new Map<string, string>()
+        const projectDates = new Set<string>()
+
+        for (const allocation of allocations) {
+          if (allocation.projectId) {
+            projectIds.add(allocation.projectId)
+            projectNames.set(
+              allocation.projectId,
+              allocation.projectName || `Project (${allocation.projectId.slice(0, 8)}...)`
+            )
+          }
+        }
+
+        for (const entry of workingHoursResponse.EmployeeProjectWorkingHours || []) {
+          const hours = parseEffectiveTimeToHours(entry.actualWorkingHours)
+          const monthIndex = dayjs(entry.workingDate).month()
+          projectIds.add(entry.projectId)
+          projectDates.add(entry.workingDate)
+
+          monthlyHours[monthIndex] = monthlyHours[monthIndex] || {}
+          monthlyHours[monthIndex][entry.projectId] = (monthlyHours[monthIndex][entry.projectId] || 0) + hours
+        }
+
+        const missingProjectIds = [...projectIds].filter(projectId => !projectNames.has(projectId))
+        if (missingProjectIds.length > 0) {
+          try {
+            const projectsResponse = await graphqlClient.request<ProjectsByIdsResponse>(GET_PROJECTS_BY_IDS, {
+              projectIds: missingProjectIds
+            })
+
+            for (const project of projectsResponse.Project || []) {
+              projectNames.set(project.id, project.name)
+            }
+          } catch (err) {
+            console.warn('Could not fetch yearly project details:', err)
+          }
+        }
+
+        const attendanceHoursByDate: Record<string, number> = {}
+        for (const attendance of attendanceResponse.EmployeeAttendance || []) {
+          const hours = parseEffectiveTimeToHours(attendance.effectiveTime)
+          attendanceHoursByDate[attendance.attendanceDate] =
+            (attendanceHoursByDate[attendance.attendanceDate] || 0) + hours
+        }
+
+        const projects = [...projectIds].map(projectId => ({
+          projectId,
+          projectName: projectNames.get(projectId) || `Project (${projectId.slice(0, 8)}...)`
+        }))
+
+        setYearlyProjectHours({
+          year,
+          projects,
+          monthlyHours,
+          recordedHours: Object.values(attendanceHoursByDate).reduce((sum, hours) => sum + hours, 0),
+          recordedDays: Object.values(attendanceHoursByDate).filter(hours => hours > 0).length,
+          projectDays: projectDates.size
+        })
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Failed to load year project time data'
+        console.error('Error fetching yearly project hours:', err)
+        setError(errorMessage)
+        setYearlyProjectHours({
+          year,
+          projects: [],
+          monthlyHours: {},
+          recordedHours: 0,
+          recordedDays: 0,
+          projectDays: 0
+        })
+      } finally {
+        setIsLoadingYearData(false)
+      }
+    },
+    [allocations, employeeId, graphqlClient]
+  )
+
   useEffect(() => {
     if (structureId) {
       fetchTeamAllocations()
@@ -606,14 +752,17 @@ export const useEmployeeTeamAllocations = ({
     historicalProjects,
     recordedHoursByDate,
     bookedHours,
+    yearlyProjectHours,
     workingHoursPerDay,
     isLoading,
     isLoadingWeekData,
+    isLoadingYearData,
     isSubmitting,
     error,
     refetch: fetchTeamAllocations,
     fetchWorkingHoursPerDay,
     fetchBookedHours,
+    fetchYearProjectHours,
     submitWorkingHours
   }
 }

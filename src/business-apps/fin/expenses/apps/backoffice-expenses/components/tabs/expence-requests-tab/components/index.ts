@@ -1,5 +1,4 @@
 export { default as ExpenseRequestPdfModal } from './ExpenseRequestPdfModal'
-export { default as EmployeeSearchFilter } from './EmployeeSearchFilter'
 export { default as ExpenseRequestSecondaryActions } from './ExpenseRequestSecondaryActions'
 export { default as ExpenseRequestTableActions } from './ExpenseRequestTableActions'
 export { default as ExpenseRequestsTableExportOverlay } from './ExpenseRequestsTableExportOverlay'

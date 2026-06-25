@@ -265,6 +265,8 @@ class ModelBuilder {
   private readonly skillExpertNameBySkillId = new Map<string, string>()
   /** Map expert name → node id (from expert_selected). Used to unify expert_selected and expert_called. */
   private readonly expertNodeByName = new Map<string, string>()
+  /** Unify subagent + expert nodes that share the same display label. */
+  private readonly agentNodeByLabel = new Map<string, string>()
   private baseMs = 0
   private terminal?: AgentTerminalEvent
 
@@ -458,21 +460,8 @@ class ModelBuilder {
   private handleSpawn(event: AgentSubagentSpawnedEvent | AgentExpertCalledEvent): void {
     const kind: MeshNodeKind = event.type === 'expert_called' ? 'expert' : 'subagent'
     const label = resolveSpawnName(event)
-    // Reuse existing expert node by name (from expert_selected or prior expert_called)
-    let existingExpertNodeId: string | undefined
-    if (event.type === 'expert_called') {
-      existingExpertNodeId = this.expertNodeByName.get(label)
-      if (!existingExpertNodeId) {
-        // Fallback: find any existing expert node with the same label
-        for (const [id, node] of this.nodes) {
-          if (node.kind === 'expert' && node.label === label) {
-            existingExpertNodeId = id
-            break
-          }
-        }
-      }
-    }
-    const nodeId = existingExpertNodeId ?? `${kind}:${event.subagent_id ?? event.step_id ?? `${event.seq}-${label}`}`
+    const fallbackId = `${kind}:${event.subagent_id ?? event.step_id ?? `${event.seq}-${label}`}`
+    const nodeId = this.resolveAgentNodeIdByLabel(label, fallbackId)
     const parentId =
       ('parent_step_id' in event ? this.stepOwner.get(event.parent_step_id ?? '') : undefined) ?? this.currentScopeId()
 
@@ -490,8 +479,11 @@ class ModelBuilder {
       invocationCount: 1
     })
     this.bumpInvocationCount(nodeId)
-    // Register so subsequent calls to the same expert reuse this node
-    if (event.type === 'expert_called') this.expertNodeByName.set(label, nodeId)
+    // Register so subsequent calls to the same expert/subagent reuse this node
+    this.agentNodeByLabel.set(label, nodeId)
+    if (event.type === 'expert_called' || this.nodes.get(nodeId)?.kind === 'expert') {
+      this.expertNodeByName.set(label, nodeId)
+    }
 
     if (event.step_id) {
       this.stepOwner.set(event.step_id, nodeId)
@@ -611,10 +603,13 @@ class ModelBuilder {
   }
 
   private handleStepStarted(event: AgentStepStartedEvent): void {
-    const ownerId = this.currentScopeId()
+    const ownerId = this.ownerIdForStep(event)
 
     if (event.step_type === 'tool' || (!event.step_type && event.name)) {
       const toolName = event.name ?? 'tool'
+      if (GENERIC_AGENT_NAMES.has(toolName.toLowerCase())) {
+        return
+      }
       const toolNodeId = `tool:${toolName}`
       this.upsertNode({
         id: toolNodeId,
@@ -796,8 +791,7 @@ class ModelBuilder {
   private handleSkillLoaded(event: SkillLoadedEvent): void {
     if (!event.skill?.skill_id) return
     const skillNodeId = `skill:${event.skill.skill_id}`
-    // Prefer the owning expert (from expert_selected) over the current scope
-    const ownerId = this.skillOwnerBySkillId.get(event.skill.skill_id) ?? this.currentScopeId()
+    const ownerId = this.resolveSkillOwnerId(event.skill.skill_id)
     this.upsertNode({
       id: skillNodeId,
       kind: 'skill',
@@ -854,24 +848,8 @@ class ModelBuilder {
   private handleSkillScoped(event: SkillScopedEvent): void {
     if (!event.skill?.skill_id) return
     const skillNodeId = `skill:${event.skill.skill_id}`
-    this.upsertNode({
-      id: skillNodeId,
-      kind: 'skill',
-      label: event.skill.name || event.skill.skill_id,
-      description: event.skill.description,
-      firstSeenAt: event.timestamp,
-      lastSeenAt: event.timestamp,
-      firstSeenSeq: event.seq,
-      lastSeenSeq: event.seq,
-      status: 'idle',
-      totalDurationMs: 0,
-      invocationCount: 0,
-      metadata: {
-        category: event.skill.category,
-        was_auto_detected: event.was_auto_detected,
-        scoped: true
-      }
-    })
+    // Session-start intent only — no mesh node (avoids orphan skills without
+    // execution edges). Real loads still surface via ``skill_loaded`` / tools.
     this.pushFrame({
       id: this.eventId(event, 'skill-scoped'),
       seq: event.seq,
@@ -945,12 +923,64 @@ class ModelBuilder {
    * existing node for the same display name before creating a second expert.
    */
   private resolveExpertNodeId(expertName: string, registryExpertId: string): string {
-    const fromMap = this.expertNodeByName.get(expertName)
-    if (fromMap) return fromMap
-    for (const [id, node] of this.nodes) {
-      if (node.kind === 'expert' && node.label === expertName) return id
+    return this.resolveAgentNodeIdByLabel(expertName, `expert:${registryExpertId}`)
+  }
+
+  /** One display label → one mesh agent node (subagent and expert kinds). */
+  private resolveAgentNodeIdByLabel(label: string, fallbackId: string): string {
+    const cached = this.agentNodeByLabel.get(label)
+    if (cached && this.nodes.has(cached)) return cached
+
+    const fromExpert = this.expertNodeByName.get(label)
+    if (fromExpert && this.nodes.has(fromExpert)) {
+      this.agentNodeByLabel.set(label, fromExpert)
+      return fromExpert
     }
-    return `expert:${registryExpertId}`
+
+    for (const [id, node] of this.nodes) {
+      if ((node.kind === 'subagent' || node.kind === 'expert') && node.label === label) {
+        this.agentNodeByLabel.set(label, id)
+        if (node.kind === 'expert') this.expertNodeByName.set(label, id)
+        return id
+      }
+    }
+
+    this.agentNodeByLabel.set(label, fallbackId)
+    if (fallbackId.startsWith('expert:')) this.expertNodeByName.set(label, fallbackId)
+    return fallbackId
+  }
+
+  private ownerIdForStep(event: AgentStepStartedEvent): string {
+    const parentStepId = event.parent_step_id
+    if (parentStepId) {
+      const owner = this.stepOwner.get(parentStepId)
+      if (owner) return owner
+    }
+    return this.currentScopeId()
+  }
+
+  private ownerIdForToolChunk(event: AgentChunkEvent): string {
+    const subagentName = event.metadata?.subagent_name
+    if (typeof subagentName === 'string' && subagentName.trim()) {
+      const byLabel = this.resolveAgentNodeIdByLabel(subagentName.trim(), `subagent:${subagentName.trim()}`)
+      if (this.nodes.has(byLabel)) return byLabel
+    }
+    return this.currentScopeId()
+  }
+
+  private resolveSkillOwnerId(skillId: string): string {
+    const mapped = this.skillOwnerBySkillId.get(skillId)
+    if (mapped && this.nodes.has(mapped)) return mapped
+
+    const agents = [...this.nodes.values()].filter(
+      n => (n.kind === 'subagent' || n.kind === 'expert') && n.status !== 'idle'
+    )
+    if (agents.length === 1) return agents[0].id
+
+    const anyAgents = [...this.nodes.values()].filter(n => n.kind === 'subagent' || n.kind === 'expert')
+    if (anyAgents.length === 1) return anyAgents[0].id
+
+    return this.currentScopeId()
   }
 
   private handleEnterpriseRuntime(event: EnterpriseRuntimeTraceEvent): void {
@@ -960,7 +990,7 @@ class ModelBuilder {
     }
 
     if (event.type === 'tool_available' && event.tool_ref) {
-      this.handleToolAvailableRuntime(event)
+      this.handleToolAvailableRuntime()
     }
   }
 
@@ -1033,27 +1063,18 @@ class ModelBuilder {
     }
   }
 
-  private handleToolAvailableRuntime(event: EnterpriseRuntimeTraceEvent): void {
-    if (!event.tool_ref) return
-
-    const nodeId = `tool:${event.tool_ref}`
-    this.upsertNode({
-      id: nodeId,
-      kind: 'tool',
-      label: event.tool_ref,
-      firstSeenAt: event.timestamp,
-      lastSeenAt: event.timestamp,
-      firstSeenSeq: event.seq,
-      lastSeenSeq: event.seq,
-      status: 'idle',
-      totalDurationMs: 0,
-      invocationCount: 0
-    })
+  private handleToolAvailableRuntime(): void {
+    // Catalog binding only — not an execution edge. ``prepareMeshTraceEvents``
+    // filters these before mesh builds; keep handler as a no-op for callers
+    // that invoke ``buildTraceModel`` directly (trace explorer frames).
   }
 
   private handleToolChunk(event: AgentChunkEvent): void {
     const toolName = event.tool_name!
-    const ownerId = this.currentScopeId()
+    if (GENERIC_AGENT_NAMES.has(toolName.toLowerCase())) {
+      return
+    }
+    const ownerId = this.ownerIdForToolChunk(event)
     const toolNodeId = `tool:${toolName}`
 
     this.upsertNode({
@@ -1328,9 +1349,22 @@ function summariseInput(input?: Record<string, unknown>): string | undefined {
     .join(' · ')
 }
 
+/**
+ * Drop catalog-only trace rows that pollute the execution mesh (bound tools,
+ * session-start skill intent). Trace Lens collapses these separately.
+ */
+export function prepareMeshTraceEvents(events: AgentStreamEvent[]): AgentStreamEvent[] {
+  return events.filter(event => event.type !== 'tool_available' && event.type !== 'skill_scoped')
+}
+
 /** Build a normalized trace model from an SSE / REST event list. */
 export function buildTraceModel(events: AgentStreamEvent[]): TraceModel {
   return new ModelBuilder().build(events)
+}
+
+/** Mesh / session graph — execution-only events plus graph attribution fixes. */
+export function buildMeshTraceModel(events: AgentStreamEvent[]): TraceModel {
+  return new ModelBuilder().build(prepareMeshTraceEvents(events))
 }
 
 /** Empty model used as a stable placeholder before any events arrive. */

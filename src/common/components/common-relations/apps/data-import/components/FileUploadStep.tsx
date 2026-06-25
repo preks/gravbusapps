@@ -43,7 +43,11 @@ import { SparkleIcon, CheckCircleIcon, DownloadSimpleIcon, InfoIcon } from '@pho
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import CampaignSelect from '@/common/components/customer/selects/campaign-select/CampaignSelect'
 import { CatalogSelect } from '@/components/catalog-select'
-import type { EnforcedSelectConfig } from '@/common/components/common-relations/apps/data-import/types'
+import { InvestmentCompanyGroupSelect } from './InvestmentCompanyGroupSelect'
+import type {
+  EnforcedDirectFieldConfig,
+  EnforcedSelectConfig
+} from '@/common/components/common-relations/apps/data-import/types'
 import translations from './FileUploadStep/_i18n'
 
 export interface FileUploadStepProps {
@@ -56,9 +60,14 @@ export interface FileUploadStepProps {
   onDownloadTemplate: () => void | Promise<void>
   campaignId?: string
   onCampaignChange?: (campaign: { id: string; name: string } | null) => void
+  investmentCompanyGroupId?: string | null
+  onInvestmentCompanyGroupChange?: (group: { id: string; name: string } | null) => void
   businessAppContext?: BusinessAppContextProps
   enforcedSelectConfigs?: EnforcedSelectConfig[]
+  enforcedDirectFieldConfigs?: EnforcedDirectFieldConfig[]
   allRequiredEnforcedSatisfied?: boolean
+  /** Slot for custom select components (e.g. GraphQL entity selects) */
+  customSelectsSlot?: React.ReactNode
   'data-testid'?: string
 }
 
@@ -98,6 +107,43 @@ const EnforcedCatalogField: React.FC<EnforcedCatalogFieldProps> = ({ config, tes
   )
 }
 
+interface EnforcedDirectFieldProps {
+  config: EnforcedDirectFieldConfig
+  testId: string
+}
+
+const EnforcedDirectField: React.FC<EnforcedDirectFieldProps> = ({ config, testId }) => {
+  const { t } = useTranslation(translations)
+  const form = useFormContext()
+  return (
+    <FormField
+      control={form.control}
+      name={config.id}
+      render={({ field }) => (
+        <FormItem>
+          <FormLabel>
+            {t(config.labelKey)}
+            {config.required && <span className="gba:text-destructive gba:ml-1">*</span>}
+          </FormLabel>
+          <FormControl>
+            <Input
+              type={config.inputType}
+              value={field.value || ''}
+              onChange={field.onChange}
+              data-testid={`${testId}-enforced-${config.id}-input`}
+            />
+          </FormControl>
+          {config.hintKey && (
+            <p className="gba:text-xs gba:text-muted-foreground" data-testid={`${testId}-enforced-${config.id}-hint`}>
+              {t(config.hintKey)}
+            </p>
+          )}
+        </FormItem>
+      )}
+    />
+  )
+}
+
 // Accepted import formats. Backend (Flowbot) handles parsing; the FE only
 // gates the picker + surfaces an inline error when the user selects an
 // unsupported file. Keep the extension list and `ACCEPTED_FILE_TYPES` in
@@ -128,9 +174,13 @@ export const FileUploadStep: React.FC<FileUploadStepProps> = ({
   onDownloadTemplate,
   campaignId,
   onCampaignChange,
+  investmentCompanyGroupId,
+  onInvestmentCompanyGroupChange,
   businessAppContext,
   enforcedSelectConfigs,
+  enforcedDirectFieldConfigs,
   allRequiredEnforcedSatisfied = true,
+  customSelectsSlot,
   'data-testid': testId = 'file-upload-step'
 }) => {
   const { t } = useTranslation(translations)
@@ -159,6 +209,7 @@ export const FileUploadStep: React.FC<FileUploadStepProps> = ({
 
   const canAnalyze = !!file && !isLoading && allRequiredEnforcedSatisfied
   const visibleEnforcedConfigs = enforcedSelectConfigs?.filter(cfg => !cfg.hidden) ?? []
+  const visibleEnforcedDirectFieldConfigs = enforcedDirectFieldConfigs ?? []
 
   return (
     <Card data-testid={testId}>
@@ -264,9 +315,29 @@ export const FileUploadStep: React.FC<FileUploadStepProps> = ({
             </div>
           )}
 
+          {onInvestmentCompanyGroupChange && businessAppContext && (
+            <InvestmentCompanyGroupSelect
+              value={investmentCompanyGroupId || null}
+              onValueChange={onInvestmentCompanyGroupChange}
+              label={t('investment-company-group-label')}
+              placeholder={t('investment-company-group-placeholder')}
+              searchPlaceholder={t('investment-company-group-search-placeholder')}
+              emptyText={t('investment-company-group-empty')}
+              loadErrorText={t('investment-company-group-load-error')}
+              accessToken={businessAppContext.accessToken}
+              data-testid={`${testId}-company-group-select`}
+            />
+          )}
+
           {visibleEnforcedConfigs.map(cfg => (
             <EnforcedCatalogField key={cfg.id} config={cfg} testId={testId} />
           ))}
+
+          {visibleEnforcedDirectFieldConfigs.map(cfg => (
+            <EnforcedDirectField key={cfg.id} config={cfg} testId={testId} />
+          ))}
+
+          {customSelectsSlot}
 
           {!allRequiredEnforcedSatisfied && file && (
             <p className="gba:text-xs gba:text-destructive" data-testid={`${testId}-enforced-required`}>

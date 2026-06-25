@@ -200,6 +200,10 @@ value-na = N/A
 action-acknowledge = Acknowledge
 action-retry = Retry
 
+# Common Review Labels
+review-previous-values = Previous Values
+review-new-values = New Values
+
 # Common States
 loading = Loading...
 
@@ -321,7 +325,23 @@ grant-bonus-pending-status = Pending
 adjust-salary-process-title = Salary Adjustment
 adjust-salary-pending-status = Pending
 
+# Change Working Hours Review Form
+working-hours-review-title = Review Working Hours Changes
+working-hours-active-from = Active From
+working-hours-active-to = Active To
+working-hours-weekly-hours = Weekly Working Hours
+working-hours-working-days = Working Days / Week
+working-hours-fte = FTE (Full Time Equivalent)
+weekday-monday = Monday
+weekday-tuesday = Tuesday
+weekday-wednesday = Wednesday
+weekday-thursday = Thursday
+weekday-friday = Friday
+weekday-saturday = Saturday
+weekday-sunday = Sunday
+
 # Update Working Conditions Form
+working-conditions-review-title = Review Working Conditions Changes
 working-conditions-title = Update Working Conditions
 working-conditions-employment-start-date = Valid From
 working-conditions-employment-end-date = Valid To

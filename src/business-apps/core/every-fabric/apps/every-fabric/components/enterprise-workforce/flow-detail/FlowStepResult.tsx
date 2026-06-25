@@ -71,7 +71,11 @@ export const FlowStepResult: React.FC<FlowStepResultProps> = ({ data, isLoading,
               )}
             </div>
           )}
-          <StepResultData formData={row.inputData ?? {}} accessToken={accessToken} />
+          <StepResultData
+            formData={row.inputData ?? {}}
+            accessToken={accessToken}
+            resultDisplay={data?.resultDisplay}
+          />
         </div>
       ))}
     </div>

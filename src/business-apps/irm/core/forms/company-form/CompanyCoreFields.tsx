@@ -191,6 +191,18 @@ export function CompanyCoreFields({
           )}
         />
         <FormField
+          name="accountingArea"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{t('accounting-area-label')}</FormLabel>
+              <FormControl>
+                <Input {...field} value={field.value || ''} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
           control={form.control}
           name="ownsProperty"
           render={({ field }) => (

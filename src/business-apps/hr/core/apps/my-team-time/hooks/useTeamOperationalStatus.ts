@@ -1,10 +1,22 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { GET_TEAM_ATTENDANCE_FOR_RANGE } from '../queries/queries'
-import { TeamMember, OperationalStatus, TeamAttendanceEntry, TeamAbsenceToday, Anomaly } from '../types/types'
-import { toLocalDateKey, isWorkingDay, parseDurationToMinutes, toDateString } from '../utils/timeUtils'
+import { GET_TEAM_ATTENDANCE_FOR_RANGE, GET_TEAM_ABSENCE_NET_FOR_RANGE } from '../queries/queries'
 import {
+  TeamMember,
+  OperationalStatus,
+  TeamAttendanceEntry,
+  TeamAbsenceToday,
+  Anomaly,
+  AbsenceNetEntry,
+  MonthOvertimeRow
+} from '../types/types'
+import { toLocalDateKey, isWorkingDay, toDateString } from '../utils/timeUtils'
+import {
+  buildAbsenceNetByEmployeeAndDay,
+  buildMonthOvertimeRows,
+  computeMemberPeriodSummaries,
+  expandDetailedAbsencesToCalendarDays,
   fetchTeamDetailedAbsences,
   fetchTeamHolidayData,
   getActiveLocale,
@@ -18,6 +30,7 @@ interface UseTeamOperationalStatusReturn {
   todayAttendance: TeamAttendanceEntry[]
   todayAbsences: TeamAbsenceToday[]
   monthAttendance: TeamAttendanceEntry[]
+  monthOvertimeRows: MonthOvertimeRow[]
   isLoading: boolean
   error: string | null
 }
@@ -40,6 +53,7 @@ export const useTeamOperationalStatus = (
   const [todayAttendance, setTodayAttendance] = useState<TeamAttendanceEntry[]>([])
   const [monthAttendance, setMonthAttendance] = useState<TeamAttendanceEntry[]>([])
   const [todayAbsences, setTodayAbsences] = useState<TeamAbsenceToday[]>([])
+  const [monthOvertimeRows, setMonthOvertimeRows] = useState<MonthOvertimeRow[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -77,16 +91,23 @@ export const useTeamOperationalStatus = (
       const yesterdayStr = toLocalDateKey(yesterdayDate)
       const monthStart = new Date(today.getFullYear(), today.getMonth(), 1)
       const monthStartStr = toDateString(monthStart)
+      const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0)
+      const monthEndStr = toDateString(monthEnd)
       const locale = getActiveLocale()
 
-      const [attendanceResult, detailedAbsences, holidayData] = await Promise.all([
+      const [attendanceResult, detailedAbsences, holidayData, absenceNetResult] = await Promise.all([
         graphqlClient.request<any>(GET_TEAM_ATTENDANCE_FOR_RANGE, {
           employeeIds: memberIds,
           dateFrom: monthStartStr,
           dateTo: todayStr
         }),
-        fetchTeamDetailedAbsences(graphqlClient, memberIds, yesterdayStr, todayStr, locale),
-        fetchTeamHolidayData(graphqlClient, memberIds, yesterdayStr, todayStr, locale)
+        fetchTeamDetailedAbsences(graphqlClient, memberIds, monthStartStr, monthEndStr, locale),
+        fetchTeamHolidayData(graphqlClient, memberIds, monthStartStr, monthEndStr, locale),
+        graphqlClient.request<any>(GET_TEAM_ABSENCE_NET_FOR_RANGE, {
+          employeeIds: memberIds,
+          from: monthStartStr,
+          to: monthEndStr
+        })
       ])
 
       const allAttendance: TeamAttendanceEntry[] = (attendanceResult?.EmployeeAttendance ?? []).map((r: any) => ({
@@ -173,12 +194,24 @@ export const useTeamOperationalStatus = (
 
       const timeRelevantIds = new Set(currentMembers.filter(m => m.timeRelevant).map(m => m.id))
 
-      let overtimeMinutesMTD = 0
-      allAttendance.forEach(entry => {
-        if (!timeRelevantIds.has(entry.employeeId)) return
-        const diff = parseDurationToMinutes(entry.differenceTime)
-        if (diff > 0) overtimeMinutesMTD += diff
+      const absenceNetRows: AbsenceNetEntry[] = absenceNetResult?.DailyAbsenceNetView ?? []
+      const monthAbsences = expandDetailedAbsencesToCalendarDays(detailedAbsences, monthStartStr, monthEndStr)
+      const netByEmployeeAndDay = buildAbsenceNetByEmployeeAndDay(absenceNetRows)
+      const periodSummaries = computeMemberPeriodSummaries({
+        members: currentMembers,
+        from: monthStart,
+        to: monthEnd,
+        attendance: allAttendance,
+        absences: monthAbsences,
+        netByEmployeeAndDay,
+        holidayDatesByEmployeeId: holidayData.datesByEmployeeId
       })
+      const overtimeRows = buildMonthOvertimeRows(
+        currentMembers.filter(member => timeRelevantIds.has(member.id)),
+        periodSummaries
+      )
+      const overtimeMinutesMTD = overtimeRows.reduce((sum, row) => sum + row.overtimeMinutes, 0)
+      setMonthOvertimeRows(overtimeRows)
 
       const anomalies: Anomaly[] = []
 
@@ -244,5 +277,5 @@ export const useTeamOperationalStatus = (
     fetchStatus()
   }, [accessToken, fetchStatus])
 
-  return { status, todayAttendance, todayAbsences, monthAttendance, isLoading, error }
+  return { status, todayAttendance, todayAbsences, monthAttendance, monthOvertimeRows, isLoading, error }
 }

@@ -4,6 +4,7 @@
 import React from 'react'
 import { AutonomySection } from './sections/AutonomySection'
 import { BudgetSection } from './sections/BudgetSection'
+import { ConnectionsSection } from './sections/ConnectionsSection'
 import { Customer360SurfaceSection } from './sections/Customer360SurfaceSection'
 import { EscalationSection } from './sections/EscalationSection'
 import { IdentitySection } from './sections/IdentitySection'
@@ -91,6 +92,14 @@ export const WorkforceConfigSectionStack: React.FC<WorkforceConfigSectionStackPr
       )}
       {inActivation && (
         <KnowledgeSection agent={agent} isSaving={savingSection === 'knowledge'} onSave={makeSaver('knowledge')} />
+      )}
+      {inActivation && (
+        <ConnectionsSection
+          agent={agent}
+          accessToken={accessToken}
+          isSaving={savingSection === 'connections'}
+          onSave={makeSaver('connections')}
+        />
       )}
       {inActivation && (
         <TriggersSection

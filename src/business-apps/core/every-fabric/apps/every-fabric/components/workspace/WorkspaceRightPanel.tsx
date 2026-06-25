@@ -611,9 +611,6 @@ function analyzeStateFromResponse(body: AnalyzeResponse): AnalyzeState {
   }
 }
 
-/** Poll interval while a turn is in-flight so the dev panel stays current. */
-const DEBUG_TRACE_POLL_MS = 5000
-
 async function fetchDebugTrace(sessionId: string, accessToken: string): Promise<Record<string, unknown>> {
   const base = PROMPT_MANAGER_API_URL.replace(/\/$/, '')
   const response = await fetch(`${base}/deep-agent/sessions/${encodeURIComponent(sessionId)}/debug-trace`, {
@@ -948,13 +945,8 @@ const DebugTraceCard: React.FC<{
     }
   }, [isStreaming, sessionId, loadTrace])
 
-  useEffect(() => {
-    if (!sessionId || !isStreaming) return
-    const timer = globalThis.setInterval(() => {
-      loadTrace({ quiet: true }).catch(() => undefined)
-    }, DEBUG_TRACE_POLL_MS)
-    return () => globalThis.clearInterval(timer)
-  }, [sessionId, isStreaming, loadTrace])
+  // Do not poll debug-trace during streaming — it competes with SSE for connections
+  // and parses large JSON on the main thread. Refetch when streaming ends above.
 
   if (!sessionId) return null
 

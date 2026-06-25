@@ -57,4 +57,12 @@ describe('computeStreamingDisplayContent', () => {
 
     expect(computeStreamingDisplayContent(events, 0, false, 'completed')).toBe('Final answer text')
   })
+
+  it('continues streaming updates after cumulative text exceeds 500 characters', () => {
+    const partial = `${'A'.repeat(480)} partial`
+    const full = `${partial} ${'B'.repeat(200)}`
+    const events = [responseStream(partial, 1), responseStream(full, 2)]
+
+    expect(computeStreamingDisplayContent(events, 0, true, 'running')).toBe(full)
+  })
 })

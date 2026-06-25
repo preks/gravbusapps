@@ -14,6 +14,13 @@ file-loaded-text = File loaded: { $fileName } ({ $fileSize } KB)
 # Campaign
 campaign-id-label = Campaign (Optional)
 
+# Investment company group (IRM company import)
+investment-company-group-label = Investment Company Group (Optional)
+investment-company-group-placeholder = Select a company group (optional)
+investment-company-group-search-placeholder = Search groups...
+investment-company-group-empty = No company groups found
+investment-company-group-load-error = Could not load company groups
+
 # Shared
 enforced-required-hint = Fill in all required fields before continuing.
 
@@ -25,6 +32,9 @@ lead-rating-label = Default Lead Rating
 # Investment Defaults
 investment-group-label = Investment Group
 investment-type-label = Investment Type (Optional)
+investment-report-date-label = Report Date (Optional)
+investment-report-date-hint = Set a report date for all imported investment reports. Leave empty to use the date from your file.
+investment-company-group-label = Investment Company Group
 
 # Liquid Fund Defaults
 liquid-fund-type-label = Liquid Fund Type (Optional)

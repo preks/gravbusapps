@@ -69,7 +69,7 @@ export const CompanyListView: React.FC<CompanyListViewProps> = context => {
   const queryVariables = useMemo<InvestmentCompanyQueryVariables>(() => {
     const trimmedSearch = searchTerm.trim()
     return {
-      ...selectedFilters,
+      ...normalizeCompanyFilters(selectedFilters),
       limit: pagination.pageSize,
       offset: pagination.pageIndex * pagination.pageSize,
       search: trimmedSearch || undefined,
@@ -112,6 +112,7 @@ export const CompanyListView: React.FC<CompanyListViewProps> = context => {
           name: t('investment-company-column'),
           commercialRegistrationNumber: t('registration-number-column'),
           taxIdentificationNumber: t('tax-id-column'),
+          accountingArea: t('accounting-area-column'),
           ownerEmployee: t('owner-column'),
           ownsProperty: t('owns-property-column'),
           currency: t('currency-column'),

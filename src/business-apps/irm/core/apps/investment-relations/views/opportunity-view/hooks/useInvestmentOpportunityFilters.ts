@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 
 interface SimpleItem {
   id: string
@@ -14,6 +15,7 @@ export interface StatusItem extends SimpleItem {
 
 export const useInvestmentOpportunityFilters = (context: BusinessAppContextProps) => {
   const graphqlClient = useGraphQLClient(context.accessToken)
+  const catalogClient = useCatalogManagerClient(context.accessToken)
 
   const [owners, setOwners] = useState<SimpleItem[]>([])
   const [stages, setStages] = useState<SimpleItem[]>([])
@@ -21,6 +23,8 @@ export const useInvestmentOpportunityFilters = (context: BusinessAppContextProps
   const [accounts, setAccounts] = useState<SimpleItem[]>([])
   const [statuses, setStatuses] = useState<StatusItem[]>([])
   const [forecasts, setForecasts] = useState<SimpleItem[]>([])
+  const [types, setTypes] = useState<SimpleItem[]>([])
+  const [groups, setGroups] = useState<SimpleItem[]>([])
   const [amountRange, setAmountRange] = useState<{ min: number; max: number }>({ min: 0, max: 1000000 })
 
   const loadOwners = useCallback(async () => {
@@ -193,6 +197,40 @@ export const useInvestmentOpportunityFilters = (context: BusinessAppContextProps
     }
   }, [context.accessToken, graphqlClient])
 
+  // investmentType / investmentGroup are catalogs (InvestmentType:v1 / InvestmentGroup:v1).
+  // Read them from the catalog manager (same approach as useInvestmentAccountFilters) rather than
+  // distinctOn over the opportunity table, so every configured entry is shown — including ones not
+  // yet used by any opportunity. The catalog entry id matches the value stored in
+  // investmentTypeRef / investmentGroupRef, so it maps directly to the filter.
+  const loadTypes = useCallback(async () => {
+    if (!context.accessToken) return
+    try {
+      // InvestmentType is a hierarchical catalog: every entry is a child of an InvestmentGroup
+      // entry. The list endpoint only returns root-level entries unless includeChildCatalogEntries
+      // is set, so without it the Investment Type filter comes back empty.
+      const resp = await catalogClient.getCatalogEntriesList(
+        { catalogIdentifier: 'InvestmentType', version: 'v1' },
+        { limit: 200, offset: 0, returnTotalRecords: false, includeChildCatalogEntries: true }
+      )
+      setTypes((resp?.data || []).map(e => ({ id: e.id, label: e.value || e.code || e.id })))
+    } catch {
+      setTypes([])
+    }
+  }, [context.accessToken, catalogClient])
+
+  const loadGroups = useCallback(async () => {
+    if (!context.accessToken) return
+    try {
+      const resp = await catalogClient.getCatalogEntriesList(
+        { catalogIdentifier: 'InvestmentGroup', version: 'v1' },
+        { limit: 200, offset: 0, returnTotalRecords: false, includeChildCatalogEntries: false }
+      )
+      setGroups((resp?.data || []).map(e => ({ id: e.id, label: e.value || e.code || e.id })))
+    } catch {
+      setGroups([])
+    }
+  }, [context.accessToken, catalogClient])
+
   const loadAmountRange = useCallback(async () => {
     if (!context.accessToken) return
     try {
@@ -228,8 +266,30 @@ export const useInvestmentOpportunityFilters = (context: BusinessAppContextProps
     loadAccounts()
     loadStatuses()
     loadForecasts()
+    loadTypes()
+    loadGroups()
     loadAmountRange()
-  }, [loadOwners, loadStages, loadPipelines, loadAccounts, loadStatuses, loadForecasts, loadAmountRange])
+  }, [
+    loadOwners,
+    loadStages,
+    loadPipelines,
+    loadAccounts,
+    loadStatuses,
+    loadForecasts,
+    loadTypes,
+    loadGroups,
+    loadAmountRange
+  ])
 
-  return { owners, stages, pipelines, accounts, statuses, forecasts, amountRange }
+  // extraFilterOptions is keyed by filter field id (which matches the descriptor key),
+  // so the shared OpportunityLayout can populate the IRM-specific filter groups generically.
+  const extraFilterOptions = useMemo(
+    () => ({
+      investmentTypeIds: types,
+      investmentGroupIds: groups
+    }),
+    [types, groups]
+  )
+
+  return { owners, stages, pipelines, accounts, statuses, forecasts, types, groups, amountRange, extraFilterOptions }
 }

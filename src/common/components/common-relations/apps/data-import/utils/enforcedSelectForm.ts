@@ -14,11 +14,16 @@
  *  - `buildEnforcedSelectMap(configs, values)`: `{ [targetField]: value }`
  *    map of every non-hidden, non-empty selection for the conversion
  *    request.
+ *  - Direct-field helpers mirror the same behavior for non-catalog inputs.
  */
 
-import type { EnforcedSelectConfig } from '@/common/components/common-relations/apps/data-import/types'
+import type {
+  EnforcedDirectFieldConfig,
+  EnforcedSelectConfig
+} from '@/common/components/common-relations/apps/data-import/types'
 
 export type EnforcedSelectValues = Record<string, string>
+export type EnforcedDirectFieldValues = Record<string, string>
 
 export function buildEnforcedSelectDefaults(configs: EnforcedSelectConfig[] | undefined): EnforcedSelectValues {
   const defaults: EnforcedSelectValues = {}
@@ -42,6 +47,24 @@ export function allEnforcedRequiredSatisfied(
   return true
 }
 
+export function buildEnforcedDirectFieldDefaults(
+  configs: EnforcedDirectFieldConfig[] | undefined
+): EnforcedDirectFieldValues {
+  const defaults: EnforcedDirectFieldValues = {}
+  if (!configs) return defaults
+  for (const cfg of configs) {
+    defaults[cfg.id] = ''
+  }
+  return defaults
+}
+
+export function allEnforcedDirectFieldsRequiredSatisfied(
+  configs: EnforcedDirectFieldConfig[] | undefined,
+  values: EnforcedDirectFieldValues
+): boolean {
+  return configs?.filter(cfg => cfg.required).every(cfg => Boolean(values[cfg.id]?.trim())) ?? true
+}
+
 /**
  * Extracts the short alias from a potentially dotted target-field path.
  * `'investment.investmentTypeRef'` → `'investmentTypeRef'`
@@ -61,6 +84,22 @@ export function buildEnforcedSelectMap(
   for (const cfg of configs) {
     if (cfg.hidden || !cfg.targetField) continue
     const value = values[cfg.id]
+    if (value) {
+      enforced[toShortAlias(cfg.targetField)] = value
+    }
+  }
+  return Object.keys(enforced).length > 0 ? enforced : undefined
+}
+
+export function buildEnforcedDirectFieldMap(
+  configs: EnforcedDirectFieldConfig[] | undefined,
+  values: EnforcedDirectFieldValues
+): Record<string, string> | undefined {
+  if (!configs) return undefined
+  const enforced: Record<string, string> = {}
+  for (const cfg of configs) {
+    if (!cfg.targetField) continue
+    const value = values[cfg.id]?.trim()
     if (value) {
       enforced[toShortAlias(cfg.targetField)] = value
     }

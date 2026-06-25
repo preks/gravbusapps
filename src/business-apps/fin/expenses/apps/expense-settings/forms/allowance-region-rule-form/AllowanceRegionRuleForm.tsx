@@ -16,19 +16,16 @@ import {
   FormLabel,
   FormControl,
   FormMessage,
-  DateInput
+  DateInput,
+  Toaster
 } from '@newwork/nw-design-system'
+import { toast } from 'sonner'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { ExpenseSettingsClient } from '../../utils/ExpenseSettingsClient'
 import { normalizeDateInputValue, toISOEndOfDay, toISOStartOfDay } from '../../utils'
 import dayjs from 'dayjs'
 import { allowanceRegionRuleFormSchema } from '../../schemas'
-
-// Custom toast function
-const toast = () => {
-  // Placeholder for toast functionality
-}
 
 export interface AllowanceRegionRuleFormData {
   code: string
@@ -115,13 +112,13 @@ const AllowanceRegionRuleForm: React.FC<AllowanceRegionRuleFormProps> = ({
 
       await expenseSettingsClient.saveAllowanceRegionRule(ruleData)
 
-      toast('Allowance region rule created successfully', 'success')
+      toast.success('Allowance region rule created successfully')
       onSave(data)
       handleClose()
     } catch (err) {
       console.error('❌ Error creating Allowance Region Rule:', err)
       setError(err instanceof Error ? err.message : 'Failed to create Allowance Region Rule')
-      toast('Failed to create Allowance Region Rule', 'error')
+      toast.error('Failed to create Allowance Region Rule')
     } finally {
       setIsSubmitting(false)
     }
@@ -145,120 +142,51 @@ const AllowanceRegionRuleForm: React.FC<AllowanceRegionRuleFormProps> = ({
   const nameValue = form.watch('name')
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent
-        data-testid={`${prefixDataTestId}-allowance-region-rule-form`}
-        className="gba:max-w-2xl gba:max-h-[85vh]"
-      >
-        <DialogHeader>
-          <DialogTitle>
-            {getTranslationFromI18nKeyAndLabel(
-              'expense-settings:create_allowance_rule',
-              'Create Allowance Region Rule'
+    <>
+      <Dialog open={open} onOpenChange={handleClose}>
+        <DialogContent
+          data-testid={`${prefixDataTestId}-allowance-region-rule-form`}
+          className="gba:max-w-2xl gba:max-h-[85vh]"
+        >
+          <DialogHeader>
+            <DialogTitle>
+              {getTranslationFromI18nKeyAndLabel(
+                'expense-settings:create_allowance_rule',
+                'Create Allowance Region Rule'
+              )}
+            </DialogTitle>
+            {travelRegionSetName && (
+              <p className="gba:text-sm gba:text-muted-foreground gba:mt-1">
+                Adding to: <span className="gba:font-medium">{travelRegionSetName}</span>
+              </p>
             )}
-          </DialogTitle>
-          {travelRegionSetName && (
-            <p className="gba:text-sm gba:text-muted-foreground gba:mt-1">
-              Adding to: <span className="gba:font-medium">{travelRegionSetName}</span>
-            </p>
-          )}
-        </DialogHeader>
+          </DialogHeader>
 
-        <div className="gba:overflow-y-auto gba:max-h-[calc(85vh-120px)]">
-          {error && (
-            <Alert className="gba:mb-4">
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
+          <div className="gba:overflow-y-auto gba:max-h-[calc(85vh-120px)]">
+            {error && (
+              <Alert className="gba:mb-4">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
 
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(handleSubmit)} className="gba:space-y-3 gba:px-1">
-              <FormField
-                control={form.control}
-                name="code"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>
-                      {getTranslationFromI18nKeyAndLabel('expense-settings:code', 'Code')}
-                      <span className="gba:text-destructive gba:ml-1">*</span>
-                    </FormLabel>
-                    <FormControl>
-                      <Input
-                        {...field}
-                        placeholder="Enter unique code (e.g., HOTEL_EU)"
-                        data-testid={`${prefixDataTestId}-code-input`}
-                        disabled={isSubmitting}
-                        className="gba:h-9 gba:text-sm"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>
-                      {getTranslationFromI18nKeyAndLabel('expense-settings:name', 'Name')}
-                      <span className="gba:text-destructive gba:ml-1">*</span>
-                    </FormLabel>
-                    <FormControl>
-                      <Input
-                        {...field}
-                        placeholder="Enter display name (e.g., Hotel Allowance Europe)"
-                        data-testid={`${prefixDataTestId}-name-input`}
-                        disabled={isSubmitting}
-                        className="gba:h-9 gba:text-sm"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="description"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>
-                      {getTranslationFromI18nKeyAndLabel('expense-settings:description', 'Description')}
-                    </FormLabel>
-                    <FormControl>
-                      <Input
-                        {...field}
-                        value={field.value || ''}
-                        placeholder="Enter optional description"
-                        data-testid={`${prefixDataTestId}-description-input`}
-                        disabled={isSubmitting}
-                        className="gba:h-9 gba:text-sm"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <div className="gba:grid gba:grid-cols-2 gba:gap-3">
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(handleSubmit)} className="gba:space-y-3 gba:px-1">
                 <FormField
                   control={form.control}
-                  name="activeFrom"
+                  name="code"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>
-                        {getTranslationFromI18nKeyAndLabel('expense-settings:active_from', 'Active From')}
+                        {getTranslationFromI18nKeyAndLabel('expense-settings:code', 'Code')}
                         <span className="gba:text-destructive gba:ml-1">*</span>
                       </FormLabel>
                       <FormControl>
-                        <DateInput
-                          value={field.value || ''}
-                          onChange={date => field.onChange(normalizeDateInputValue(date) ?? '')}
-                          outputFormat="iso"
-                          data-testid={`${prefixDataTestId}-active-from-input`}
+                        <Input
+                          {...field}
+                          placeholder="Enter unique code (e.g., HOTEL_EU)"
+                          data-testid={`${prefixDataTestId}-code-input`}
                           disabled={isSubmitting}
+                          className="gba:h-9 gba:text-sm"
                         />
                       </FormControl>
                       <FormMessage />
@@ -268,56 +196,128 @@ const AllowanceRegionRuleForm: React.FC<AllowanceRegionRuleFormProps> = ({
 
                 <FormField
                   control={form.control}
-                  name="activeTo"
+                  name="name"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>
-                        {getTranslationFromI18nKeyAndLabel('expense-settings:active_to', 'Active To')}
+                        {getTranslationFromI18nKeyAndLabel('expense-settings:name', 'Name')}
+                        <span className="gba:text-destructive gba:ml-1">*</span>
                       </FormLabel>
                       <FormControl>
-                        <DateInput
-                          value={field.value || ''}
-                          onChange={date => field.onChange(normalizeDateInputValue(date))}
-                          outputFormat="iso"
-                          data-testid={`${prefixDataTestId}-active-to-input`}
+                        <Input
+                          {...field}
+                          placeholder="Enter display name (e.g., Hotel Allowance Europe)"
+                          data-testid={`${prefixDataTestId}-name-input`}
                           disabled={isSubmitting}
+                          className="gba:h-9 gba:text-sm"
                         />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-              </div>
 
-              <div className="gba:flex gba:justify-end gba:gap-2 gba:pt-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleClose}
-                  disabled={isSubmitting}
-                  size="sm"
-                  className="gba:h-9 gba:text-sm"
-                  data-testid={`${prefixDataTestId}-cancel-button`}
-                >
-                  {getTranslationFromI18nKeyAndLabel('expense-settings:cancel', 'Cancel')}
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={isSubmitting || !codeValue?.trim() || !nameValue?.trim()}
-                  size="sm"
-                  className="gba:h-9 gba:text-sm"
-                  data-testid={`${prefixDataTestId}-save-button`}
-                >
-                  {isSubmitting
-                    ? getTranslationFromI18nKeyAndLabel('expense-settings:creating', 'Creating...')
-                    : getTranslationFromI18nKeyAndLabel('expense-settings:create', 'Create')}
-                </Button>
-              </div>
-            </form>
-          </Form>
-        </div>
-      </DialogContent>
-    </Dialog>
+                <FormField
+                  control={form.control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>
+                        {getTranslationFromI18nKeyAndLabel('expense-settings:description', 'Description')}
+                      </FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          value={field.value || ''}
+                          placeholder="Enter optional description"
+                          data-testid={`${prefixDataTestId}-description-input`}
+                          disabled={isSubmitting}
+                          className="gba:h-9 gba:text-sm"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <div className="gba:grid gba:grid-cols-2 gba:gap-3">
+                  <FormField
+                    control={form.control}
+                    name="activeFrom"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>
+                          {getTranslationFromI18nKeyAndLabel('expense-settings:active_from', 'Active From')}
+                          <span className="gba:text-destructive gba:ml-1">*</span>
+                        </FormLabel>
+                        <FormControl>
+                          <DateInput
+                            value={field.value || ''}
+                            onChange={date => field.onChange(normalizeDateInputValue(date) ?? '')}
+                            outputFormat="iso"
+                            data-testid={`${prefixDataTestId}-active-from-input`}
+                            disabled={isSubmitting}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="activeTo"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>
+                          {getTranslationFromI18nKeyAndLabel('expense-settings:active_to', 'Active To')}
+                        </FormLabel>
+                        <FormControl>
+                          <DateInput
+                            value={field.value || ''}
+                            onChange={date => field.onChange(normalizeDateInputValue(date))}
+                            outputFormat="iso"
+                            data-testid={`${prefixDataTestId}-active-to-input`}
+                            disabled={isSubmitting}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="gba:flex gba:justify-end gba:gap-2 gba:pt-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleClose}
+                    disabled={isSubmitting}
+                    size="sm"
+                    className="gba:h-9 gba:text-sm"
+                    data-testid={`${prefixDataTestId}-cancel-button`}
+                  >
+                    {getTranslationFromI18nKeyAndLabel('expense-settings:cancel', 'Cancel')}
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={isSubmitting || !codeValue?.trim() || !nameValue?.trim()}
+                    size="sm"
+                    className="gba:h-9 gba:text-sm"
+                    data-testid={`${prefixDataTestId}-save-button`}
+                  >
+                    {isSubmitting
+                      ? getTranslationFromI18nKeyAndLabel('expense-settings:creating', 'Creating...')
+                      : getTranslationFromI18nKeyAndLabel('expense-settings:create', 'Create')}
+                  </Button>
+                </div>
+              </form>
+            </Form>
+          </div>
+        </DialogContent>
+      </Dialog>
+      <Toaster />
+    </>
   )
 }
 

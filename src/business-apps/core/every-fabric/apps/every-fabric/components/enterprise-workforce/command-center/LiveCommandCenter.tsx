@@ -1,24 +1,21 @@
 // Live Command Center for the Workforce overview hub.
 //
 // A workspace-wide, semi-live view of what the whole digital workforce is
-// doing right now: a status ribbon (running / waiting / pending + last-hour
-// throughput) over a chronological feed of just-started, active, and
-// just-finished runs with their triggers and outcomes. Subsumes the old
-// "working now" strip. Always visible on the overview; the feed shows a calm
-// idle state when there is genuinely no activity.
+// doing right now: a single unified bar (section counts that double as jump
+// anchors + the "done today" throughput and live pill) over three grouped,
+// collapsible sections of active, waiting, and just-finished runs. Subsumes the
+// old "working now" strip. Always visible on the overview; the feed shows a
+// calm idle state when there is genuinely no activity.
 
 import { LightningIcon } from '@phosphor-icons/react'
 import { useTranslation } from '@newwork/nw-design-system'
 import React from 'react'
-import type { WorkforceActiveOverview } from '../workforceTypes'
 import type { WorkforceFeedItem } from '../workforceFeedModel'
 import { CommandCenterFeed } from './CommandCenterFeed'
-import { CommandCenterRibbon } from './CommandCenterRibbon'
 import translations from '../../../_i18n'
 
 export interface LiveCommandCenterProps {
   feed: readonly WorkforceFeedItem[]
-  overview: WorkforceActiveOverview | null
   completedToday: number
   throughputBuckets: readonly number[]
   isConnected: boolean
@@ -30,7 +27,6 @@ export interface LiveCommandCenterProps {
 
 export const LiveCommandCenter: React.FC<LiveCommandCenterProps> = ({
   feed,
-  overview,
   completedToday,
   throughputBuckets,
   isConnected,
@@ -39,7 +35,6 @@ export const LiveCommandCenter: React.FC<LiveCommandCenterProps> = ({
   variant = 'card'
 }) => {
   const { t } = useTranslation(translations)
-  const counts = overview?.status_counts ?? { running: 0, pending: 0, waiting_for_human: 0 }
   const shellClassName =
     variant === 'sidebar'
       ? 'gba:flex gba:h-full gba:min-h-0 gba:flex-col gba:gap-3 gba:p-4'
@@ -52,16 +47,15 @@ export const LiveCommandCenter: React.FC<LiveCommandCenterProps> = ({
         <h2 className="gba:text-sm gba:font-semibold gba:text-foreground">{t('command-center-title')}</h2>
       </header>
 
-      <CommandCenterRibbon
-        running={counts.running}
-        waitingForHuman={counts.waiting_for_human}
-        pending={counts.pending}
+      <CommandCenterFeed
+        items={feed}
+        nameById={nameById}
+        onOpenRun={onOpenRun}
         completedToday={completedToday}
         throughputBuckets={throughputBuckets}
         isConnected={isConnected}
+        variant={variant}
       />
-
-      <CommandCenterFeed items={feed} nameById={nameById} onOpenRun={onOpenRun} variant={variant} />
     </section>
   )
 }

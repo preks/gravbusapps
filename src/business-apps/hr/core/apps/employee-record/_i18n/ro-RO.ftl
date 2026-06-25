@@ -1052,6 +1052,7 @@ working-hours-customize-by-day-description = Introduceți manual orele pentru fi
 working-hours-distribute-evenly-action = Distribuie uniform
 working-hours-active-period-overlap = Perioada activă a programului de lucru se suprapune cu o înregistrare existentă a programului de lucru.
 working-hours-active-from-before-hire-date-warning = Programul de lucru începe înainte de data angajării.
+working-hours-active-from-hire-date-preselected = Pentru prima înregistrare a programului de lucru, data angajării este preselectată și nu poate fi editată.
 working-hours-at-least-one-working-day-required = Cel puțin o zi trebuie să aibă mai mult de 0 ore de lucru.
 working-hours-submitting-message = Se trimit orele de lucru...
 

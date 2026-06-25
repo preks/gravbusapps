@@ -149,6 +149,11 @@ command-center-stat-running = în curs
 command-center-stat-waiting = în așteptare
 command-center-stat-pending = în coadă
 command-center-done-today = finalizate azi
+command-center-section-needs-you = Necesită atenția ta
+command-center-section-active = Active
+command-center-section-recently-done = Finalizate recent
+command-center-show-more = Afișează încă { $count }
+command-center-show-less = Afișează mai puțin
 
 # Run detail header
 run-detail-back = Înapoi
@@ -382,6 +387,14 @@ knowledge-ref-id-placeholder = ID referință sau URL
 knowledge-title-placeholder = Titlu opțional
 knowledge-empty = Încă nicio referință de cunoștințe.
 knowledge-open-policy = Deschide politica într-o filă nouă (ID: { $id })
+
+# Connections section
+connections-section-title = Conexiuni
+connections-section-desc = Conexiuni externe pe care { -platform-ai-agent-product.inline } le activează la fiecare rulare. Asocierea unei conexiuni (de ex. Salesforce) activează uneltele conectorului.
+connections-empty = Nicio conexiune disponibilă pentru asociere.
+connections-none-selected = Nicio conexiune asociată — rulările nu folosesc unelte de conector.
+connections-loading = Se încarcă conexiunile…
+connections-load-error = Conexiunile nu au putut fi încărcate.
 
 # Skills & policies section
 skills-section-title = Abilități și politici

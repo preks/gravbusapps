@@ -12,6 +12,8 @@ export interface StreamingMarkdownProps {
   accessToken?: string
   variant?: 'default' | 'enterprise'
   className?: string
+  /** Blinking caret at the end of streamed text. Defaults to `isStreaming`. */
+  showCaret?: boolean
 }
 
 function hasIncompleteCodeBlock(content: string): boolean {
@@ -458,7 +460,8 @@ export const StreamingMarkdown: React.FC<StreamingMarkdownProps> = ({
   isStreaming,
   accessToken = '',
   variant = 'default',
-  className = ''
+  className = '',
+  showCaret
 }) => {
   const [renderedContent, setRenderedContent] = useState('')
   const prevContentRef = useRef('')
@@ -468,21 +471,27 @@ export const StreamingMarkdown: React.FC<StreamingMarkdownProps> = ({
   useEffect(() => {
     pendingContentRef.current = content
 
-    if (rafRef.current) return
-
-    rafRef.current = requestAnimationFrame(() => {
+    const flush = () => {
       rafRef.current = null
-      const newContent = pendingContentRef.current
-      const completeContent = getCompleteContent(newContent, isStreaming)
+      const completeContent = getCompleteContent(pendingContentRef.current, isStreaming)
 
       if (completeContent !== prevContentRef.current) {
         setRenderedContent(completeContent)
         prevContentRef.current = completeContent
       }
-    })
+
+      const latestComplete = getCompleteContent(pendingContentRef.current, isStreaming)
+      if (latestComplete !== prevContentRef.current) {
+        rafRef.current = requestAnimationFrame(flush)
+      }
+    }
+
+    if (rafRef.current === null) {
+      rafRef.current = requestAnimationFrame(flush)
+    }
 
     return () => {
-      if (rafRef.current) {
+      if (rafRef.current !== null) {
         cancelAnimationFrame(rafRef.current)
         rafRef.current = null
       }
@@ -503,8 +512,18 @@ export const StreamingMarkdown: React.FC<StreamingMarkdownProps> = ({
       ? 'gba:prose gba:prose-sm gba:max-w-none gba:text-foreground gba:[&_table]:gba:text-[14px] [&>*:last-child]:gba:mb-0'
       : 'gba:prose gba:prose-sm gba:max-w-none gba:text-foreground [&>*:last-child]:gba:mb-0'
 
+  const caretVisible = (showCaret ?? isStreaming) && renderedContent.length > 0
+
   return (
     <StreamingMarkdownContext.Provider value={streamingContextValue}>
+      {caretVisible ? (
+        <style>{`
+          @keyframes streaming-markdown-caret-blink {
+            0%, 45% { opacity: 1; }
+            50%, 100% { opacity: 0; }
+          }
+        `}</style>
+      ) : null}
       <div className={`${proseClasses} ${className}`} data-testid="streaming-markdown">
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
@@ -513,6 +532,14 @@ export const StreamingMarkdown: React.FC<StreamingMarkdownProps> = ({
         >
           {renderedContent}
         </ReactMarkdown>
+        {caretVisible ? (
+          <span
+            className="gba:inline-block gba:w-[2px] gba:h-[1.05em] gba:ml-0.5 gba:align-text-bottom gba:bg-primary gba:rounded-[1px]"
+            style={{ animation: 'streaming-markdown-caret-blink 1s step-end infinite' }}
+            aria-hidden
+            data-testid="streaming-caret"
+          />
+        ) : null}
       </div>
     </StreamingMarkdownContext.Provider>
   )

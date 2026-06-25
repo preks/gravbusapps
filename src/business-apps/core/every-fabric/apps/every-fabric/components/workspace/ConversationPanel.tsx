@@ -13,7 +13,6 @@ import {
 } from './workspaceLayout.constants'
 
 const SCROLL_THRESHOLD_PX = 100
-const SCROLL_FOLLOW_INTERVAL_MS = 50
 
 interface ConversationPanelProps {
   sessionId: string
@@ -58,10 +57,10 @@ function useSmartScroll(
   endRef: React.RefObject<HTMLDivElement>,
   isStreaming: boolean,
   streamingGreeting: string,
-  streamingContent: string
+  streamingContent: string,
+  streamingThinking: string
 ) {
   const isUserScrolledRef = useRef(false)
-  const lastScrollHeightRef = useRef(0)
   const observerRef = useRef<IntersectionObserver | null>(null)
 
   useEffect(() => {
@@ -89,31 +88,22 @@ function useSmartScroll(
   }, [scrollRef, endRef])
 
   useEffect(() => {
-    const scrollEl = scrollRef.current
-    if (!scrollEl || !isStreaming) return
+    if (!isStreaming || isUserScrolledRef.current) return
 
-    lastScrollHeightRef.current = scrollEl.scrollHeight
+    const endEl = endRef.current
+    if (!endEl) return
 
-    const followContent = () => {
+    let rafId: number | null = null
+    rafId = requestAnimationFrame(() => {
+      rafId = null
       if (isUserScrolledRef.current) return
+      endEl.scrollIntoView({ behavior: 'smooth', block: 'end' })
+    })
 
-      const currentHeight = scrollEl.scrollHeight
-      const heightDelta = currentHeight - lastScrollHeightRef.current
-
-      if (heightDelta > 0) {
-        scrollEl.scrollBy({
-          top: heightDelta,
-          behavior: 'smooth'
-        })
-      }
-
-      lastScrollHeightRef.current = currentHeight
+    return () => {
+      if (rafId !== null) cancelAnimationFrame(rafId)
     }
-
-    const intervalId = setInterval(followContent, SCROLL_FOLLOW_INTERVAL_MS)
-
-    return () => clearInterval(intervalId)
-  }, [scrollRef, isStreaming, streamingGreeting, streamingContent])
+  }, [endRef, isStreaming, streamingGreeting, streamingContent, streamingThinking])
 
   const handleScroll = useCallback(() => {
     const el = scrollRef.current
@@ -163,7 +153,8 @@ export const ConversationPanel: React.FC<ConversationPanelProps> = ({
     endRef,
     isStreaming,
     streamingGreeting,
-    streamingContent
+    streamingContent,
+    streamingThinking
   )
 
   const visibleMessages = messages.filter(isTranscriptMessage)
@@ -251,6 +242,7 @@ export const ConversationPanel: React.FC<ConversationPanelProps> = ({
               statusMessage={statusHeadline}
               activityLines={activityLines ?? []}
               presentationMode={presentationMode}
+              accessToken={accessToken}
             />
           ) : null}
 

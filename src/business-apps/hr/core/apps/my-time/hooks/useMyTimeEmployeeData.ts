@@ -11,6 +11,8 @@ export interface MyTimeWorkingCondition {
 }
 
 export interface MyTimeWorkingHours {
+  activeFrom?: string | null
+  activeTo?: string | null
   mondayHours?: number
   tuesdayHours?: number
   wednesdayHours?: number
@@ -54,7 +56,12 @@ const GET_MY_TIME_EMPLOYEE_DATA = `
             objectValue
           }
         }
-        workingHours {
+        workingHours(
+          where: { isDeleted: { _eq: false } }
+          orderBy: [{ activeFrom: ASC }, { createdAt: ASC }]
+        ) {
+          activeFrom
+          activeTo
           mondayHours
           tuesdayHours
           wednesdayHours

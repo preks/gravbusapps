@@ -38,17 +38,33 @@ const KIND_LABEL_KEY: Record<ActivityRelatedEntityKind, string> = {
   investment: 'activities-related-investment'
 }
 
-const CHIP_CLASS =
-  'gba:inline-flex gba:max-w-[280px] gba:min-w-0 gba:items-center gba:gap-2 gba:overflow-hidden gba:rounded-md gba:bg-muted/40 gba:px-2 gba:py-1 gba:text-muted-foreground'
+const CHIP_BASE_CLASS =
+  'gba:inline-flex gba:max-w-[280px] gba:min-w-0 gba:items-center gba:gap-2 gba:overflow-hidden gba:rounded-md gba:px-2 gba:py-1 gba:text-muted-foreground'
+const CHIP_BG_CLASS = 'gba:bg-muted/40'
 
 export type ActivityRelatedEntityHintsProps = {
   activityId: string
   entities: ActivityRelatedEntity[]
   t: (key: string, params?: Record<string, string | number>) => string
+  /**
+   * When true, render chips without the muted background fill (used by the
+   * activity detail sheet where chips sit directly on a surface card).
+   */
+  transparentChips?: boolean
 }
 
-export function ActivityRelatedEntityHints({ activityId, entities, t }: Readonly<ActivityRelatedEntityHintsProps>) {
+export function ActivityRelatedEntityHints({
+  activityId,
+  entities,
+  t,
+  transparentChips = false
+}: Readonly<ActivityRelatedEntityHintsProps>) {
   if (!entities.length) return null
+
+  const chipClass = transparentChips ? CHIP_BASE_CLASS : `${CHIP_BASE_CLASS} ${CHIP_BG_CLASS}`
+  const chipHoverClass = transparentChips
+    ? 'hover:gba:text-foreground'
+    : 'hover:gba:bg-muted/60 hover:gba:text-foreground'
 
   return (
     <TooltipProvider>
@@ -106,14 +122,14 @@ export function ActivityRelatedEntityHints({ activityId, entities, t }: Readonly
                       e.preventDefault()
                       navigateTo(href)
                     }}
-                    className={`${CHIP_CLASS} gba:transition-colors hover:gba:bg-muted/60 hover:gba:text-foreground`}
+                    className={`${chipClass} gba:transition-colors ${chipHoverClass}`}
                     data-testid={`activity-related-entity-${activityId}-${entity.kind}`}
                   >
                     {inner}
                   </a>
                 ) : (
                   <span
-                    className={`${CHIP_CLASS} gba:cursor-default`}
+                    className={`${chipClass} gba:cursor-default`}
                     data-testid={`activity-related-entity-${activityId}-${entity.kind}`}
                   >
                     {inner}

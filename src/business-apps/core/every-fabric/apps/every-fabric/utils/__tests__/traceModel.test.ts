@@ -1,5 +1,11 @@
 import type { AgentStreamEvent } from '../../types/enterpriseAgent'
-import { buildTraceModel, EMPTY_TRACE_MODEL, ORCHESTRATOR_NODE_ID } from '../traceModel'
+import {
+  buildMeshTraceModel,
+  buildTraceModel,
+  EMPTY_TRACE_MODEL,
+  ORCHESTRATOR_NODE_ID,
+  prepareMeshTraceEvents
+} from '../traceModel'
 
 const ts = (offsetSeconds: number) => new Date(Date.UTC(2026, 0, 1, 12, 0, offsetSeconds, 0)).toISOString()
 
@@ -225,5 +231,116 @@ describe('traceModel', () => {
   it('exposes the empty model singleton with one orchestrator node', () => {
     expect(EMPTY_TRACE_MODEL.nodes).toHaveLength(1)
     expect(EMPTY_TRACE_MODEL.nodes[0].id).toBe(ORCHESTRATOR_NODE_ID)
+  })
+
+  it('mesh model omits catalog-only tool_available nodes', () => {
+    const events: AgentStreamEvent[] = [
+      {
+        type: 'tool_available',
+        seq: 1,
+        event_id: 'ta1',
+        timestamp: ts(0),
+        tool_ref: 'functions.search_crm_entity'
+      },
+      {
+        type: 'subagent_spawned',
+        seq: 2,
+        event_id: 'e2',
+        step_id: 's1',
+        agent_name: 'CRM_Account_Agent',
+        name: 'task',
+        timestamp: ts(1)
+      },
+      {
+        type: 'step_started',
+        seq: 3,
+        event_id: 'e3',
+        step_id: 't1',
+        step_type: 'tool',
+        name: 'newwork_search_crm_entity',
+        parent_step_id: 's1',
+        timestamp: ts(2)
+      },
+      {
+        type: 'step_completed',
+        seq: 4,
+        event_id: 'e4',
+        step_id: 't1',
+        status: 'done',
+        name: 'newwork_search_crm_entity',
+        timestamp: ts(3)
+      }
+    ]
+    const mesh = buildMeshTraceModel(events)
+    expect(mesh.nodes.some(n => n.label === 'functions.search_crm_entity')).toBe(false)
+    expect(mesh.nodes.filter(n => n.label === 'CRM_Account_Agent')).toHaveLength(1)
+    const toolEdge = mesh.edges.find(e => e.kind === 'tool_call' && e.target === 'tool:newwork_search_crm_entity')
+    expect(toolEdge?.source).not.toBe(ORCHESTRATOR_NODE_ID)
+  })
+
+  it('merges subagent_spawned into expert_selected node with the same label', () => {
+    const events: AgentStreamEvent[] = [
+      {
+        type: 'expert_selected',
+        seq: 1,
+        event_id: 'es1',
+        expert_id: 'crm-registry-id',
+        timestamp: ts(0),
+        payload: { name: 'CRM_Account_Agent', skill_ids: ['insurance-crm-workflow'] }
+      },
+      {
+        type: 'subagent_spawned',
+        seq: 2,
+        event_id: 'sp1',
+        step_id: 'step-delegate',
+        name: 'task',
+        agent_name: 'CRM_Account_Agent',
+        subagent_id: 'abc12345',
+        timestamp: ts(1)
+      },
+      {
+        type: 'subagent_completed',
+        seq: 3,
+        event_id: 'sp2',
+        step_id: 'step-delegate',
+        status: 'done',
+        timestamp: ts(2)
+      }
+    ]
+    const mesh = buildMeshTraceModel(events)
+    const crmNodes = mesh.nodes.filter(n => n.label === 'CRM_Account_Agent')
+    expect(crmNodes).toHaveLength(1)
+    expect(crmNodes[0].id).toBe('expert:crm-registry-id')
+  })
+
+  it('does not surface generic delegation tool nodes like task', () => {
+    const events: AgentStreamEvent[] = [
+      {
+        type: 'agent_chunk',
+        seq: 1,
+        event_id: 'c1',
+        role: 'tool',
+        tool_name: 'task',
+        content: 'done',
+        timestamp: ts(0)
+      }
+    ]
+    const mesh = buildMeshTraceModel(events)
+    expect(mesh.nodes.some(n => n.label === 'task')).toBe(false)
+  })
+
+  it('prepareMeshTraceEvents strips skill_scoped rows', () => {
+    const events: AgentStreamEvent[] = [
+      {
+        type: 'skill_scoped',
+        seq: 1,
+        event_id: 'ss1',
+        timestamp: ts(0),
+        skill: { skill_id: 'insurance-crm-workflow', name: 'insurance-crm-workflow' }
+      }
+    ]
+    expect(prepareMeshTraceEvents(events)).toHaveLength(0)
+    expect(buildTraceModel(events).nodes.some(n => n.kind === 'skill')).toBe(false)
+    expect(buildMeshTraceModel(events).nodes.some(n => n.kind === 'skill')).toBe(false)
   })
 })

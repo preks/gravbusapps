@@ -66,6 +66,7 @@ export const INVESTMENT_COMPANY_REF = `
   taxIdentificationNumber
   taxNumber
   valueAddedTaxNumber
+  accountingArea
   picture
   pictureThumbnail
   ownerEmployeeId

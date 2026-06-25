@@ -1,7 +1,8 @@
-import React, { useMemo } from 'react'
+import React, { useCallback, useMemo } from 'react'
 import { Avatar, AvatarFallback, AvatarImage } from '@newwork/nw-design-system'
 import { useInvestmentContact } from '@/common/data/investment/hooks/useInvestmentContact'
 import { useEmployeeById } from '@/common/data/employee/hooks/useEmployeeById'
+import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import type { DetailsViewProps } from '../../types'
 
 const EMPTY_VALUE = '-'
@@ -48,6 +49,26 @@ const formatName = (executive: ExecutiveRow, fallbackContactName?: string): stri
   return fallbackContactName || EMPTY_VALUE
 }
 
+const getExecutiveRecordTarget = (executive: ExecutiveRow): { url: string; testId: string } | null => {
+  const employeeId = executive.employee?.id || executive.employeeId
+  if (employeeId) {
+    return {
+      url: buildPlatformUrl('/platform/employee-record', { employeeId }),
+      testId: 'investment-company-executive-employee-link'
+    }
+  }
+
+  const contactId = executive.investmentContact?.id || executive.investmentContactId
+  if (contactId) {
+    return {
+      url: buildPlatformUrl('/platform/irm/contact-record', { contactId }),
+      testId: 'investment-company-executive-contact-link'
+    }
+  }
+
+  return null
+}
+
 interface ExecutiveDetailsRowProps {
   executive: ExecutiveRow
   accessToken?: string
@@ -60,6 +81,10 @@ export const ExecutiveDetailsRow: React.FC<ExecutiveDetailsRowProps> = ({ execut
     accessToken: accessToken || '',
     employeeId: executive.employeeId
   })
+
+  const handleOpenRecord = useCallback((url: string) => {
+    navigateTo(url)
+  }, [])
 
   const displayData = useMemo(() => {
     const resolvedName = formatName(
@@ -92,6 +117,8 @@ export const ExecutiveDetailsRow: React.FC<ExecutiveDetailsRowProps> = ({ execut
     return { resolvedName, avatarSrc, jobTitle, department }
   }, [contact, employeePositionData, executive])
 
+  const recordTarget = getExecutiveRecordTarget(executive)
+
   return (
     <div className="gba:space-y-3">
       <div className="gba:flex gba:items-center gba:gap-3">
@@ -100,7 +127,18 @@ export const ExecutiveDetailsRow: React.FC<ExecutiveDetailsRowProps> = ({ execut
           <AvatarFallback>{getInitials(displayData.resolvedName)}</AvatarFallback>
         </Avatar>
         <div className="gba:min-w-0">
-          <div className="gba:truncate gba:text-sm gba:font-semibold">{displayData.resolvedName}</div>
+          {recordTarget ? (
+            <button
+              type="button"
+              onClick={() => handleOpenRecord(recordTarget.url)}
+              className="gba:block gba:max-w-full gba:truncate gba:bg-transparent gba:p-0 gba:text-left gba:text-sm gba:font-semibold gba:text-primary gba:hover:underline"
+              data-testid={`${recordTarget.testId}-${executive.id}`}
+            >
+              {displayData.resolvedName}
+            </button>
+          ) : (
+            <div className="gba:truncate gba:text-sm gba:font-semibold">{displayData.resolvedName}</div>
+          )}
           <div className="gba:text-xs gba:text-muted-foreground">
             {executive.employeeId ? t('source-employee') : t('source-investment-contact')}
           </div>

@@ -149,6 +149,11 @@ command-center-stat-running = laufend
 command-center-stat-waiting = warten
 command-center-stat-pending = ausstehend
 command-center-done-today = heute erledigt
+command-center-section-needs-you = Erfordert Aktion
+command-center-section-active = Aktiv
+command-center-section-recently-done = Kürzlich erledigt
+command-center-show-more = { $count } weitere anzeigen
+command-center-show-less = Weniger anzeigen
 
 # Run detail header
 run-detail-back = Zurück
@@ -382,6 +387,14 @@ knowledge-ref-id-placeholder = Referenz-ID oder URL
 knowledge-title-placeholder = Optionaler Titel
 knowledge-empty = Noch keine Wissensreferenzen.
 knowledge-open-policy = Richtlinie in neuem Tab öffnen (ID: { $id })
+
+# Connections section
+connections-section-title = Verbindungen
+connections-section-desc = Externe Verbindungen, die { -platform-ai-agent-product.inline } bei jedem Lauf aktiviert. Das Binden einer Verbindung (z. B. Salesforce) aktiviert deren Connector-Tools.
+connections-empty = Keine Verbindungen zum Binden verfügbar.
+connections-none-selected = Keine Verbindungen gebunden – Läufe nutzen keine Connector-Tools.
+connections-loading = Verbindungen werden geladen…
+connections-load-error = Verbindungen konnten nicht geladen werden.
 
 # Skills & policies section
 skills-section-title = Skills & Richtlinien

@@ -314,6 +314,7 @@ advance-payment-not-specified = Not specified
 advance-payment-no-description = No description
 advance-payment-no-expense-plan = No Expense Plan
 advance-payment-search = Search in Advance Payments
+advance-payment-filter-plan-start-date = Plan Start Date
 advance-payment-loading-reporters = Loading reporters...
 advance-payment-no-reporters = No reporters found
 advance-payment-reporter-label = Reporter:

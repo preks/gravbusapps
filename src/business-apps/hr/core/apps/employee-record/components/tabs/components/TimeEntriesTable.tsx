@@ -29,6 +29,7 @@ export interface TimeEntriesTableProps {
   userId?: string
   /** When false, hides the "Rows per page" selector (e.g. for My Time Time History with fixed 100) */
   showRowsPerPage?: boolean
+  showActions?: boolean
   sortKey?: keyof TimeEntry
   sortDir?: SortDirection
   onSort?: (key: keyof TimeEntry, dir: SortDirection) => void
@@ -44,6 +45,7 @@ export const TimeEntriesTable: React.FC<TimeEntriesTableProps> = props => {
     employeeId,
     userId,
     showRowsPerPage = true,
+    showActions = true,
     sortKey,
     sortDir,
     onSort
@@ -173,13 +175,13 @@ export const TimeEntriesTable: React.FC<TimeEntriesTableProps> = props => {
                 <SortIcon field="status" />
               </div>
             </TableHead>
-            <TableHead className="gba:w-[60px]">{t('actions')}</TableHead>
+            {showActions && <TableHead className="gba:w-[60px]">{t('actions')}</TableHead>}
           </TableRow>
         </TableHeader>
         <TableBody>
           {entries.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={14} className="gba:text-muted-foreground">
+              <TableCell colSpan={showActions ? 14 : 13} className="gba:text-muted-foreground">
                 {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.table.empty', 'No entries')}
               </TableCell>
             </TableRow>
@@ -241,47 +243,49 @@ export const TimeEntriesTable: React.FC<TimeEntriesTableProps> = props => {
                     '-'
                   )}
                 </TableCell>
-                <TableCell className="gba:py-1.5 gba:px-2 gba:align-middle">
-                  {!e.isPlaceholder &&
-                  !e.isBeforeHireDate &&
-                  e.status !== 'under_review' &&
-                  e.status !== 'in_progress' ? (
-                    <div className="gba:flex gba:items-center gba:justify-start gba:scale-[0.65] gba:origin-left">
-                      <AppActionButton
-                        data-testid={`time-tracking-update-button-${e.id}`}
-                        size="icon"
-                        contextsArray={[FlowContextName.employeeAttendanceCorrectionRequest]}
-                        externalContextData={{
-                          employeeId,
-                          employeeid: employeeId,
-                          timeEntryId: e.id,
-                          attendanceDateISO: e.attendanceDateISO,
-                          startTimeISO: e.startTimeISO,
-                          endTimeISO: e.endTimeISO,
-                          notes: e.notes,
-                          timeEntryVersion: e.version,
-                          recordedTime: e.recordedTime,
-                          breakTime: e.breakTime,
-                          effectiveTime: e.effectiveTime,
-                          plannedTime: e.plannedTime,
-                          differenceTime: e.differenceTime,
-                          changeMode: 'INSERT',
-                          userId: userId,
-                          employeeAttendanceCorrectionRequest: {
+                {showActions && (
+                  <TableCell className="gba:py-1.5 gba:px-2 gba:align-middle">
+                    {!e.isPlaceholder &&
+                    !e.isBeforeHireDate &&
+                    e.status !== 'under_review' &&
+                    e.status !== 'in_progress' ? (
+                      <div className="gba:flex gba:items-center gba:justify-start gba:scale-[0.65] gba:origin-left">
+                        <AppActionButton
+                          data-testid={`time-tracking-update-button-${e.id}`}
+                          size="icon"
+                          contextsArray={[FlowContextName.employeeAttendanceCorrectionRequest]}
+                          externalContextData={{
+                            employeeId,
+                            employeeid: employeeId,
+                            timeEntryId: e.id,
+                            attendanceDateISO: e.attendanceDateISO,
+                            startTimeISO: e.startTimeISO,
+                            endTimeISO: e.endTimeISO,
+                            notes: e.notes,
                             timeEntryVersion: e.version,
-                            timeEntryId: e.id
-                          }
-                        }}
-                        prefixDataTestId={`time-tracking-update`}
-                        accessToken={accessToken}
-                        emptyStateBehavior="enable"
-                        onClick={evt => evt.stopPropagation()}
-                      />
-                    </div>
-                  ) : (
-                    '-'
-                  )}
-                </TableCell>
+                            recordedTime: e.recordedTime,
+                            breakTime: e.breakTime,
+                            effectiveTime: e.effectiveTime,
+                            plannedTime: e.plannedTime,
+                            differenceTime: e.differenceTime,
+                            changeMode: 'INSERT',
+                            userId: userId,
+                            employeeAttendanceCorrectionRequest: {
+                              timeEntryVersion: e.version,
+                              timeEntryId: e.id
+                            }
+                          }}
+                          prefixDataTestId={`time-tracking-update`}
+                          accessToken={accessToken}
+                          emptyStateBehavior="enable"
+                          onClick={evt => evt.stopPropagation()}
+                        />
+                      </div>
+                    ) : (
+                      '-'
+                    )}
+                  </TableCell>
+                )}
               </TableRow>
             ))
           )}

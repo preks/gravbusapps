@@ -19,6 +19,8 @@ export const ANNUAL_REVENUE = 'AccountAnnualRevenueBand:v1'
 export const OPPORTUNITY_FORECAST = 'InvestmentOpportunityForecast:v1'
 export const ACCOUNT_PRIORITY = 'InvestmentAccountPriority:v1'
 export const INVESTMENT_ACCOUNT_TYPE = 'InvestmentAccountType:v1'
+export const INVESTMENT_COMPANY_STAKEHOLDER_TYPE_CATALOG = 'InvestmentCompanyStakeholderType'
+export const INVESTMENT_COMPANY_STAKEHOLDER_TYPE = `${INVESTMENT_COMPANY_STAKEHOLDER_TYPE_CATALOG}:v1`
 
 // Investment catalog identifiers
 export const investmentGroup = 'InvestmentGroup:v1'

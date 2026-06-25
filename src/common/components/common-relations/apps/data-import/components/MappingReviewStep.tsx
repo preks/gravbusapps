@@ -46,6 +46,7 @@ export interface MappingReviewStepProps {
   unmappedSourceFields: string[]
   targetFieldsConfig: TargetFieldDefinition[]
   entityType?: string
+  relationshipColumnHints?: string[]
   isLoading: boolean
   onUpdateTargetFromUnmapped: (index: number, newTargetField: string) => void
   onRemoveMapping: (index: number) => void
@@ -61,6 +62,7 @@ export const MappingReviewStep: React.FC<MappingReviewStepProps> = ({
   unmappedSourceFields,
   targetFieldsConfig,
   entityType = 'records',
+  relationshipColumnHints,
   isLoading,
   onUpdateTargetFromUnmapped,
   onRemoveMapping,
@@ -106,6 +108,20 @@ export const MappingReviewStep: React.FC<MappingReviewStepProps> = ({
                 </p>
               )}
             </div>
+
+            {relationshipColumnHints && relationshipColumnHints.length > 0 && (
+              <div
+                className="gba:rounded-lg gba:border gba:border-info gba:bg-info-secondary gba:p-3 gba:text-sm"
+                data-testid={`${testId}-relationship-hints`}
+              >
+                <p className="gba:font-medium gba:text-info-foreground">{t('relationship-columns-title')}</p>
+                <div className="gba:mt-1 gba:space-y-1 gba:text-muted-foreground">
+                  {relationshipColumnHints.map(hint => (
+                    <p key={hint}>{t(hint)}</p>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Mapped Fields */}
             <div>

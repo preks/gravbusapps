@@ -65,7 +65,8 @@ export const useTeamCapacity = (
   members: TeamMember[],
   memberIds: string[],
   sharedMonthAttendance?: TeamAttendanceEntry[],
-  allMembers?: TeamMember[]
+  allMembers?: TeamMember[],
+  enabled = true
 ): UseTeamCapacityReturn => {
   const graphqlClient = useGraphQLClient(accessToken)
 
@@ -74,7 +75,7 @@ export const useTeamCapacity = (
     return new Date(d.getFullYear(), d.getMonth(), 1)
   })
   const [rows, setRows] = useState<CapacityRow[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(enabled)
   const [error, setError] = useState<string | null>(null)
 
   const membersRef = useRef(members)
@@ -85,15 +86,19 @@ export const useTeamCapacity = (
   const canUseSharedAttendance = (() => {
     const now = new Date()
     const sameMonth = now.getFullYear() === currentMonth.getFullYear() && now.getMonth() === currentMonth.getMonth()
-    return (
-      sameMonth &&
-      !!sharedMonthAttendance &&
-      sharedMonthAttendance.length > 0 &&
-      (!allMembers || allMembers.length === 0)
-    )
+    if (!sameMonth || !sharedMonthAttendance || sharedMonthAttendance.length === 0) return false
+    if (allMembers && allMembers.length > 0) {
+      const sharedIds = new Set(sharedMonthAttendance.map(a => a.employeeId))
+      return allMembers.every(m => m.timeRelevant === false || sharedIds.has(m.id))
+    }
+    return true
   })()
 
   const fetchCapacity = useCallback(async () => {
+    if (!enabled) {
+      return
+    }
+
     const sourceMembers = allMembersRef.current.length > 0 ? allMembersRef.current : membersRef.current
     if (!graphqlClient || sourceMembers.length === 0) {
       setIsLoading(false)
@@ -296,17 +301,18 @@ export const useTeamCapacity = (
     memberIds.join(','),
     (allMembers ?? []).map(member => member.id).join(','),
     currentMonth,
-    canUseSharedAttendance
+    canUseSharedAttendance,
+    enabled
   ])
 
   useEffect(() => {
-    if (!accessToken) {
+    if (!accessToken || !enabled) {
       setIsLoading(false)
       return
     }
 
     fetchCapacity()
-  }, [accessToken, fetchCapacity])
+  }, [accessToken, fetchCapacity, enabled])
 
   const prevMonth = useCallback(() => {
     setCurrentMonth(m => new Date(m.getFullYear(), m.getMonth() - 1, 1))

@@ -45,7 +45,8 @@ function renderEmployeeCell(employeeName: string, employeePicture?: string | nul
 
 function getChangeAmountSortValue(row: CompensationChangeRow): number {
   if (row.category === 'salary') {
-    return (row.raw as SalaryChangeRecord).monthlyGrossSalary ?? Number.NEGATIVE_INFINITY
+    const record = row.raw as SalaryChangeRecord
+    return record.requestedAmount ?? record.requestedPercent ?? record.monthlyGrossSalary ?? Number.NEGATIVE_INFINITY
   }
   if (row.category === 'bonus') {
     return (row.raw as BonusRecord).amount ?? Number.NEGATIVE_INFINITY

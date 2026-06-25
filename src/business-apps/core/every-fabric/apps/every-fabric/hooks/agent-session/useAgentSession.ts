@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type {
+  AgentStreamEvent,
   ChatMessage,
   DeepAgentSession,
   MessageAttachmentRef,
@@ -8,7 +9,7 @@ import type {
 } from '../../types/enterpriseAgent'
 import { invalidateDeepAgentSessionEtagCache, useEnterpriseAgentClient } from '../useEnterpriseAgentClient'
 import { useFlowBotFabricClient } from '../useFlowBotFabricClient'
-import { markSessionStreamRestTerminal } from '../sessionStreamRegistry'
+import { appendSessionStreamEvents, markSessionStreamRestTerminal } from '../sessionStreamRegistry'
 import { useSessionStream } from '../useSessionStream'
 import { isFlowBotFabricRuntime } from '../../utils/fabricRuntime'
 import { postSessionReply } from './replyFlow'
@@ -16,7 +17,7 @@ import { readSessionUiCache, writeSessionUiCache } from './sessionUiStateCache'
 import { deriveStreamSuppressed, isTerminalStatus } from './sessionStatus'
 import { epochFromStreamEvent } from './traceTurn'
 import type { ActiveSkillInfo, AgentExecutionClient } from './types'
-import { POLL_INTERVAL_MS, SSE_HEALTHY_POLL_DIVISOR } from './types'
+import { POLL_INTERVAL_MS, POLL_INTERVAL_WHILE_SSE_CONNECTED_MS } from './types'
 import { pickActiveSkillFromEvents } from './skillFromEvents'
 import { useAgentSessionDerived } from './useAgentSessionDerived'
 
@@ -64,6 +65,8 @@ export const useAgentSession = (
   isAgentRunningRef.current = isAgentRunning
   const isConnectedRef = useRef(isConnected)
   isConnectedRef.current = isConnected
+  const streamSuppressedRef = useRef(streamSuppressed)
+  streamSuppressedRef.current = streamSuppressed
 
   const fetchSession = useCallback(
     async (options?: { bypassCache?: boolean }) => {
@@ -72,6 +75,9 @@ export const useAgentSession = (
         const s = await client.getSession(sessionId, options)
         setSessionLoadError(false)
         setSession(s)
+        if (s?.trace?.length) {
+          appendSessionStreamEvents(sessionId, s.trace as AgentStreamEvent[], accessToken)
+        }
         if (s && isTerminalStatus(s.status)) {
           markSessionStreamRestTerminal(sessionId)
         }
@@ -81,7 +87,7 @@ export const useAgentSession = (
         return null
       }
     },
-    [sessionId, client]
+    [sessionId, client, accessToken]
   )
 
   useEffect(() => {
@@ -114,9 +120,18 @@ export const useAgentSession = (
 
   useEffect(() => {
     if (!sessionId) return
-    let tick = 0
-    const timer = setInterval(async () => {
-      tick += 1
+    let cancelled = false
+    let timeoutId: ReturnType<typeof setTimeout> | undefined
+
+    const scheduleNext = (delayMs: number) => {
+      if (cancelled) return
+      timeoutId = setTimeout(() => {
+        void pollOnce()
+      }, delayMs)
+    }
+
+    const pollOnce = async () => {
+      if (cancelled) return
       const current = sessionRef.current
       const needsWork =
         isAgentRunningRef.current || current?.status === 'running' || current?.status === 'pending' || !current
@@ -124,24 +139,27 @@ export const useAgentSession = (
         setIsAgentRunning(false)
         return
       }
-      // While the SSE stream is live it already delivers every event,
-      // including the terminal one. Re-fetching the entire (cumulatively
-      // growing) session document with `bypassCache` on every tick is
-      // redundant and expensive — it re-parses and re-renders the whole
-      // FabricContext each time. So when the stream is healthy we drop to a
-      // lightweight cached backstop poll every Nth tick; only when the stream
-      // is down do we fall back to the original aggressive bypassCache cadence.
-      const streamHealthy = isConnectedRef.current && needsWork
-      if (streamHealthy && tick % SSE_HEALTHY_POLL_DIVISOR !== 0) {
-        return
-      }
-      const next = await fetchSession(needsWork && !isConnectedRef.current ? { bypassCache: true } : undefined)
+
+      const sessionActivelyStreaming =
+        isAgentRunningRef.current || current?.status === 'running' || current?.status === 'pending'
+      const sseLive = sessionActivelyStreaming && isConnectedRef.current && !streamSuppressedRef.current
+      // SSE owns incremental tokens; REST still syncs coalesced trace rows on a
+      // slower cadence so missed SSE upserts do not freeze the bubble until terminal.
+      const next = await fetchSession(needsWork ? { bypassCache: true } : undefined)
       if (next && isTerminalStatus(next.status)) {
         setIsAgentRunning(false)
         setLastReplyTimestamp(0)
       }
-    }, POLL_INTERVAL_MS)
-    return () => clearInterval(timer)
+
+      const nextDelay = sseLive ? POLL_INTERVAL_WHILE_SSE_CONNECTED_MS : POLL_INTERVAL_MS
+      scheduleNext(nextDelay)
+    }
+
+    scheduleNext(POLL_INTERVAL_MS)
+    return () => {
+      cancelled = true
+      if (timeoutId !== undefined) clearTimeout(timeoutId)
+    }
   }, [sessionId, fetchSession])
 
   useEffect(() => {

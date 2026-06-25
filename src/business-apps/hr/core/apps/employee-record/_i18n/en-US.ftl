@@ -1065,6 +1065,7 @@ working-hours-customize-by-day-description = Enter the hours for each day manual
 working-hours-distribute-evenly-action = Distribute evenly
 working-hours-active-period-overlap = Employee working hours active period overlaps with an existing working hours entry.
 working-hours-active-from-before-hire-date-warning = Working hours start before the employee hire date.
+working-hours-active-from-hire-date-preselected = For the first working hours entry, the hire date is preselected and cannot be edited.
 working-hours-at-least-one-working-day-required = At least one day must have more than 0 working hours.
 working-hours-submitting-message = Submitting working hours...
 

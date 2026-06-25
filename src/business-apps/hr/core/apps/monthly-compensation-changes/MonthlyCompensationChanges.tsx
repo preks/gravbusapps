@@ -41,6 +41,7 @@ function MonthlyCompensationChangesPage({ accessToken }: MonthlyCompensationChan
         {model.activeTab === 'changes' ? (
           <CompensationChangesTab
             t={t}
+            accessToken={accessToken}
             titleSections={model.changeTitleSections}
             currentSection={model.changeSection}
             onSectionChange={model.setChangeSection}
