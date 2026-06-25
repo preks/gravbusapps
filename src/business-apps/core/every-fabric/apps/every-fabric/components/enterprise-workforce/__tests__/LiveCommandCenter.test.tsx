@@ -43,13 +43,12 @@ function overview(): WorkforceActiveOverview {
 }
 
 describe('LiveCommandCenter', () => {
-  it('renders the ribbon and a merged feed of active + finished runs', () => {
+  it('renders the unified bar and a merged feed of active + finished runs', () => {
     const ov = overview()
     const feed = buildFeed(ov, new Set())
     render(
       <LiveCommandCenter
         feed={feed}
-        overview={ov}
         completedToday={3}
         throughputBuckets={[0, 1, 0, 2]}
         isConnected
@@ -59,7 +58,7 @@ describe('LiveCommandCenter', () => {
     )
 
     expect(screen.getByTestId('workforce-command-center')).toBeInTheDocument()
-    expect(screen.getByTestId('command-center-ribbon')).toHaveTextContent('command-center-done-today')
+    expect(screen.getByTestId('command-center-bar')).toHaveTextContent('command-center-done-today')
     expect(screen.getByTestId('command-center-item-s-active')).toHaveTextContent('Searching CRM')
     expect(screen.getByTestId('command-center-item-s-done')).toHaveTextContent('Account ACC-9')
   })
@@ -71,7 +70,6 @@ describe('LiveCommandCenter', () => {
     render(
       <LiveCommandCenter
         feed={feed}
-        overview={ov}
         completedToday={0}
         throughputBuckets={[]}
         isConnected
@@ -84,7 +82,7 @@ describe('LiveCommandCenter', () => {
     expect(onOpen).toHaveBeenCalledWith('a-1', 's-active')
   })
 
-  it('groups runs into sections and shows matching jump-bar counts', () => {
+  it('groups runs into sections and shows matching bar counts', () => {
     const ov: WorkforceActiveOverview = {
       count: 2,
       status_counts: { running: 1, pending: 0, waiting_for_human: 1 },
@@ -125,7 +123,6 @@ describe('LiveCommandCenter', () => {
     render(
       <LiveCommandCenter
         feed={buildFeed(ov, new Set())}
-        overview={ov}
         completedToday={0}
         throughputBuckets={[]}
         isConnected
@@ -180,7 +177,6 @@ describe('LiveCommandCenter', () => {
     render(
       <LiveCommandCenter
         feed={buildFeed(ov, new Set())}
-        overview={ov}
         completedToday={0}
         throughputBuckets={[]}
         isConnected
@@ -200,6 +196,45 @@ describe('LiveCommandCenter', () => {
 
     fireEvent.click(screen.getByTestId('command-center-section-more-active'))
     expect(screen.getByTestId('command-center-item-s-active-0')).toBeInTheDocument()
+  })
+
+  it('caps Needs you at 6 cards behind Show more but reports the full count', () => {
+    const waiting = Array.from({ length: 8 }, (_, index) => ({
+      session_id: `s-wait-${index}`,
+      agent_id: 'a-1',
+      status: 'waiting_for_human' as const,
+      input: 'approve',
+      current_activity: 'Awaiting approval',
+      last_seq: 1,
+      started_at: `2026-06-01T12:0${index}:00Z`
+    }))
+    const ov: WorkforceActiveOverview = {
+      count: 8,
+      status_counts: { running: 0, pending: 0, waiting_for_human: 8 },
+      agents_working: ['a-1'],
+      by_agent: { 'a-1': 8 },
+      runs: waiting,
+      recent_completed: []
+    }
+    render(
+      <LiveCommandCenter
+        feed={buildFeed(ov, new Set())}
+        completedToday={0}
+        throughputBuckets={[]}
+        isConnected
+        nameById={{}}
+        onOpenRun={jest.fn()}
+      />
+    )
+
+    // All 8 are grouped (no global cap), 6 shown, 2 behind "Show more".
+    expect(screen.getByTestId('command-center-section-list-needsYou').children).toHaveLength(6)
+    expect(screen.getByTestId('command-center-section-more-needsYou')).toBeInTheDocument()
+    // Non-collapsible: the header can never hide the action items.
+    expect(screen.getByTestId('command-center-section-toggle-needsYou')).toBeDisabled()
+
+    fireEvent.click(screen.getByTestId('command-center-section-more-needsYou'))
+    expect(screen.getByTestId('command-center-section-list-needsYou').children).toHaveLength(8)
   })
 
   it('collapses a section when its header toggle is clicked', () => {
@@ -224,7 +259,6 @@ describe('LiveCommandCenter', () => {
     render(
       <LiveCommandCenter
         feed={buildFeed(ov, new Set())}
-        overview={ov}
         completedToday={0}
         throughputBuckets={[]}
         isConnected
@@ -242,14 +276,6 @@ describe('LiveCommandCenter', () => {
     render(
       <LiveCommandCenter
         feed={[]}
-        overview={{
-          count: 0,
-          status_counts: { running: 0, pending: 0, waiting_for_human: 0 },
-          agents_working: [],
-          by_agent: {},
-          runs: [],
-          recent_completed: []
-        }}
         completedToday={0}
         throughputBuckets={[]}
         isConnected={false}
@@ -258,7 +284,8 @@ describe('LiveCommandCenter', () => {
       />
     )
     expect(screen.getByTestId('workforce-command-center')).toBeInTheDocument()
-    expect(screen.getByTestId('command-center-ribbon')).toBeInTheDocument()
+    // The unified bar (with the live pill + throughput) stays visible when idle.
+    expect(screen.getByTestId('command-center-bar')).toBeInTheDocument()
     expect(screen.getByTestId('command-center-feed-empty')).toBeInTheDocument()
   })
 })

@@ -38,7 +38,6 @@ export interface WorkforceFeedItem {
   pendingFlowApproval: boolean
 }
 
-const FEED_CAP = 30
 const HOUR_MS = 60 * 60 * 1000
 const BUCKET_MS = 5 * 60 * 1000
 const BUCKET_COUNT = 12
@@ -113,9 +112,14 @@ function flowPendingItem(run: WorkforceActiveRun): WorkforceFeedItem {
 }
 
 /**
- * Build the merged, capped, newest-first feed from an overview snapshot.
+ * Build the merged, newest-first feed from an overview snapshot.
  * ``newActiveIds`` flags runs that appeared since the previous snapshot so the
  * UI can animate "just started" items.
+ *
+ * The feed is intentionally NOT globally truncated: the grouped sections each
+ * cap how many cards they show (with "Show N more"), and the "Needs you"
+ * section must reflect every action-required run so its count matches the
+ * server-side ribbon gauge. The backend already bounds the active-run query.
  */
 export function buildFeed(
   overview: WorkforceActiveOverview | null,
@@ -142,7 +146,7 @@ export function buildFeed(
   }
 
   items.sort((a, b) => tsMs(b.timestamp) - tsMs(a.timestamp))
-  return items.slice(0, FEED_CAP)
+  return items
 }
 
 // ---------------------------------------------------------------------------
@@ -178,23 +182,40 @@ const NEEDS_YOU_STATUSES: ReadonlySet<WorkforceRunStatus> = new Set<WorkforceRun
   'budget_paused'
 ])
 
-// Per-section presentation config. ``initialVisible`` caps how many cards a
-// section shows before a "Show N more" toggle; ``null`` means always show all
-// (used by "Needs you", which must never hide an action item). ``order`` fixes
-// the top-to-bottom layout. ``labelKey`` is the Fluent translation key (the
-// model holds the key, not the translated text, so this file stays React- and
-// i18n-free); icons are mapped in the component.
+// Per-section presentation config.
+// - ``initialVisible`` caps how many cards a section shows before a "Show N
+//   more" toggle. The header always shows the full count, so the cap only
+//   affects density, never the reported number.
+// - ``collapsible`` controls whether the whole section can be collapsed away.
+//   "Needs you" is NOT collapsible: action items must never be fully hidden
+//   behind a collapse (though they may sit behind a "Show N more").
+// - ``order`` fixes the top-to-bottom layout. ``labelKey`` is the Fluent key
+//   (the model holds the key, not the text, so this file stays React/i18n-free);
+//   icons are mapped in the component.
 export interface WorkforceFeedSectionConfig {
   id: WorkforceFeedSectionId
   labelKey: string
   order: number
-  initialVisible: number | null
+  initialVisible: number
+  collapsible: boolean
 }
 
 export const WORKFORCE_FEED_SECTION_CONFIG: Record<WorkforceFeedSectionId, WorkforceFeedSectionConfig> = {
-  needsYou: { id: 'needsYou', labelKey: 'command-center-section-needs-you', order: 0, initialVisible: null },
-  active: { id: 'active', labelKey: 'command-center-section-active', order: 1, initialVisible: 3 },
-  recentlyDone: { id: 'recentlyDone', labelKey: 'command-center-section-recently-done', order: 2, initialVisible: 2 }
+  needsYou: {
+    id: 'needsYou',
+    labelKey: 'command-center-section-needs-you',
+    order: 0,
+    initialVisible: 6,
+    collapsible: false
+  },
+  active: { id: 'active', labelKey: 'command-center-section-active', order: 1, initialVisible: 3, collapsible: true },
+  recentlyDone: {
+    id: 'recentlyDone',
+    labelKey: 'command-center-section-recently-done',
+    order: 2,
+    initialVisible: 2,
+    collapsible: true
+  }
 }
 
 // Sections in render order, for components that iterate without re-sorting.
@@ -213,7 +234,9 @@ export const WORKFORCE_FEED_SECTION_ORDER: readonly WorkforceFeedSectionId[] = [
 export function groupFeed(items: readonly WorkforceFeedItem[]): GroupedWorkforceFeed {
   const grouped: GroupedWorkforceFeed = { needsYou: [], active: [], recentlyDone: [] }
   for (const item of items) {
-    if (NEEDS_YOU_STATUSES.has(item.status)) {
+    // A completed run whose flow is paused on a human approval is action-required
+    // too, even though its kind is "finished".
+    if (NEEDS_YOU_STATUSES.has(item.status) || item.pendingFlowApproval) {
       grouped.needsYou.push(item)
     } else if (item.kind === 'active') {
       grouped.active.push(item)

@@ -108,6 +108,14 @@ describe('buildFeed', () => {
     expect(feed).toHaveLength(1)
     expect(feed[0].kind).toBe('active')
   })
+
+  it('does not globally truncate the feed, so action-required runs are never dropped', () => {
+    const runs = Array.from({ length: 35 }, (_, index) =>
+      activeRun({ session_id: `s-${index}`, status: 'waiting_for_human' })
+    )
+    const feed = buildFeed(overview({ runs }), new Set())
+    expect(feed).toHaveLength(35)
+  })
 })
 
 describe('groupFeed', () => {
@@ -149,6 +157,19 @@ describe('groupFeed', () => {
     expect(grouped.active.map(item => item.key).sort()).toEqual(['pend', 'run'])
     expect(grouped.recentlyDone.map(item => item.key).sort()).toEqual(['bad', 'ok'])
     expect(grouped.needsYou).toHaveLength(0)
+  })
+
+  it('routes flow-pending (finished but awaiting approval) runs to Needs you', () => {
+    const feed = buildFeed(
+      overview({
+        recent_completed: [recentRun({ session_id: 'done', status: 'completed' })],
+        flow_pending: [activeRun({ session_id: 'flow', status: 'completed', pending_flow_approval: true })]
+      }),
+      new Set()
+    )
+    const grouped = groupFeed(feed)
+    expect(grouped.needsYou.map(item => item.key)).toEqual(['flow'])
+    expect(grouped.recentlyDone.map(item => item.key)).toEqual(['done'])
   })
 
   it('preserves the input (newest-first) ordering inside each bucket', () => {

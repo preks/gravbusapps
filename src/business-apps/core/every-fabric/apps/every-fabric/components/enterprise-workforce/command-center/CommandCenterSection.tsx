@@ -33,24 +33,24 @@ export const CommandCenterSection: React.FC<CommandCenterSectionProps> = ({
   const [showAll, setShowAll] = useState(false)
   const visual = sectionVisual(config.id)
   const HeaderIcon = visual.icon
-  // initialVisible === null means "always show everything" (Needs you).
-  const alwaysExpanded = config.initialVisible === null
-  const cap = config.initialVisible ?? items.length
-  const visibleItems = collapsed ? [] : showAll ? items : items.slice(0, cap)
-  const hiddenCount = items.length - cap
-  const CollapseIcon = collapsed ? CaretRightIcon : CaretDownIcon
+  // Non-collapsible sections (Needs you) can never hide all their cards, but
+  // they still honour the "Show N more" cap to keep the rail manageable.
+  const isCollapsed = config.collapsible && collapsed
+  const visibleItems = isCollapsed ? [] : showAll ? items : items.slice(0, config.initialVisible)
+  const hiddenCount = items.length - config.initialVisible
+  const CollapseIcon = isCollapsed ? CaretRightIcon : CaretDownIcon
 
   return (
     <section data-testid={`command-center-section-${config.id}`}>
       <header className="gba:sticky gba:top-0 gba:z-10 gba:bg-muted/20 gba:py-1.5 gba:backdrop-blur-sm">
         <button
           type="button"
-          onClick={alwaysExpanded ? undefined : onToggleCollapsed}
-          disabled={alwaysExpanded}
+          onClick={config.collapsible ? onToggleCollapsed : undefined}
+          disabled={!config.collapsible}
           className="gba:flex gba:w-full gba:items-center gba:gap-1.5 gba:text-left gba:disabled:cursor-default"
           data-testid={`command-center-section-toggle-${config.id}`}
         >
-          {!alwaysExpanded && <CollapseIcon className="gba:h-3 gba:w-3 gba:text-muted-foreground" weight="bold" />}
+          {config.collapsible && <CollapseIcon className="gba:h-3 gba:w-3 gba:text-muted-foreground" weight="bold" />}
           <HeaderIcon className={`gba:h-3.5 gba:w-3.5 ${visual.toneClass}`} weight="bold" />
           <span className="gba:text-[11px] gba:font-semibold gba:uppercase gba:tracking-wide gba:text-foreground">
             {t(config.labelKey)}
@@ -72,7 +72,7 @@ export const CommandCenterSection: React.FC<CommandCenterSectionProps> = ({
         </ul>
       )}
 
-      {!collapsed && !alwaysExpanded && hiddenCount > 0 && (
+      {!isCollapsed && hiddenCount > 0 && (
         <button
           type="button"
           onClick={() => setShowAll(prev => !prev)}
