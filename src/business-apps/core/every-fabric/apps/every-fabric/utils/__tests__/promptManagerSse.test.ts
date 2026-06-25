@@ -22,4 +22,11 @@ describe('parseSseMessageBuffer', () => {
     parseSseMessageBuffer('data: one\n\ndata: two\n\n', d => messages.push(d))
     expect(messages).toEqual(['one', 'two'])
   })
+
+  it('parses CRLF-delimited frames emitted by sse-starlette', () => {
+    const messages: string[] = []
+    const remainder = parseSseMessageBuffer('data: one\r\n\r\ndata: two\r\n\r\n', d => messages.push(d))
+    expect(messages).toEqual(['one', 'two'])
+    expect(remainder).toBe('')
+  })
 })

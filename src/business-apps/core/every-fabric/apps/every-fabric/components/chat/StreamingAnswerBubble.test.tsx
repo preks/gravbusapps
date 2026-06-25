@@ -53,6 +53,11 @@ jest.mock('./useAnimatedGreeting', () => ({
   })
 }))
 
+jest.mock('./useSmoothStreamingText', () => ({
+  __esModule: true,
+  useSmoothStreamingText: (target: string) => ({ revealed: target, isCatchingUp: false })
+}))
+
 import { StreamingAnswerBubble } from './StreamingAnswerBubble'
 
 describe('StreamingAnswerBubble presentation mode wiring', () => {

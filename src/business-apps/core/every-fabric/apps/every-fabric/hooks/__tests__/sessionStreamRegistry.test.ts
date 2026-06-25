@@ -230,6 +230,44 @@ describe('sessionStreamRegistry', () => {
     }
   })
 
+  it('keeps notifying a subscriber after the entry is recreated on auth change', async () => {
+    const mod = await import('../sessionStreamRegistry')
+    const { acquireSessionStream, subscribeSessionStream, getSessionStreamState, __testing__ } = mod
+
+    // Subscribe once (mirrors useSyncExternalStore's stable subscription).
+    let notifyCount = 0
+    const unsubscribe = subscribeSessionStream('s8', () => {
+      notifyCount++
+    })
+
+    const first = acquireSessionStream('s8', 'token-a')
+    FakeSseConnection.instances[0].emitOpen()
+    const afterFirst = notifyCount
+
+    // Auth token changes → registry disposes + recreates the entry for s8.
+    const second = acquireSessionStream('s8', 'token-b')
+    const newSrc = FakeSseConnection.instances[FakeSseConnection.instances.length - 1]
+    newSrc.emitOpen()
+    newSrc.emitMessage({
+      type: 'agent_chunk',
+      role: 'ai',
+      chunk_kind: 'response_stream',
+      event_id: 'e1',
+      seq: 5,
+      content: 'hello',
+      metadata: { stream_key: 'primary', segment_id: 0 }
+    })
+
+    // The subscription survived entry recreation and saw the new entry's events.
+    expect(notifyCount).toBeGreaterThan(afterFirst)
+    expect(getSessionStreamState('s8')!.events).toHaveLength(1)
+
+    unsubscribe()
+    first.release()
+    second.release()
+    __testing__.disposeAll()
+  })
+
   it('resetSessionStream preserves lastSeq', async () => {
     const mod = await import('../sessionStreamRegistry')
     const { acquireSessionStream, resetSessionStream, getSessionStreamState, __testing__ } = mod

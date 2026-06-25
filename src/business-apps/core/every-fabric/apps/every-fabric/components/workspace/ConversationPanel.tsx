@@ -90,20 +90,20 @@ function useSmartScroll(
   useEffect(() => {
     if (!isStreaming || isUserScrolledRef.current) return
 
-    const endEl = endRef.current
-    if (!endEl) return
+    const scrollEl = scrollRef.current
+    if (!scrollEl) return
 
     let rafId: number | null = null
     rafId = requestAnimationFrame(() => {
       rafId = null
       if (isUserScrolledRef.current) return
-      endEl.scrollIntoView({ behavior: 'smooth', block: 'end' })
+      scrollEl.scrollTo({ top: scrollEl.scrollHeight, behavior: 'smooth' })
     })
 
     return () => {
       if (rafId !== null) cancelAnimationFrame(rafId)
     }
-  }, [endRef, isStreaming, streamingGreeting, streamingContent, streamingThinking])
+  }, [scrollRef, isStreaming, streamingGreeting, streamingContent, streamingThinking])
 
   const handleScroll = useCallback(() => {
     const el = scrollRef.current
@@ -114,12 +114,18 @@ function useSmartScroll(
 
   const scrollToBottom = useCallback(
     (immediate = false) => {
+      const scrollEl = scrollRef.current
+      if (scrollEl) {
+        scrollEl.scrollTo({ top: scrollEl.scrollHeight, behavior: immediate ? 'auto' : 'smooth' })
+        isUserScrolledRef.current = false
+        return
+      }
       const endEl = endRef.current
       if (!endEl) return
       endEl.scrollIntoView({ behavior: immediate ? 'auto' : 'smooth', block: 'end' })
       isUserScrolledRef.current = false
     },
-    [endRef]
+    [endRef, scrollRef]
   )
 
   return { handleScroll, scrollToBottom, isUserScrolledRef }
@@ -147,6 +153,7 @@ export const ConversationPanel: React.FC<ConversationPanelProps> = ({
   const scrollRef = useRef<HTMLDivElement>(null)
   const endRef = useRef<HTMLDivElement>(null)
   const hadFixedFollowUpsRef = useRef(false)
+  const wasStreamingRef = useRef(false)
 
   const { handleScroll, scrollToBottom, isUserScrolledRef } = useSmartScroll(
     scrollRef,
@@ -170,6 +177,17 @@ export const ConversationPanel: React.FC<ConversationPanelProps> = ({
   const hasCompletedResponses = messages.some(m => m.type === 'final_answer' || m.type === 'expert_call')
   const isFollowup = hasHitlQuestions || hasCompletedResponses
   const displayGreeting = isFollowup ? '' : streamingGreeting
+
+  useLayoutEffect(() => {
+    const justStartedStreaming = isStreaming && !wasStreamingRef.current
+    wasStreamingRef.current = isStreaming
+    if (!justStartedStreaming) return
+
+    const rafId = requestAnimationFrame(() => {
+      scrollToBottom(true)
+    })
+    return () => cancelAnimationFrame(rafId)
+  }, [isStreaming, scrollToBottom])
 
   useLayoutEffect(() => {
     if (!hasFixedFollowUps) {

@@ -14,8 +14,8 @@ import { useSessionStream } from '../useSessionStream'
 import { isFlowBotFabricRuntime } from '../../utils/fabricRuntime'
 import { postSessionReply } from './replyFlow'
 import { readSessionUiCache, writeSessionUiCache } from './sessionUiStateCache'
-import { deriveStreamSuppressed, isTerminalStatus } from './sessionStatus'
-import { epochFromStreamEvent } from './traceTurn'
+import { deriveStreamSuppressed, isRestTerminalForCurrentTurn, isTerminalStatus } from './sessionStatus'
+import { currentTurnTraceSince, epochFromStreamEvent } from './traceTurn'
 import type { ActiveSkillInfo, AgentExecutionClient } from './types'
 import { POLL_INTERVAL_MS, POLL_INTERVAL_WHILE_SSE_CONNECTED_MS } from './types'
 import { pickActiveSkillFromEvents } from './skillFromEvents'
@@ -67,6 +67,8 @@ export const useAgentSession = (
   isConnectedRef.current = isConnected
   const streamSuppressedRef = useRef(streamSuppressed)
   streamSuppressedRef.current = streamSuppressed
+  const lastReplyTimestampRef = useRef(lastReplyTimestamp)
+  lastReplyTimestampRef.current = lastReplyTimestamp
 
   const fetchSession = useCallback(
     async (options?: { bypassCache?: boolean }) => {
@@ -76,9 +78,25 @@ export const useAgentSession = (
         setSessionLoadError(false)
         setSession(s)
         if (s?.trace?.length) {
-          appendSessionStreamEvents(sessionId, s.trace as AgentStreamEvent[], accessToken)
+          // While a reply is in flight the REST snapshot still carries the
+          // *previous* turn's `terminal` row. Appending that verbatim makes the
+          // live stream registry mark `terminalReached` and abort the current
+          // turn's SSE before its response renders. Scope the append to the
+          // current turn so a stale prior-turn terminal can't poison the
+          // live stream. (The full REST trace still drives history rendering.)
+          const replyStartedAt = lastReplyTimestampRef.current
+          const replyInFlight = replyStartedAt > 0 || isAgentRunningRef.current
+          const traceForRegistry = replyInFlight
+            ? currentTurnTraceSince(s.trace as AgentStreamEvent[], replyStartedAt)
+            : (s.trace as AgentStreamEvent[])
+          if (traceForRegistry.length > 0) {
+            appendSessionStreamEvents(sessionId, traceForRegistry, accessToken)
+          }
         }
-        if (s && isTerminalStatus(s.status)) {
+        // Only suppress the live stream for a terminal snapshot that belongs to
+        // the current turn. A stale previous-turn `completed` replay during a
+        // follow-up would otherwise kill the SSE stream mid-answer.
+        if (isRestTerminalForCurrentTurn(s, lastReplyTimestampRef.current)) {
           markSessionStreamRestTerminal(sessionId)
         }
         return s
@@ -146,7 +164,9 @@ export const useAgentSession = (
       // SSE owns incremental tokens; REST still syncs coalesced trace rows on a
       // slower cadence so missed SSE upserts do not freeze the bubble until terminal.
       const next = await fetchSession(needsWork ? { bypassCache: true } : undefined)
-      if (next && isTerminalStatus(next.status)) {
+      // Ignore a stale previous-turn terminal snapshot while a reply is in
+      // flight; otherwise streaming flips off mid-turn and the bubble freezes.
+      if (isRestTerminalForCurrentTurn(next, lastReplyTimestampRef.current)) {
         setIsAgentRunning(false)
         setLastReplyTimestamp(0)
       }
