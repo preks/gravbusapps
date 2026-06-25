@@ -57,6 +57,10 @@ interface InternalEntry {
   lastAccess: number
   disposed: boolean
   listeners: Set<Listener>
+  /** Pending coalesced-notify handle (rAF id or timeout id), or null. */
+  notifyHandle: number | null
+  /** Whether events arrived during the current frame and need a trailing emit. */
+  pendingTrailing: boolean
 }
 
 const entries = new Map<string, InternalEntry>()
@@ -77,8 +81,67 @@ const buildStreamUrl = (sessionId: string, sinceSeq: number): string => {
   return `${base}/deep-agent/sessions/${sessionId}/stream${sinceParam}`
 }
 
-const notify = (entry: InternalEntry) => {
+const scheduleFrame = (cb: () => void): number => {
+  if (typeof requestAnimationFrame === 'function') return requestAnimationFrame(cb)
+  return setTimeout(cb, 16) as unknown as number
+}
+
+const cancelFrame = (handle: number): void => {
+  if (typeof cancelAnimationFrame === 'function') {
+    cancelAnimationFrame(handle)
+    return
+  }
+  clearTimeout(handle as unknown as ReturnType<typeof setTimeout>)
+}
+
+const emit = (entry: InternalEntry) => {
   for (const listener of entry.listeners) listener()
+}
+
+const notify = (entry: InternalEntry) => {
+  // An immediate notify delivers the latest state, so it supersedes any
+  // pending coalesced emit for this entry.
+  if (entry.notifyHandle !== null) {
+    cancelFrame(entry.notifyHandle)
+    entry.notifyHandle = null
+  }
+  entry.pendingTrailing = false
+  emit(entry)
+}
+
+/**
+ * Coalesce high-frequency stream updates with a per-frame leading+trailing
+ * throttle. Streamed answer/thinking chunks arrive in *cumulative* mode (each
+ * event carries the full text so far), so subscribers always read the latest
+ * `entry.state` snapshot — meaning we can safely collapse a burst into far
+ * fewer notifications without losing content.
+ *
+ * - Leading edge: the first event of a burst notifies immediately so the UI
+ *   reacts instantly (and so synchronous callers see a synchronous emit).
+ * - Trailing edge: any further events that land within the same frame are
+ *   collapsed into a single follow-up emit at frame end.
+ *
+ * This turns "one full FabricContext re-render + markdown re-parse per token"
+ * into at most ~2 per frame, which is what stops a fast stream from pinning
+ * the main thread.
+ */
+const scheduleNotify = (entry: InternalEntry) => {
+  if (entry.disposed) return
+  if (entry.notifyHandle !== null) {
+    // A burst is already in-flight this frame — remember to flush the latest
+    // state once when the frame closes.
+    entry.pendingTrailing = true
+    return
+  }
+  entry.notifyHandle = scheduleFrame(() => {
+    entry.notifyHandle = null
+    if (entry.disposed) return
+    if (entry.pendingTrailing) {
+      entry.pendingTrailing = false
+      emit(entry)
+    }
+  })
+  emit(entry)
 }
 
 const closeSource = (entry: InternalEntry) => {
@@ -98,6 +161,10 @@ const disposeEntry = (entry: InternalEntry) => {
   if (entry.reconnectTimer) {
     clearTimeout(entry.reconnectTimer)
     entry.reconnectTimer = null
+  }
+  if (entry.notifyHandle !== null) {
+    cancelFrame(entry.notifyHandle)
+    entry.notifyHandle = null
   }
   closeSource(entry)
   entries.delete(entry.sessionId)
@@ -161,10 +228,15 @@ const connect = (entry: InternalEntry) => {
         errorCount: 0,
         terminalReached: entry.state.terminalReached || terminalReached
       }
-      notify(entry)
 
       if (terminalReached) {
+        // Terminal transitions must reach the UI immediately (final answer,
+        // stop-streaming, panel state) — never defer behind the frame coalescer.
+        notify(entry)
         closeSource(entry)
+      } else {
+        // High-frequency incremental chunk: coalesce to one notify per frame.
+        scheduleNotify(entry)
       }
     } catch {
       // malformed payload — ignore
@@ -234,7 +306,9 @@ const createEntry = (sessionId: string, accessToken: string): InternalEntry => (
   disposeAt: null,
   lastAccess: Date.now(),
   disposed: false,
-  listeners: new Set()
+  listeners: new Set(),
+  notifyHandle: null,
+  pendingTrailing: false
 })
 
 export const ensureSessionStreamEntry = (sessionId: string, accessToken = ''): void => {

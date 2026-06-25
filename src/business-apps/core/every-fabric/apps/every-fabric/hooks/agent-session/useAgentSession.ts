@@ -16,7 +16,7 @@ import { readSessionUiCache, writeSessionUiCache } from './sessionUiStateCache'
 import { deriveStreamSuppressed, isTerminalStatus } from './sessionStatus'
 import { epochFromStreamEvent } from './traceTurn'
 import type { ActiveSkillInfo, AgentExecutionClient } from './types'
-import { POLL_INTERVAL_MS } from './types'
+import { POLL_INTERVAL_MS, SSE_HEALTHY_POLL_DIVISOR } from './types'
 import { pickActiveSkillFromEvents } from './skillFromEvents'
 import { useAgentSessionDerived } from './useAgentSessionDerived'
 
@@ -62,6 +62,8 @@ export const useAgentSession = (
   const previewUrlByAttachmentId = useRef<Map<string, string>>(new Map())
   const isAgentRunningRef = useRef(isAgentRunning)
   isAgentRunningRef.current = isAgentRunning
+  const isConnectedRef = useRef(isConnected)
+  isConnectedRef.current = isConnected
 
   const fetchSession = useCallback(
     async (options?: { bypassCache?: boolean }) => {
@@ -112,7 +114,9 @@ export const useAgentSession = (
 
   useEffect(() => {
     if (!sessionId) return
+    let tick = 0
     const timer = setInterval(async () => {
+      tick += 1
       const current = sessionRef.current
       const needsWork =
         isAgentRunningRef.current || current?.status === 'running' || current?.status === 'pending' || !current
@@ -120,7 +124,18 @@ export const useAgentSession = (
         setIsAgentRunning(false)
         return
       }
-      const next = await fetchSession(needsWork ? { bypassCache: true } : undefined)
+      // While the SSE stream is live it already delivers every event,
+      // including the terminal one. Re-fetching the entire (cumulatively
+      // growing) session document with `bypassCache` on every tick is
+      // redundant and expensive — it re-parses and re-renders the whole
+      // FabricContext each time. So when the stream is healthy we drop to a
+      // lightweight cached backstop poll every Nth tick; only when the stream
+      // is down do we fall back to the original aggressive bypassCache cadence.
+      const streamHealthy = isConnectedRef.current && needsWork
+      if (streamHealthy && tick % SSE_HEALTHY_POLL_DIVISOR !== 0) {
+        return
+      }
+      const next = await fetchSession(needsWork && !isConnectedRef.current ? { bypassCache: true } : undefined)
       if (next && isTerminalStatus(next.status)) {
         setIsAgentRunning(false)
         setLastReplyTimestamp(0)

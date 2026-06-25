@@ -1,6 +1,7 @@
 import type {
   AgentExpertCalledEvent,
   AgentExpertCompletedEvent,
+  AgentStepCompletedEvent,
   AgentStreamEvent,
   AgentSubagentCompletedEvent,
   AgentSubagentSpawnedEvent
@@ -167,6 +168,53 @@ const completionStatus = (completion?: DelegationCompletionEvent): DelegatedAgen
   return completion.status === 'failed' ? 'failed' : 'done'
 }
 
+const subagentIdOf = (event: AgentStreamEvent): string | undefined => {
+  const candidate = (event as { subagent_id?: unknown }).subagent_id
+  return typeof candidate === 'string' && candidate ? candidate : undefined
+}
+
+interface ResolvedCompletion {
+  status: DelegatedAgentStatus
+  output?: string
+  durationMs?: number
+  completedAt?: string
+}
+
+/**
+ * Resolve a delegation's terminal state from the best available signal.
+ *
+ * Some traces never deliver (or mis-pair) the explicit `*_completed` event —
+ * e.g. the completion arrives keyed by the child `step_id` rather than the
+ * spawn's, or only a generic `step_completed` is emitted. Without this the
+ * panel would show a finished delegation as perpetually "Working". We fall
+ * back to (1) the explicit delegation completion, (2) a `step_completed` for
+ * the same step, and finally (3) — once the run itself has finished — treat a
+ * dangling delegation as done, since a completed run cannot still be working.
+ */
+const resolveCompletion = (
+  completion: DelegationCompletionEvent | undefined,
+  stepCompletion: AgentStepCompletedEvent | undefined,
+  runFinished: boolean
+): ResolvedCompletion => {
+  if (completion) {
+    return {
+      status: completionStatus(completion),
+      output: typeof completion.output === 'string' ? completion.output : undefined,
+      durationMs: completion.duration_ms,
+      completedAt: completion.timestamp
+    }
+  }
+  if (stepCompletion) {
+    return {
+      status: stepCompletion.status === 'failed' ? 'failed' : 'done',
+      output: typeof stepCompletion.output === 'string' ? stepCompletion.output : undefined,
+      durationMs: stepCompletion.duration_ms,
+      completedAt: stepCompletion.timestamp
+    }
+  }
+  return { status: runFinished ? 'done' : 'running' }
+}
+
 const seqOf = (event: AgentStreamEvent): number =>
   'seq' in event && typeof event.seq === 'number' ? event.seq : Number.MAX_SAFE_INTEGER
 
@@ -217,13 +265,32 @@ function collectToolsByParent(sorted: AgentStreamEvent[]): Map<string, Delegated
  * is keyed by `step_id` so the chat pill and the timeline row can open the
  * exact delegation by its stable id rather than matching on display name.
  */
-export function buildDelegatedAgentDetails(events: AgentStreamEvent[]): Map<string, DelegatedAgentDetail> {
+export interface BuildDelegatedAgentDetailsOptions {
+  /**
+   * Whether the parent run has finished streaming. When true, a delegation
+   * that never received a completion event is shown as done (not "Working"),
+   * because a completed run cannot still have a working sub-agent.
+   */
+  runFinished?: boolean
+}
+
+export function buildDelegatedAgentDetails(
+  events: AgentStreamEvent[],
+  options: BuildDelegatedAgentDetailsOptions = {}
+): Map<string, DelegatedAgentDetail> {
+  const { runFinished = false } = options
   const sorted = [...events].sort((a, b) => seqOf(a) - seqOf(b))
 
   const completionsByStep = new Map<string, DelegationCompletionEvent>()
+  const completionsBySubagentId = new Map<string, DelegationCompletionEvent>()
+  const stepCompletionsByStep = new Map<string, AgentStepCompletedEvent>()
   for (const event of sorted) {
     if (isDelegationCompletion(event)) {
       completionsByStep.set(event.step_id, event)
+      const subId = subagentIdOf(event)
+      if (subId) completionsBySubagentId.set(subId, event)
+    } else if (event.type === 'step_completed') {
+      stepCompletionsByStep.set(event.step_id, event)
     }
   }
 
@@ -232,7 +299,10 @@ export function buildDelegatedAgentDetails(events: AgentStreamEvent[]): Map<stri
 
   for (const event of sorted) {
     if (!isDelegationStart(event)) continue
-    const completion = completionsByStep.get(event.step_id)
+    const subId = subagentIdOf(event)
+    const completion = completionsByStep.get(event.step_id) ?? (subId ? completionsBySubagentId.get(subId) : undefined)
+    const stepCompletion = stepCompletionsByStep.get(event.step_id)
+    const resolved = resolveCompletion(completion, stepCompletion, runFinished)
     const agentName = resolveDelegatedAgentName(event, completion)
     const task = event.task_summary ?? agentName
     const description = 'agent_description' in event ? event.agent_description : undefined
@@ -243,12 +313,12 @@ export function buildDelegatedAgentDetails(events: AgentStreamEvent[]): Map<stri
       agentName,
       task,
       description: description || undefined,
-      status: completionStatus(completion),
-      durationMs: completion?.duration_ms,
-      output: typeof completion?.output === 'string' ? completion.output : undefined,
+      status: resolved.status,
+      durationMs: resolved.durationMs,
+      output: resolved.output,
       tools: toolsByParent.get(event.step_id) ?? [],
       startedAt: event.timestamp,
-      completedAt: completion?.timestamp
+      completedAt: resolved.completedAt
     })
   }
 

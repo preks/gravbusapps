@@ -505,7 +505,10 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
 
   // Normalised delegated-agent details, keyed by backend `step_id`, for the
   // clickable agent pill + timeline-row detail panel.
-  const delegatedAgentDetails = useMemo(() => buildDelegatedAgentDetails(traceEvents), [traceEvents])
+  const delegatedAgentDetails = useMemo(
+    () => buildDelegatedAgentDetails(traceEvents, { runFinished: !isStreaming }),
+    [traceEvents, isStreaming]
+  )
 
   // Decisions panel — discrete agent branch points (skill, reflection, HITL, …)
   const decisions = useFabricDecisions(traceEvents)

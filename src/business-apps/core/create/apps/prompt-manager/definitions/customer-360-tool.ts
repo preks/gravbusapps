@@ -221,10 +221,12 @@ export const GET_CUSTOMER_360_SOURCE = `async function handler(event, context) {
   };
 
   // Scores — averaged from the account's related opportunity AI scores.
+  // CRM accounts have no opportunities field; opportunities join via the
+  // opportunityAccounts junction table, so query the root Opportunity table
+  // filtered by it (not the non-existent Account.opportunities).
   try {
-    const data = await gql('query S($id: uuid!) { Account(where: { id: { _eq: $id } }) { id opportunities { aiOpportunityScore aiOpportunityGrade } } }', { id: id });
-    const acc = data && data.Account && data.Account[0];
-    const opps = (acc && acc.opportunities) || [];
+    const data = await gql('query S($id: uuid!) { Opportunity(where: { opportunityAccounts: { accountId: { _eq: $id } }, isDeleted: { _eq: false } }) { aiOpportunityScore aiOpportunityGrade } }', { id: id });
+    const opps = (data && data.Opportunity) || [];
     const scores = opps.map(function (o) { return o.aiOpportunityScore; }).filter(function (s) { return typeof s === 'number' && !isNaN(s); });
     if (scores.length) {
       const ai = scores.reduce(function (a, b) { return a + b; }, 0) / scores.length;

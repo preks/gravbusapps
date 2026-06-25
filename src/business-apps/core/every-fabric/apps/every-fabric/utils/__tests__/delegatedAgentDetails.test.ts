@@ -144,6 +144,55 @@ describe('buildDelegatedAgentDetails', () => {
     expect(tools[0].status).toBe('done')
     expect(tools[0].durationMs).toBe(900)
   })
+
+  it('pairs a completion by subagent_id when the step_id does not match', () => {
+    const details = buildDelegatedAgentDetails([
+      subagentSpawned('spawn-step', { subagent_id: 'sa-42' }),
+      {
+        type: 'subagent_completed',
+        seq: nextSeq(),
+        event_id: 'done-1',
+        step_id: 'different-step',
+        subagent_id: 'sa-42',
+        status: 'done',
+        output: 'Recorded 3 attendance days.',
+        duration_ms: 1500,
+        timestamp: '2026-06-22T10:01:00.000Z'
+      } as unknown as AgentStreamEvent
+    ])
+
+    const detail = details.get('spawn-step')
+    expect(detail?.status).toBe('done')
+    expect(detail?.output).toBe('Recorded 3 attendance days.')
+    expect(detail?.durationMs).toBe(1500)
+  })
+
+  it('falls back to a matching step_completed when no delegation completion exists', () => {
+    const details = buildDelegatedAgentDetails([
+      subagentSpawned('step-1'),
+      {
+        type: 'step_completed',
+        seq: nextSeq(),
+        event_id: 'step-done',
+        step_id: 'step-1',
+        status: 'done',
+        output: 'Attendance booked.',
+        duration_ms: 2100,
+        timestamp: '2026-06-22T10:02:00.000Z'
+      } as unknown as AgentStreamEvent
+    ])
+
+    const detail = details.get('step-1')
+    expect(detail?.status).toBe('done')
+    expect(detail?.output).toBe('Attendance booked.')
+    expect(detail?.durationMs).toBe(2100)
+  })
+
+  it('shows a dangling delegation as done once the run has finished', () => {
+    const events = [subagentSpawned('step-1')]
+    expect(buildDelegatedAgentDetails(events).get('step-1')?.status).toBe('running')
+    expect(buildDelegatedAgentDetails(events, { runFinished: true }).get('step-1')?.status).toBe('done')
+  })
 })
 
 describe('humanizeDelegatedOutput', () => {

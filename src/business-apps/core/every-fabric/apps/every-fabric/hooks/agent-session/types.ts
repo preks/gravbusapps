@@ -41,5 +41,13 @@ export interface AgentExecutionClient {
 }
 
 export const POLL_INTERVAL_MS = 3000
+/**
+ * While the SSE stream is connected, the periodic full-session re-fetch is just
+ * a liveness backstop (the stream already delivers every event, including the
+ * terminal one). Poll only every Nth `POLL_INTERVAL_MS` tick in that case to
+ * avoid re-downloading + re-parsing the whole growing session document — and
+ * the FabricContext re-render it triggers — several times a second mid-stream.
+ */
+export const SSE_HEALTHY_POLL_DIVISOR = 4
 export const REST_SYNC_MAX_MS = 4000
 export const REST_SYNC_INTERVAL_MS = 120
