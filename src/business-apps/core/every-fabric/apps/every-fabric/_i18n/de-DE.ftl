@@ -154,6 +154,7 @@ command-center-section-active = Aktiv
 command-center-section-recently-done = Kürzlich erledigt
 command-center-show-more = { $count } weitere anzeigen
 command-center-show-less = Weniger anzeigen
+command-center-outside-window = { $count } heute abgeschlossen · älter als das Live-4-Stunden-Fenster
 
 # Run detail header
 run-detail-back = Zurück

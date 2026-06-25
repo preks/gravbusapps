@@ -77,7 +77,10 @@ export const CommandCenterBar: React.FC<CommandCenterBarProps> = ({
     <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-x-3 gba:gap-y-2" data-testid="command-center-bar">
       {WORKFORCE_FEED_SECTION_ORDER.map(id => {
         const config = WORKFORCE_FEED_SECTION_CONFIG[id]
-        const count = grouped[id].length
+        const liveCount = grouped[id].length
+        // "Recently done" falls back to the daily total when the live 4-hour
+        // window is empty — keeps the pill enabled and the count honest.
+        const count = id === 'recentlyDone' && liveCount === 0 ? completedToday : liveCount
         const visual = sectionVisual(id)
         const PillIcon = visual.icon
         const isEmpty = count === 0

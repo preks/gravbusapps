@@ -154,6 +154,7 @@ command-center-section-active = Active
 command-center-section-recently-done = Finalizate recent
 command-center-show-more = Afișează încă { $count }
 command-center-show-less = Afișează mai puțin
+command-center-outside-window = { $count } finalizate azi · mai vechi de fereastra live de 4 ore
 
 # Run detail header
 run-detail-back = Înapoi

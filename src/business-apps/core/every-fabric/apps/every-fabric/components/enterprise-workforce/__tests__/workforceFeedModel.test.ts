@@ -109,6 +109,15 @@ describe('buildFeed', () => {
     expect(feed[0].kind).toBe('active')
   })
 
+  it('returns all recent_completed items without truncation (supports the 15-run client buffer)', () => {
+    const completed = Array.from({ length: 15 }, (_, index) =>
+      recentRun({ session_id: `done-${index}`, completed_at: `2026-06-01T12:0${index % 10}:00Z` })
+    )
+    const feed = buildFeed(overview({ recent_completed: completed }), new Set())
+    const finishedKeys = feed.filter(item => item.kind === 'finished').map(item => item.key)
+    expect(finishedKeys).toHaveLength(15)
+  })
+
   it('does not globally truncate the feed, so action-required runs are never dropped', () => {
     const runs = Array.from({ length: 35 }, (_, index) =>
       activeRun({ session_id: `s-${index}`, status: 'waiting_for_human' })

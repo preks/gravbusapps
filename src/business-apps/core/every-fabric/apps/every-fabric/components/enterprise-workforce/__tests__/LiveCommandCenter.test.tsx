@@ -319,6 +319,25 @@ describe('LiveCommandCenter', () => {
     expect(card).not.toHaveTextContent('—')
   })
 
+  it('shows "Recently done" section with outside-window hint when live feed is empty but completedToday > 0', () => {
+    render(
+      <LiveCommandCenter
+        feed={[]}
+        completedToday={6}
+        throughputBuckets={[]}
+        isConnected
+        nameById={{}}
+        onOpenRun={jest.fn()}
+      />
+    )
+    // The section must render even though the live feed has no items.
+    expect(screen.getByTestId('command-center-section-recentlyDone')).toBeInTheDocument()
+    // The bar pill must be enabled so the user can click to scroll to the hint.
+    expect(screen.getByTestId('command-center-jump-recentlyDone')).toBeEnabled()
+    // The outside-window hint must be visible.
+    expect(screen.getByTestId('command-center-section-outside-recentlyDone')).toBeInTheDocument()
+  })
+
   it('stays visible with a calm idle state when there is no activity', () => {
     render(
       <LiveCommandCenter
