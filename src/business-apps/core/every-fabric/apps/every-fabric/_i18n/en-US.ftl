@@ -149,6 +149,11 @@ command-center-stat-running = running
 command-center-stat-waiting = waiting
 command-center-stat-pending = pending
 command-center-done-today = done today
+command-center-section-needs-you = Needs you
+command-center-section-active = Active
+command-center-section-recently-done = Recently done
+command-center-show-more = Show { $count } more
+command-center-show-less = Show less
 
 # Run detail header
 run-detail-back = Back

@@ -145,6 +145,85 @@ export function buildFeed(
   return items.slice(0, FEED_CAP)
 }
 
+// ---------------------------------------------------------------------------
+// Section grouping
+//
+// The live feed is short but mixes everything together, so finding the run
+// that needs a human, or telling active from finished, is hard. We partition
+// the already-sorted feed into three attention-ordered buckets that the
+// sidebar renders as collapsible sections. Pure + React-free so it stays
+// trivially unit-testable.
+// ---------------------------------------------------------------------------
+
+export type WorkforceFeedSectionId = 'needsYou' | 'active' | 'recentlyDone'
+
+export interface WorkforceFeedSection {
+  id: WorkforceFeedSectionId
+  items: WorkforceFeedItem[]
+}
+
+export interface GroupedWorkforceFeed {
+  needsYou: WorkforceFeedItem[]
+  active: WorkforceFeedItem[]
+  recentlyDone: WorkforceFeedItem[]
+}
+
+// Action-required states: the agent is blocked and a human must intervene
+// (approve a draft, resolve an escalation, or lift a budget cap). These are
+// the most important things to surface, so they get their own always-open
+// section at the top.
+const NEEDS_YOU_STATUSES: ReadonlySet<WorkforceRunStatus> = new Set<WorkforceRunStatus>([
+  'waiting_for_human',
+  'escalated',
+  'budget_paused'
+])
+
+// Per-section presentation config. ``initialVisible`` caps how many cards a
+// section shows before a "Show N more" toggle; ``null`` means always show all
+// (used by "Needs you", which must never hide an action item). ``order`` fixes
+// the top-to-bottom layout. ``labelKey`` is the Fluent translation key (the
+// model holds the key, not the translated text, so this file stays React- and
+// i18n-free); icons are mapped in the component.
+export interface WorkforceFeedSectionConfig {
+  id: WorkforceFeedSectionId
+  labelKey: string
+  order: number
+  initialVisible: number | null
+}
+
+export const WORKFORCE_FEED_SECTION_CONFIG: Record<WorkforceFeedSectionId, WorkforceFeedSectionConfig> = {
+  needsYou: { id: 'needsYou', labelKey: 'command-center-section-needs-you', order: 0, initialVisible: null },
+  active: { id: 'active', labelKey: 'command-center-section-active', order: 1, initialVisible: 3 },
+  recentlyDone: { id: 'recentlyDone', labelKey: 'command-center-section-recently-done', order: 2, initialVisible: 2 }
+}
+
+// Sections in render order, for components that iterate without re-sorting.
+export const WORKFORCE_FEED_SECTION_ORDER: readonly WorkforceFeedSectionId[] = ['needsYou', 'active', 'recentlyDone']
+
+/**
+ * Partition a feed (newest-first) into attention-ordered sections.
+ *
+ * - ``needsYou``: runs blocked on a human (waiting / escalated / budget paused).
+ * - ``active``: live runs still working (running / pending).
+ * - ``recentlyDone``: everything finished (completed / failed / cancelled / filtered).
+ *
+ * Relative order inside each bucket is preserved from the input, so callers
+ * keep the newest-first ordering ``buildFeed`` produced.
+ */
+export function groupFeed(items: readonly WorkforceFeedItem[]): GroupedWorkforceFeed {
+  const grouped: GroupedWorkforceFeed = { needsYou: [], active: [], recentlyDone: [] }
+  for (const item of items) {
+    if (NEEDS_YOU_STATUSES.has(item.status)) {
+      grouped.needsYou.push(item)
+    } else if (item.kind === 'active') {
+      grouped.active.push(item)
+    } else {
+      grouped.recentlyDone.push(item)
+    }
+  }
+  return grouped
+}
+
 export interface ThroughputSnapshot {
   count: number
   /** Per-5-minute completion counts over the last hour, oldest first. */

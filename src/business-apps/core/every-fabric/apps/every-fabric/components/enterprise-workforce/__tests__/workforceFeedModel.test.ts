@@ -1,4 +1,4 @@
-import { buildFeed, foldThroughput } from '../workforceFeedModel'
+import { buildFeed, foldThroughput, groupFeed } from '../workforceFeedModel'
 import type { WorkforceActiveOverview, WorkforceActiveRun, WorkforceRecentRun } from '../workforceTypes'
 
 function activeRun(overrides: Partial<WorkforceActiveRun> = {}): WorkforceActiveRun {
@@ -107,6 +107,61 @@ describe('buildFeed', () => {
     )
     expect(feed).toHaveLength(1)
     expect(feed[0].kind).toBe('active')
+  })
+})
+
+describe('groupFeed', () => {
+  it('returns empty buckets for an empty feed', () => {
+    expect(groupFeed([])).toEqual({ needsYou: [], active: [], recentlyDone: [] })
+  })
+
+  it('routes action-required statuses to Needs you regardless of kind', () => {
+    const feed = buildFeed(
+      overview({
+        runs: [
+          activeRun({ session_id: 'wait', status: 'waiting_for_human' }),
+          activeRun({ session_id: 'esc', status: 'escalated' }),
+          activeRun({ session_id: 'budget', status: 'budget_paused' })
+        ]
+      }),
+      new Set()
+    )
+    const grouped = groupFeed(feed)
+    expect(grouped.needsYou.map(item => item.key).sort()).toEqual(['budget', 'esc', 'wait'])
+    expect(grouped.active).toHaveLength(0)
+  })
+
+  it('routes running/pending active runs to Active and finished runs to Recently done', () => {
+    const feed = buildFeed(
+      overview({
+        runs: [
+          activeRun({ session_id: 'run', status: 'running' }),
+          activeRun({ session_id: 'pend', status: 'pending' })
+        ],
+        recent_completed: [
+          recentRun({ session_id: 'ok', status: 'completed' }),
+          recentRun({ session_id: 'bad', status: 'failed' })
+        ]
+      }),
+      new Set()
+    )
+    const grouped = groupFeed(feed)
+    expect(grouped.active.map(item => item.key).sort()).toEqual(['pend', 'run'])
+    expect(grouped.recentlyDone.map(item => item.key).sort()).toEqual(['bad', 'ok'])
+    expect(grouped.needsYou).toHaveLength(0)
+  })
+
+  it('preserves the input (newest-first) ordering inside each bucket', () => {
+    const feed = buildFeed(
+      overview({
+        runs: [
+          activeRun({ session_id: 'newer', started_at: '2026-06-01T12:05:00Z' }),
+          activeRun({ session_id: 'older', started_at: '2026-06-01T12:01:00Z' })
+        ]
+      }),
+      new Set()
+    )
+    expect(groupFeed(feed).active.map(item => item.key)).toEqual(['newer', 'older'])
   })
 })
 

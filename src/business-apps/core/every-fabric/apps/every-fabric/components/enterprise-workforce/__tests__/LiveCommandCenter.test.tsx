@@ -84,6 +84,160 @@ describe('LiveCommandCenter', () => {
     expect(onOpen).toHaveBeenCalledWith('a-1', 's-active')
   })
 
+  it('groups runs into sections and shows matching jump-bar counts', () => {
+    const ov: WorkforceActiveOverview = {
+      count: 2,
+      status_counts: { running: 1, pending: 0, waiting_for_human: 1 },
+      agents_working: ['a-1'],
+      by_agent: { 'a-1': 2 },
+      runs: [
+        {
+          session_id: 's-wait',
+          agent_id: 'a-1',
+          status: 'waiting_for_human',
+          input: 'approve draft',
+          current_activity: 'Awaiting approval',
+          last_seq: 1,
+          started_at: '2026-06-01T12:02:00Z'
+        },
+        {
+          session_id: 's-active',
+          agent_id: 'a-1',
+          status: 'running',
+          input: 'work',
+          current_activity: 'Searching CRM',
+          last_seq: 1,
+          started_at: '2026-06-01T12:01:00Z'
+        }
+      ],
+      recent_completed: [
+        {
+          session_id: 's-done',
+          agent_id: 'a-2',
+          status: 'completed',
+          credits: 1,
+          started_at: '2026-06-01T11:58:00Z',
+          completed_at: '2026-06-01T11:59:00Z',
+          duration_ms: 60000
+        }
+      ]
+    }
+    render(
+      <LiveCommandCenter
+        feed={buildFeed(ov, new Set())}
+        overview={ov}
+        completedToday={0}
+        throughputBuckets={[]}
+        isConnected
+        nameById={{}}
+        onOpenRun={jest.fn()}
+      />
+    )
+
+    // The three sections each hold their one run (testids are stable; labels
+    // come from i18n which is mocked in jest, so we assert on ids + counts).
+    expect(screen.getByTestId('command-center-section-list-needsYou').children).toHaveLength(1)
+    expect(screen.getByTestId('command-center-section-list-active').children).toHaveLength(1)
+    expect(screen.getByTestId('command-center-section-list-recentlyDone').children).toHaveLength(1)
+    expect(screen.getByTestId('command-center-item-s-wait')).toBeInTheDocument()
+    expect(screen.getByTestId('command-center-item-s-active')).toBeInTheDocument()
+    expect(screen.getByTestId('command-center-item-s-done')).toBeInTheDocument()
+    // Every jump pill is enabled because every section has at least one item.
+    expect(screen.getByTestId('command-center-jump-needsYou')).toBeEnabled()
+    expect(screen.getByTestId('command-center-jump-active')).toBeEnabled()
+    expect(screen.getByTestId('command-center-jump-recentlyDone')).toBeEnabled()
+  })
+
+  it('keeps Needs you always expanded (no collapse) and caps Active behind Show more', () => {
+    const runs = Array.from({ length: 5 }, (_, index) => ({
+      session_id: `s-active-${index}`,
+      agent_id: 'a-1',
+      status: 'running' as const,
+      input: 'work',
+      current_activity: 'Working',
+      last_seq: 1,
+      started_at: `2026-06-01T12:0${index}:00Z`
+    }))
+    const ov: WorkforceActiveOverview = {
+      count: 5,
+      status_counts: { running: 5, pending: 0, waiting_for_human: 1 },
+      agents_working: ['a-1'],
+      by_agent: { 'a-1': 6 },
+      runs: [
+        {
+          session_id: 's-wait',
+          agent_id: 'a-1',
+          status: 'waiting_for_human',
+          input: 'approve',
+          current_activity: 'Awaiting approval',
+          last_seq: 1,
+          started_at: '2026-06-01T12:09:00Z'
+        },
+        ...runs
+      ],
+      recent_completed: []
+    }
+    render(
+      <LiveCommandCenter
+        feed={buildFeed(ov, new Set())}
+        overview={ov}
+        completedToday={0}
+        throughputBuckets={[]}
+        isConnected
+        nameById={{}}
+        onOpenRun={jest.fn()}
+      />
+    )
+
+    // Needs you toggle is disabled: action items are never hidden.
+    expect(screen.getByTestId('command-center-section-toggle-needsYou')).toBeDisabled()
+
+    // buildFeed sorts newest-first, so the 3 newest active runs (4, 3, 2) show
+    // and the 2 oldest (1, 0) are hidden behind "Show 2 more".
+    expect(screen.getByTestId('command-center-item-s-active-4')).toBeInTheDocument()
+    expect(screen.getByTestId('command-center-item-s-active-2')).toBeInTheDocument()
+    expect(screen.queryByTestId('command-center-item-s-active-0')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByTestId('command-center-section-more-active'))
+    expect(screen.getByTestId('command-center-item-s-active-0')).toBeInTheDocument()
+  })
+
+  it('collapses a section when its header toggle is clicked', () => {
+    const ov: WorkforceActiveOverview = {
+      count: 0,
+      status_counts: { running: 0, pending: 0, waiting_for_human: 0 },
+      agents_working: [],
+      by_agent: {},
+      runs: [],
+      recent_completed: [
+        {
+          session_id: 's-done',
+          agent_id: 'a-2',
+          status: 'completed',
+          credits: 1,
+          started_at: '2026-06-01T11:58:00Z',
+          completed_at: '2026-06-01T11:59:00Z',
+          duration_ms: 60000
+        }
+      ]
+    }
+    render(
+      <LiveCommandCenter
+        feed={buildFeed(ov, new Set())}
+        overview={ov}
+        completedToday={0}
+        throughputBuckets={[]}
+        isConnected
+        nameById={{}}
+        onOpenRun={jest.fn()}
+      />
+    )
+
+    expect(screen.getByTestId('command-center-item-s-done')).toBeInTheDocument()
+    fireEvent.click(screen.getByTestId('command-center-section-toggle-recentlyDone'))
+    expect(screen.queryByTestId('command-center-item-s-done')).not.toBeInTheDocument()
+  })
+
   it('stays visible with a calm idle state when there is no activity', () => {
     render(
       <LiveCommandCenter
