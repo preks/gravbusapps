@@ -70,6 +70,17 @@ export const useAgentSession = (
   const lastReplyTimestampRef = useRef(lastReplyTimestamp)
   lastReplyTimestampRef.current = lastReplyTimestamp
 
+  const hasCurrentTerminalStreamEvent = useCallback((turnStartedAt: number): boolean => {
+    for (let i = eventsRef.current.length - 1; i >= 0; i -= 1) {
+      const event = eventsRef.current[i]
+      if (event.type !== 'terminal' && event.type !== 'turn_snapshot') continue
+      if (turnStartedAt <= 0) return true
+      const terminalTime = epochFromStreamEvent(event)
+      return terminalTime === null || terminalTime >= turnStartedAt
+    }
+    return false
+  }, [])
+
   const fetchSession = useCallback(
     async (options?: { bypassCache?: boolean }) => {
       if (!sessionId) return null
@@ -230,12 +241,22 @@ export const useAgentSession = (
   })
 
   useEffect(() => {
-    if (!derived.mergedSession || isAgentRunning) return
+    if (!derived.mergedSession) return
     if (!isTerminalStatus(derived.mergedSession.status)) return
+    const turnStartedAt = lastReplyTimestampRef.current
+    const restTerminalIsCurrent = isRestTerminalForCurrentTurn(session ?? matchedBootstrapSession, turnStartedAt)
+    if (!restTerminalIsCurrent && !hasCurrentTerminalStreamEvent(turnStartedAt)) return
     setIsAgentRunning(false)
     setLastReplyTimestamp(0)
     if (sessionId) markSessionStreamRestTerminal(sessionId)
-  }, [derived.mergedSession?.status, derived.mergedSession?.session_id, sessionId, isAgentRunning])
+  }, [
+    derived.mergedSession?.status,
+    derived.mergedSession?.session_id,
+    sessionId,
+    session,
+    matchedBootstrapSession,
+    hasCurrentTerminalStreamEvent
+  ])
 
   const startSession = useCallback(
     async (
