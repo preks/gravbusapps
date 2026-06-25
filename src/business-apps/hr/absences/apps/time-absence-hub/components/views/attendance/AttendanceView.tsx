@@ -1,5 +1,13 @@
 import React, { useState } from 'react'
-import { Button, DataDisplay, Sheet, SheetContent, SheetHeader, SheetTitle } from '@newwork/nw-design-system'
+import {
+  Button,
+  DataDisplay,
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  useTranslation
+} from '@newwork/nw-design-system'
 import { DownloadSimpleIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '../../../../../../../../common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -23,6 +31,9 @@ import {
 } from '../../../queries/OrgAttendanceQueries'
 import type { HubFilterOption } from '../../../queries/HubFilterQueries'
 import { computeAttendanceEmployeeMetrics, formatAbsenceBreakdown } from './attendanceMetrics'
+import { ErrorStateCard, LoadingStateCard } from '../shared/DataStateCards'
+import { getSafeHubErrorMessage } from '../../../utils/safeErrorMessage'
+import translations from '../../../_i18n'
 
 const tt = (key: string, fallback: string) =>
   getTranslationFromI18nKeyAndLabel(`lowcoder:time_absence_hub.attendance.${key}`, fallback)
@@ -156,6 +167,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
   onGlobalFiltersChange,
   filterAction
 }) => {
+  const { t } = useTranslation(translations)
   const data = useOrgAttendanceData({ accessToken, filters: globalFilters, derivedDateRange })
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null)
   const attendanceDateRange = React.useMemo(() => clampDateRangeToPast(derivedDateRange), [derivedDateRange])
@@ -225,54 +237,59 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
         </div>
       </div>
 
-      <DataDisplay
-        titleSections={[
-          {
-            id: 'attendance',
-            label: tt('time_balances_title', 'Time Balances'),
-            metadata: {
-              count: data.employees.length,
-              isLoading: data.isLoading,
-              subtitle: tt('subtitle_employees', 'employees')
+      {data.error ? <ErrorStateCard message={getSafeHubErrorMessage(t('error-loading-time-balances'))} /> : null}
+      {data.isLoading && data.employees.length === 0 ? <LoadingStateCard message={t('loading-time-balances')} /> : null}
+
+      {data.error || (data.isLoading && data.employees.length === 0) ? null : (
+        <DataDisplay
+          titleSections={[
+            {
+              id: 'attendance',
+              label: tt('time_balances_title', 'Time Balances'),
+              metadata: {
+                count: data.employees.length,
+                isLoading: data.isLoading,
+                subtitle: tt('subtitle_employees', 'employees')
+              }
             }
+          ]}
+          currentSection="attendance"
+          searchValue={globalFilters.employeeQuery}
+          searchPlaceholder={tt('search_placeholder', 'Search employee...')}
+          onSearchChange={handleEmployeeSearchChange}
+          enableLiveFiltering={true}
+          secondaryActions={
+            <div className="gba:flex gba:items-center gba:gap-2">
+              {filterAction}
+              <Button
+                variant="outline"
+                size="sm"
+                className="gba:gap-2"
+                onClick={handleExportExcel}
+                disabled={data.isLoading || data.employees.length === 0}
+                data-testid="time-absence-hub-attendance-export-excel"
+              >
+                <DownloadSimpleIcon size={14} />
+                {tt('export_excel', 'Export Excel')}
+              </Button>
+            </div>
           }
-        ]}
-        currentSection="attendance"
-        searchValue={globalFilters.employeeQuery}
-        searchPlaceholder={tt('search_placeholder', 'Search employee...')}
-        onSearchChange={handleEmployeeSearchChange}
-        enableLiveFiltering={true}
-        secondaryActions={
-          <div className="gba:flex gba:items-center gba:gap-2">
-            {filterAction}
-            <Button
-              variant="outline"
-              size="sm"
-              className="gba:gap-2"
-              onClick={handleExportExcel}
-              disabled={data.isLoading || data.employees.length === 0}
-              data-testid="time-absence-hub-attendance-export-excel"
-            >
-              <DownloadSimpleIcon size={14} />
-              {tt('export_excel', 'Export Excel')}
-            </Button>
-          </div>
-        }
-        toolbarDensity="default"
-      >
-        <AttendanceGrid
-          employees={data.employees}
-          attendance={data.attendance}
-          absences={data.absences}
-          holidays={data.holidays}
-          absenceNet={data.absenceNet}
-          dateRange={attendanceDateRange}
-          absenceTypes={absenceTypes}
-          isLoading={data.isLoading}
-          error={data.error}
-          onOpenEmployee={setSelectedEmployeeId}
-        />
-      </DataDisplay>
+          toolbarDensity="default"
+        >
+          <AttendanceGrid
+            employees={data.employees}
+            attendance={data.attendance}
+            absences={data.absences}
+            holidays={data.holidays}
+            absenceNet={data.absenceNet}
+            dateRange={attendanceDateRange}
+            absenceTypes={absenceTypes}
+            isLoading={data.isLoading}
+            error={data.error}
+            onOpenEmployee={setSelectedEmployeeId}
+          />
+        </DataDisplay>
+      )}
 
       <Sheet open={selectedEmployeeId !== null} onOpenChange={open => !open && setSelectedEmployeeId(null)}>
         <SheetContent

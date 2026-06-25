@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '../../../../../../../../common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { StatisticsTab } from '../../tabs/statistics-tab/StatisticsTab'
@@ -7,6 +8,9 @@ import { HubGlobalFilters } from '../../../hooks/useHubGlobalFilters'
 import { TimeTrackingTrendsSection } from './TimeTrackingTrendsSection'
 import { CombinedHealthSection } from './CombinedHealthSection'
 import { ComparisonSection } from './ComparisonSection'
+import { getSafeHubErrorMessage } from '../../../utils/safeErrorMessage'
+import { ErrorStateCard, LoadingStateCard } from '../shared/DataStateCards'
+import translations from '../../../_i18n'
 
 interface InsightsViewProps extends BusinessAppContextProps {
   dashboardData?: any
@@ -26,26 +30,55 @@ export const InsightsView: React.FC<InsightsViewProps> = ({
   derivedDateRange,
   filterAction
 }) => {
+  const { t } = useTranslation(translations)
   const attendanceData = useOrgAttendanceData({
     accessToken,
     filters: globalFilters,
     derivedDateRange
   })
+  const isInitialAttendanceLoad =
+    attendanceData.isLoading &&
+    attendanceData.employees.length === 0 &&
+    attendanceData.attendance.length === 0 &&
+    attendanceData.absences.length === 0
+  const header = (
+    <div className="gba:flex gba:justify-between gba:items-center">
+      <div>
+        <h2 className="gba:text-lg gba:font-semibold gba:text-foreground">{tt('title', 'Insights')}</h2>
+        <p className="gba:text-sm gba:text-muted-foreground">
+          {tt(
+            'page_intro',
+            'Absence statistics, time-tracking trends and combined health metrics. Time-tracking sections use the org-wide attendance batch loader.'
+          )}
+        </p>
+      </div>
+      {!attendanceData.error && !isInitialAttendanceLoad ? filterAction : null}
+    </div>
+  )
+
+  if (attendanceData.error) {
+    const fallbackMessage = t('error-loading-insights')
+
+    return (
+      <div className="gba:flex gba:flex-col gba:gap-4" data-testid="time-absence-hub-insights-error">
+        {header}
+        <ErrorStateCard message={getSafeHubErrorMessage(fallbackMessage)} />
+      </div>
+    )
+  }
+
+  if (isInitialAttendanceLoad) {
+    return (
+      <div className="gba:flex gba:flex-col gba:gap-4" data-testid="time-absence-hub-insights-loading">
+        {header}
+        <LoadingStateCard message={t('loading-insights')} />
+      </div>
+    )
+  }
 
   return (
-    <div className="gba:space-y-8" data-testid="time-absence-hub-insights-view">
-      <div className="gba:flex gba:justify-between gba:items-center gba:mb-6">
-        <div>
-          <h2 className="gba:text-lg gba:font-semibold gba:text-foreground">{tt('title', 'Insights')}</h2>
-          <p className="gba:text-sm gba:text-muted-foreground">
-            {tt(
-              'page_intro',
-              'Absence statistics, time-tracking trends and combined health metrics. Time-tracking sections use the org-wide attendance batch loader.'
-            )}
-          </p>
-        </div>
-        {filterAction}
-      </div>
+    <div className="gba:flex gba:flex-col gba:gap-8" data-testid="time-absence-hub-insights-view">
+      {header}
 
       <StatisticsTab accessToken={accessToken} userInfo={userInfo} dashboardData={dashboardData} />
 

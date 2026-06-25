@@ -1,16 +1,16 @@
 import React from 'react'
 import { Card, CardContent, Spinner } from '@newwork/nw-design-system'
-import { WarningCircleIcon } from '@phosphor-icons/react'
 
 interface ErrorStateCardProps {
   message: string
+  action?: React.ReactNode
 }
 
-export const ErrorStateCard: React.FC<ErrorStateCardProps> = ({ message }) => (
+export const ErrorStateCard: React.FC<ErrorStateCardProps> = ({ message, action }) => (
   <Card>
     <CardContent className="gba:flex gba:flex-col gba:items-center gba:gap-2 gba:py-8 gba:text-center">
-      <WarningCircleIcon size={32} className="gba:text-destructive" />
-      <p className="gba:text-sm gba:text-destructive">{message}</p>
+      <p className="gba:text-base gba:font-medium gba:text-destructive">{message}</p>
+      {action}
     </CardContent>
   </Card>
 )

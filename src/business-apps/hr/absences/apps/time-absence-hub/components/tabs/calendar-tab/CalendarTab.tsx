@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import dayjs from 'dayjs'
-import { Spinner } from '@newwork/nw-design-system'
+import { Spinner, useTranslation } from '@newwork/nw-design-system'
 import { CalendarTimeline } from '@newwork/gravity-ui-catalog'
 import { BusinessAppContextProps } from '../../../../../../../../common/BusinessAppContext'
 import {
@@ -14,6 +14,9 @@ import { useAbsenceTypeCatalog } from '../../../../personal-absences/hooks/useAb
 import { HubGlobalFilters } from '../../../hooks/useHubGlobalFilters'
 import { buildEmployeeWhereForHubFilters } from '../../../hooks/useOrgAttendanceData'
 import { FilteredEmployee, GET_FILTERED_EMPLOYEE_IDS } from '../../../queries/OrgAttendanceQueries'
+import { getSafeHubErrorMessage } from '../../../utils/safeErrorMessage'
+import { ErrorStateCard } from '../../views/shared/DataStateCards'
+import translations from '../../../_i18n'
 
 interface CalendarTabProps extends BusinessAppContextProps {
   departmentIds: string[]
@@ -47,6 +50,7 @@ const getInitials = (name: string): string => {
 }
 
 const CalendarTab: React.FC<CalendarTabProps> = ({ accessToken, departmentIds }) => {
+  const { t } = useTranslation(translations)
   const graphQLClient = useGraphQLClient(accessToken)
   const { mapType } = useAbsenceTypeCatalog(accessToken)
   const [employees, setEmployees] = useState<FilteredEmployee[]>([])
@@ -143,15 +147,9 @@ const CalendarTab: React.FC<CalendarTabProps> = ({ accessToken, departmentIds })
   }
 
   if (error) {
-    return (
-      <div className="gba:rounded gba:bg-destructive-secondary gba:p-4 gba:text-destructive">
-        {getTranslationFromI18nKeyAndLabel(
-          'lowcoder:absence_management_hub_backoffice.calendar.error_loading_absences',
-          'Error loading absences'
-        )}
-        : {error.message}
-      </div>
-    )
+    const fallbackMessage = t('error-loading-calendar')
+
+    return <ErrorStateCard message={getSafeHubErrorMessage(fallbackMessage)} />
   }
 
   return (

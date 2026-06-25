@@ -25,3 +25,6 @@ status_in_progress = In Bearbeitung
 status_completed = Abgeschlossen
 status_incomplete = Unvollständig
 status_under_review = In Prüfung
+error_loading_project_time = Projektzeitdaten konnten nicht geladen werden.
+error_loading_interventions = Assistenten-Hinweise konnten nicht geladen werden.
+loading_time_data = Zeitdaten werden geladen...

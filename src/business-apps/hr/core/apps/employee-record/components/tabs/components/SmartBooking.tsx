@@ -12,7 +12,6 @@ import {
   TableHeader,
   TableHead,
   TableRow,
-  Spinner,
   Alert,
   AlertTitle,
   AlertDescription,
@@ -24,7 +23,8 @@ import {
   FormItem,
   FormControl,
   FormMessage,
-  Toaster
+  Toaster,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { TableForm, EditableCell } from '@/components/table-form'
 import { CalendarIcon, ArrowLeftIcon, ArrowRightIcon } from '@phosphor-icons/react'
@@ -41,6 +41,8 @@ import { getTranslationFromI18nKeyAndLabel, formatDate, getCurrentActiveUserLoca
 import { useEmployeeTeamAllocations } from '../../../hooks/useEmployeeTeamAllocations'
 import SubmitConfirmationDialog, { HoursDiscrepancy, DiscrepancyType } from './SubmitConfirmationDialog'
 import { cn } from '@/common/utils/cn'
+import hrI18n from './_i18n'
+import { MyTimeLoadingStateCard } from '@/business-apps/hr/core/apps/my-time/components/MyTimeErrorStateCard'
 
 const DATA_TEST_ID_PREFIX = 'SmartBooking'
 
@@ -109,6 +111,7 @@ export interface SmartBookingProps {
 }
 
 const SmartBooking: React.FC<SmartBookingProps> = ({ prefixDataTestId, accessToken, employeeId, viewOnly = false }) => {
+  const { t } = useTranslation(hrI18n)
   const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX)
 
   // Fetch employee's team allocations and recorded hours
@@ -124,7 +127,6 @@ const SmartBooking: React.FC<SmartBookingProps> = ({ prefixDataTestId, accessTok
     isLoadingYearData,
     isSubmitting,
     error: allocationsError,
-    refetch,
     fetchWorkingHoursPerDay,
     fetchBookedHours,
     fetchYearProjectHours,
@@ -334,6 +336,7 @@ const SmartBooking: React.FC<SmartBookingProps> = ({ prefixDataTestId, accessTok
 
   // Get current week bookings
   const currentBookings = weekBookings[weekKey] || []
+  const hasProjectRows = allocations.length > 0 || historicalProjects.length > 0
   const monthIndexes = useMemo(() => Array.from({ length: 12 }, (_, monthIndex) => monthIndex), [])
 
   // Helper function to check day editability status
@@ -662,37 +665,33 @@ const SmartBooking: React.FC<SmartBookingProps> = ({ prefixDataTestId, accessTok
   const handleDialogConfirm = useCallback(() => {
     performSubmit(pendingBookings)
   }, [pendingBookings, performSubmit])
+  const loadingMessage = t('loading_time_data')
 
   // Show loading state
   if (isLoadingAllocations) {
     return (
-      <Card data-testid={dataTestId} className="gba:overflow-hidden">
-        <CardContent>
-          <div className="gba:flex gba:justify-center gba:items-center gba:py-12">
-            <Spinner size="lg" />
-          </div>
-        </CardContent>
-      </Card>
+      <div data-testid={dataTestId}>
+        <MyTimeLoadingStateCard message={loadingMessage} />
+      </div>
     )
   }
 
   // Show error state
   if (allocationsError) {
     return (
-      <Alert variant="destructive" data-testid={dataTestId}>
-        <AlertTitle>
-          {getTranslationFromI18nKeyAndLabel(
-            'lowcoder:time_tracking.smart_booking.error_loading_team_allocations',
-            'Error Loading Team Allocations'
-          )}
-        </AlertTitle>
-        <AlertDescription>
-          {allocationsError}
-          <Button size="sm" variant="destructive" onClick={refetch} className="gba:mt-2">
-            {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.smart_booking.retry', 'Retry')}
-          </Button>
-        </AlertDescription>
-      </Alert>
+      <Card data-testid={dataTestId}>
+        <CardContent className="gba:flex gba:flex-col gba:items-center gba:gap-3 gba:py-8 gba:text-center">
+          <p className="gba:text-base gba:font-medium gba:text-destructive">{t('error_loading_project_time')}</p>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  if (!viewOnly && (isLoadingWeekData || (hasProjectRows && formInitializedForWeek !== weekKey))) {
+    return (
+      <div data-testid={dataTestId}>
+        <MyTimeLoadingStateCard message={loadingMessage} />
+      </div>
     )
   }
 
@@ -736,7 +735,7 @@ const SmartBooking: React.FC<SmartBookingProps> = ({ prefixDataTestId, accessTok
       return getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.smart_booking.submitting', 'Submitting...')
     }
     if (isLoadingWeekData) {
-      return getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.smart_booking.loading', 'Loading...')
+      return loadingMessage
     }
     if (hasSubmittedHours && !hasUnsubmittedHours) {
       return getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.smart_booking.submitted', 'Submitted')
@@ -820,8 +819,8 @@ const SmartBooking: React.FC<SmartBookingProps> = ({ prefixDataTestId, accessTok
   const yearProjectTable = (() => {
     if (isLoadingYearData) {
       return (
-        <div className="gba:flex gba:justify-center gba:items-center gba:py-12">
-          <Spinner size="lg" />
+        <div data-testid={`${dataTestId}-year-loader`}>
+          <MyTimeLoadingStateCard message={loadingMessage} />
         </div>
       )
     }
@@ -964,8 +963,8 @@ const SmartBooking: React.FC<SmartBookingProps> = ({ prefixDataTestId, accessTok
       {viewOnly && yearProjectTable}
       {!viewOnly &&
         (isLoadingWeekData || formInitializedForWeek !== weekKey ? (
-          <div className="gba:flex gba:justify-center gba:items-center gba:py-12">
-            <Spinner size="lg" />
+          <div data-testid={`${dataTestId}-week-loader`}>
+            <MyTimeLoadingStateCard message={loadingMessage} />
           </div>
         ) : currentBookings.length === 0 ? (
           <div className="gba:flex gba:flex-col gba:justify-center gba:items-center gba:py-12 gba:text-center">

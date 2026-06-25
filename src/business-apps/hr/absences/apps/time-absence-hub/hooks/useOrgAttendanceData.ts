@@ -21,6 +21,9 @@ import { clampDateRangeToPast } from '../components/views/attendance/attendanceU
 
 const EMPLOYEE_ID_BATCH_SIZE = 200
 const ATTENDANCE_DATA_LOADER_VERSION = 4
+const MISSING_ACCESS_TOKEN_ERROR = 'Access token missing'
+const MISSING_ORG_STRUCTURE_ERROR = 'Active organization structure missing'
+const INVALID_DATE_RANGE_ERROR = 'Invalid date range'
 
 const isUuid = (value: string): boolean =>
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
@@ -138,13 +141,18 @@ const EMPTY: UseOrgAttendanceDataReturn = {
   error: null
 }
 
+const INITIAL_LOADING_STATE: UseOrgAttendanceDataReturn = {
+  ...EMPTY,
+  isLoading: true
+}
+
 export const useOrgAttendanceData = ({
   accessToken,
   filters,
   derivedDateRange,
   includeOverlays = true
 }: UseOrgAttendanceDataParams): UseOrgAttendanceDataReturn => {
-  const [state, setState] = useState<UseOrgAttendanceDataReturn>({ ...EMPTY })
+  const [state, setState] = useState<UseOrgAttendanceDataReturn>({ ...INITIAL_LOADING_STATE })
   const graphqlClient = useGraphQLClient(accessToken)
   const attendanceDateRange = useMemo(() => clampDateRangeToPast(derivedDateRange), [derivedDateRange])
 
@@ -172,8 +180,18 @@ export const useOrgAttendanceData = ({
 
   useEffect(() => {
     const structureId = getCurrentActiveStructureId()
-    if (!accessToken || !structureId || !attendanceDateRange) {
-      setState({ ...EMPTY })
+    if (!accessToken) {
+      setState({ ...EMPTY, error: MISSING_ACCESS_TOKEN_ERROR })
+      return
+    }
+
+    if (!structureId) {
+      setState({ ...EMPTY, error: MISSING_ORG_STRUCTURE_ERROR })
+      return
+    }
+
+    if (!attendanceDateRange) {
+      setState({ ...EMPTY, error: INVALID_DATE_RANGE_ERROR })
       return
     }
 

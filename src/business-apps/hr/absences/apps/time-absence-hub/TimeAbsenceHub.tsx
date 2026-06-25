@@ -9,11 +9,9 @@ import TimeAbsenceHubViewRenderer from './components/TimeAbsenceHubViewRenderer'
 const WORK_ABSENCE_GROUP_ID = 'AbsenceGroup:v1:WORK'
 
 const TimeAbsenceHub: React.FC<BusinessAppContextProps> = context => {
-  const { accessToken } = context
-
   const navigation = useTimeAbsenceHubNavigation()
   const globalFilters = useHubGlobalFilters()
-  const filterOptions = useHubFilterOptions(accessToken)
+  const filterOptions = useHubFilterOptions(context.accessToken)
   const didApplyDefaultAbsenceTypeFilter = useRef(false)
   const defaultAbsenceTypeIds = useMemo(
     () =>
@@ -48,7 +46,7 @@ const TimeAbsenceHub: React.FC<BusinessAppContextProps> = context => {
   ])
 
   const dashboardData = useDashboardData({
-    accessToken,
+    accessToken: context.accessToken,
     timeFilter: globalFilters.legacyTimeFilter,
     filters: globalFilters.filters,
     derivedDateRange: globalFilters.derivedDateRange

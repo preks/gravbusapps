@@ -93,6 +93,7 @@ export const useTimeTrackingData = ({
   const [isClockedIn, setIsClockedIn] = useState(false)
   const [clockInSince, setClockInSince] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   // Search removed per requirements
@@ -262,6 +263,7 @@ export const useTimeTrackingData = ({
   }
 
   const loadFromGraphql = useCallback(async () => {
+    setIsLoading(true)
     setError(null)
     const monthStart = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1)
     const monthEnd = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0)
@@ -540,10 +542,14 @@ export const useTimeTrackingData = ({
     } catch {
       setTodaysPlannedMinutes(0)
     }
+    setIsLoading(false)
   }, [graphqlClient, employeeId, currentMonth, page, pageSize, locale, workingHours, isBeforeHireDate])
 
   useEffect(() => {
-    loadFromGraphql().catch(() => setError('Failed to load time entries'))
+    loadFromGraphql().catch(() => {
+      setError('Failed to load time entries')
+      setIsLoading(false)
+    })
   }, [loadFromGraphql])
 
   // Ensure planned minutes for today are recalculated when workingHours arrive later
@@ -903,6 +909,7 @@ export const useTimeTrackingData = ({
     isClockedIn,
     clockInSince,
     isSubmitting,
+    isLoading,
     error,
     isNearHome,
     isNearOffice,

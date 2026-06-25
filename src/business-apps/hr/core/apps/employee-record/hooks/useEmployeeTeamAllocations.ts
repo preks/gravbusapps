@@ -295,7 +295,7 @@ export const useEmployeeTeamAllocations = ({
     Record<string, { id: string; version: number; hours: number; projectId: string }>
   >({})
   const [isLoading, setIsLoading] = useState(true)
-  const [isLoadingWeekData, setIsLoadingWeekData] = useState(false)
+  const [isLoadingWeekData, setIsLoadingWeekData] = useState(true)
   const [isLoadingYearData, setIsLoadingYearData] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -444,6 +444,7 @@ export const useEmployeeTeamAllocations = ({
       // Validate employeeId before making any requests
       if (!employeeId || employeeId === '') {
         setError('Employee ID is missing')
+        setIsLoadingWeekData(false)
         return
       }
 
