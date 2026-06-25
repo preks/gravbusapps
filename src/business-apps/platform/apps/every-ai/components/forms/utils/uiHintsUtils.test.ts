@@ -445,5 +445,48 @@ describe('uiHintsUtils', () => {
         }
       })
     })
+
+    it('produces the BPMN-expected wire payload with the PRODUCTION routing context (objectKey=employeeAbsence)', () => {
+      // Mirrors DynamicFormDisplay.tsx: the form renders the `employeeAbsence` slice, so
+      // applyUiOverridesToArguments is called with { sourceType: 'flow', objectKey: 'employeeAbsence' }.
+      const args = {
+        flow: {
+          employeeId: 'emp-123',
+          employeeAbsence: {
+            startDate: '2026-09-10',
+            endDate: '2026-09-20',
+            typeRef: 'WRONG'
+          }
+        }
+      }
+
+      const overrides = {
+        event: { omit: true, fixed: { value: 'pse_submit' } },
+        flowType: { hidden: true, fixed: { value: 'vacation' } },
+        'employeeDetails.userId': { hidden: true, fixed: { source: 'employeeId' } },
+        startDate: { hidden: true, fixed: { source: 'employeeAbsence.startDate' } },
+        endDate: { hidden: true, fixed: { source: 'employeeAbsence.endDate' } },
+        'employeeAbsence.typeRef': { hidden: true, fixed: { value: 'AbsenceType:v1:A001' } }
+      }
+
+      const next = applyUiOverridesToArguments(args, overrides, {
+        sourceType: 'flow',
+        objectKey: 'employeeAbsence'
+      })
+
+      expect(next.flow).toEqual({
+        employeeId: 'emp-123',
+        event: 'pse_submit',
+        flowType: 'vacation',
+        startDate: '2026-09-10',
+        endDate: '2026-09-20',
+        employeeDetails: { userId: 'emp-123' },
+        employeeAbsence: {
+          startDate: '2026-09-10',
+          endDate: '2026-09-20',
+          typeRef: 'AbsenceType:v1:A001'
+        }
+      })
+    })
   })
 })
