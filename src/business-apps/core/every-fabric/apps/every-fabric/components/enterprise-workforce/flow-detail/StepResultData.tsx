@@ -11,8 +11,10 @@ import React from 'react'
 import {
   FieldValueDisplay,
   generateFieldLabel,
+  isFieldVisibleForDisplay,
   isHiddenTransportField,
-  isFileLikeValue
+  isFileLikeValue,
+  type StepResultDisplayConfig
 } from '@/common/components/flow/flow-detail/tabs/stepDataRendering'
 
 import translations from '../../../_i18n'
@@ -21,6 +23,7 @@ const MAX_DEPTH = 8
 
 interface LeafRow {
   path: string
+  fieldKey: string
   label: string
   value: unknown
 }
@@ -63,7 +66,7 @@ function flattenArray(key: string, path: string, items: unknown[], depth: number
       flatten(item, itemPath, depth + 1, rows)
       return
     }
-    rows.push({ path: itemPath, label: `${generateFieldLabel(key)} ${index + 1}`, value: item })
+    rows.push({ path: itemPath, fieldKey: key, label: `${generateFieldLabel(key)} ${index + 1}`, value: item })
   })
 }
 
@@ -75,7 +78,7 @@ function flatten(data: Record<string, unknown>, parentPath: string, depth: numbe
     const path = parentPath ? `${parentPath}.${key}` : key
 
     if (isFileLikeValue(rawValue)) {
-      rows.push({ path, label: 'Document', value: rawValue })
+      rows.push({ path, fieldKey: key, label: 'Document', value: rawValue })
       continue
     }
 
@@ -91,19 +94,25 @@ function flatten(data: Record<string, unknown>, parentPath: string, depth: numbe
       continue
     }
 
-    rows.push({ path, label: leafLabel(key, value), value })
+    rows.push({ path, fieldKey: key, label: leafLabel(key, value), value })
   }
 }
 
 export interface StepResultDataProps {
   formData: Record<string, unknown>
   accessToken?: string
+  /**
+   * Optional per-step allow/deny list from the flow template. Applied to leaf
+   * fields after flattening so wrapper objects are still traversed.
+   */
+  resultDisplay?: StepResultDisplayConfig
 }
 
-export const StepResultData: React.FC<StepResultDataProps> = ({ formData, accessToken }) => {
+export const StepResultData: React.FC<StepResultDataProps> = ({ formData, accessToken, resultDisplay }) => {
   const { t } = useTranslation(translations)
-  const rows: LeafRow[] = []
-  flatten(formData ?? {}, '', 0, rows)
+  const allRows: LeafRow[] = []
+  flatten(formData ?? {}, '', 0, allRows)
+  const rows = resultDisplay ? allRows.filter(row => isFieldVisibleForDisplay(row.fieldKey, resultDisplay)) : allRows
 
   if (rows.length === 0) {
     return <p className="gba:text-xs gba:text-muted-foreground">{t('flow-step-data-empty')}</p>

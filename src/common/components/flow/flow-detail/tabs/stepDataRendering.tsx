@@ -87,6 +87,19 @@ export function isHiddenTransportField(fieldKey: string): boolean {
   return TRANSPORT_FIELD_KEYS.has(normalizeFieldKey(fieldKey))
 }
 
+export interface StepResultDisplayConfig {
+  mode?: 'include' | 'exclude'
+  fields: string[]
+}
+
+export function isFieldVisibleForDisplay(leafKey: string, config?: StepResultDisplayConfig): boolean {
+  if (isHiddenTransportField(leafKey)) return false
+  if (!config || !Array.isArray(config.fields) || config.fields.length === 0) return true
+  const normalizedKey = normalizeFieldKey(leafKey)
+  const configured = new Set(config.fields.map(normalizeFieldKey))
+  return config.mode === 'exclude' ? !configured.has(normalizedKey) : configured.has(normalizedKey)
+}
+
 function formatFieldValue(key: string, value: unknown): string {
   if (value === null || value === undefined) return '-'
   if (Array.isArray(value)) {
@@ -587,10 +600,11 @@ export const FieldValueDisplay: React.FC<FieldValueDisplayProps> = ({
 interface SingleFormDataProps {
   formData: Record<string, unknown>
   accessToken?: string
+  resultDisplay?: StepResultDisplayConfig
 }
 
-export const SingleFormData: React.FC<SingleFormDataProps> = ({ formData, accessToken }) => {
-  const entries = Object.entries(formData ?? {}).filter(([key]) => !isHiddenTransportField(key))
+export const SingleFormData: React.FC<SingleFormDataProps> = ({ formData, accessToken, resultDisplay }) => {
+  const entries = Object.entries(formData ?? {}).filter(([key]) => isFieldVisibleForDisplay(key, resultDisplay))
   const hasFormData = entries.length > 0
   return (
     <div className="gba:mt-3">
@@ -629,15 +643,21 @@ interface MultiRowDataTableProps {
   data: StepDataTableRow[]
   totalCount: number
   accessToken?: string
+  resultDisplay?: StepResultDisplayConfig
 }
 
-export const MultiRowDataTable: React.FC<MultiRowDataTableProps> = ({ data, totalCount, accessToken }) => {
+export const MultiRowDataTable: React.FC<MultiRowDataTableProps> = ({
+  data,
+  totalCount,
+  accessToken,
+  resultDisplay
+}) => {
   const allFields = new Set<string>()
   const submittedCount = data.filter(row => row.hasSubmission !== false).length
   for (const dataRow of data) {
     if (dataRow.formData) {
       for (const key of Object.keys(dataRow.formData)) {
-        if (isHiddenTransportField(key)) continue
+        if (!isFieldVisibleForDisplay(key, resultDisplay)) continue
         allFields.add(key)
       }
     }
@@ -713,7 +733,18 @@ export const MultiRowDataTable: React.FC<MultiRowDataTableProps> = ({ data, tota
                         variant="ghost"
                         size="sm"
                         className="gba:h-8 gba:w-8 gba:p-0"
-                        onClick={() => navigator.clipboard.writeText(JSON.stringify(dataRow, null, 2))}
+                        onClick={() =>
+                          navigator.clipboard.writeText(
+                            JSON.stringify(
+                              {
+                                ...dataRow,
+                                formData: Object.fromEntries(fieldKeys.map(key => [key, dataRow.formData?.[key]]))
+                              },
+                              null,
+                              2
+                            )
+                          )
+                        }
                         title="Copy to clipboard"
                       >
                         <Copy className="gba:h-4 gba:w-4" />
@@ -849,7 +880,14 @@ export const StepDataView: React.FC<StepDataViewProps> = ({
   const shouldRenderTable = tableRows.length > 1
 
   if (shouldRenderTable) {
-    return <MultiRowDataTable data={tableRows} totalCount={stepData?.totalCount ?? 0} accessToken={accessToken} />
+    return (
+      <MultiRowDataTable
+        data={tableRows}
+        totalCount={stepData?.totalCount ?? 0}
+        accessToken={accessToken}
+        resultDisplay={stepData?.resultDisplay}
+      />
+    )
   }
 
   if (submittedRows.length === 1) {
@@ -881,7 +919,11 @@ export const StepDataView: React.FC<StepDataViewProps> = ({
             </div>
           </div>
         </div>
-        <SingleFormData formData={submittedRows[0].inputData} accessToken={accessToken} />
+        <SingleFormData
+          formData={submittedRows[0].inputData}
+          accessToken={accessToken}
+          resultDisplay={stepData?.resultDisplay}
+        />
       </div>
     )
   }
