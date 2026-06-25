@@ -18,6 +18,13 @@ export interface ImportAnalyzerContext {
   requiredSubtypeKey?: string
   /** Full dotted property paths of dynamic `additionalProperties.*` fields. */
   additionalPropertiesFields?: readonly string[]
+  /**
+   * Catalog `field.type` (e.g. `'AMOUNT' | 'DATE' | 'TEXT' | ...`) per short
+   * additional-property name. Lets Flowbot cast cells to the right scalar
+   * before persisting; without this, every `additionalProperties.*` cell
+   * lands as a string and breaks numeric/date filtering on the jsonb column.
+   */
+  additionalPropertiesFieldTypes?: Readonly<Record<string, string>>
   /** Keys from `objectValue.tileFields[].key` across the InvestmentGroup subtree. */
   tileFieldKeys?: readonly string[]
 }
@@ -43,7 +50,8 @@ export class ImportAnalyzer {
       this.domain,
       context?.requiredSubtypeKey,
       context?.additionalPropertiesFields,
-      context?.tileFieldKeys
+      context?.tileFieldKeys,
+      context?.additionalPropertiesFieldTypes
     )
 
     return {

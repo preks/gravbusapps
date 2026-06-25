@@ -65,6 +65,14 @@ export interface MapFromFileRequest {
    */
   additional_properties_fields?: string
   /**
+   * JSON-stringified object mapping short additional-property name to its
+   * declared catalog `field.type` (e.g. `'AMOUNT' | 'DATE' | 'BOOLEAN' | …`).
+   * Flowbot uses it to cast extracted cells to the right scalar before
+   * persisting; otherwise everything lands as a string in the `jsonb`
+   * column. `'{}'` (or omitted) means "no type hints, treat as TEXT".
+   */
+  additional_properties_field_types?: string
+  /**
    * JSON-stringified array of tile field keys (`tileFields[].key`)
    * from the `InvestmentGroup` catalog subtree.
    */
@@ -345,6 +353,7 @@ export class FlowbotClient extends RestClient {
     requiredSubtypeKey?: string | null,
     additionalPropertiesFields?: readonly string[] | null,
     tileFieldKeys?: readonly string[] | null,
+    additionalPropertiesFieldTypes?: Readonly<Record<string, string>> | null,
     options: Omit<RequestOptions, 'body'> = {}
   ): Promise<MapFromFileResponse> {
     const formData = new FormData()
@@ -358,6 +367,7 @@ export class FlowbotClient extends RestClient {
     if (flowbotDomain === 'irm') {
       formData.append('required_subtype_key', requiredSubtypeKey ?? '')
       formData.append('additional_properties_fields', JSON.stringify(additionalPropertiesFields ?? []))
+      formData.append('additional_properties_field_types', JSON.stringify(additionalPropertiesFieldTypes ?? {}))
       formData.append('tile_fields', JSON.stringify(tileFieldKeys ?? []))
     }
 
@@ -378,6 +388,7 @@ export class FlowbotClient extends RestClient {
     additionalPropertiesFields?: readonly string[] | null,
     tileFieldKeys?: readonly string[] | null,
     investmentCompanyGroupRef?: string | null,
+    additionalPropertiesFieldTypes?: Readonly<Record<string, string>> | null,
     options: Omit<RequestOptions, 'body'> = {}
   ): Promise<ExtractFromFileResponse> {
     const formData = new FormData()
@@ -397,6 +408,7 @@ export class FlowbotClient extends RestClient {
     }
     if (flowbotDomain === 'irm') {
       formData.append('additional_properties_fields', JSON.stringify(additionalPropertiesFields ?? []))
+      formData.append('additional_properties_field_types', JSON.stringify(additionalPropertiesFieldTypes ?? {}))
       formData.append('tile_fields', JSON.stringify(tileFieldKeys ?? []))
     }
     if (flowbotDomain === 'irm' && investmentCompanyGroupRef) {

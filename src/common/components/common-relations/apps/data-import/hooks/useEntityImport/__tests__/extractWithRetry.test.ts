@@ -63,7 +63,9 @@ describe('extractWithRetry', () => {
       'auto',
       undefined,
       undefined,
-      'InvestmentCompanyGroup:v1:PRIVATE_EQUITY'
+      undefined,
+      'InvestmentCompanyGroup:v1:PRIVATE_EQUITY',
+      undefined
     )
     expect(result.ownershipUpdates).toHaveLength(1)
     expect(result.executiveUpdates).toHaveLength(1)
