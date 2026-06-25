@@ -14,7 +14,6 @@ import {
   useTranslation
 } from '@newwork/nw-design-system'
 import { CaretDownIcon } from '@phosphor-icons/react'
-import { useDataTablePaginationLabels } from '@/business-apps/hr/core/apps/shared/utils/dataTablePaginationLabels'
 
 import translations from '../../../../_i18n'
 import type { CompensationAnalysisRun } from '../../../../types/compensationAnalysisRun.types'
@@ -36,7 +35,6 @@ export function CompensationAnalysisRunsCard({
   prefixDataTestId = 'Compensation'
 }: Readonly<CompensationAnalysisRunsCardProps>) {
   const { t } = useTranslation(translations)
-  const paginationLabels = useDataTablePaginationLabels()
   const [open, setOpen] = useState(true)
   const [sorting, setSorting] = useState<SortingState>([{ id: 'requestedAt', desc: true }])
 
@@ -104,7 +102,6 @@ export function CompensationAnalysisRunsCard({
                   rowsPerPageOptions={[10, 20, 50]}
                   showPageNumbers
                   maxVisiblePages={5}
-                  paginationLabels={paginationLabels}
                   emptyMessage={t('compensation-analysis-runs-empty')}
                   data-testid={`${prefixDataTestId}-analysis-runs-table`}
                 />

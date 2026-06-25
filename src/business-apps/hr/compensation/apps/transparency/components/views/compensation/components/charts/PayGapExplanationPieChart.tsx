@@ -2,7 +2,18 @@ import {
   DistributionChartStateContent,
   DistributionPieChartView
 } from '@/business-apps/hr/core/apps/human-resources/components/views/analytics-view/components/views/compensation/components/charts/distributionChartShared.tsx'
+import { useTranslation } from '@newwork/nw-design-system'
 import { useMemo } from 'react'
+
+import translations from '../../../../../_i18n'
+
+type PayGapExplanationCategory = 'tenure' | 'performance' | 'unexplained'
+
+const PAY_GAP_EXPLANATION_COLORS: Record<PayGapExplanationCategory, string> = {
+  tenure: 'var(--nw-success)', // or var(--nw-chart-2)
+  performance: 'var(--nw-chart-1)', // blue
+  unexplained: 'var(--nw-destructive)' // red
+}
 
 interface PayGapExplanationData {
   tenureExplainedPercent: number
@@ -30,28 +41,27 @@ function PayGapExplanationPieChart({
   embedded = false,
   className
 }: Readonly<PayGapExplanationPieChartProps>) {
+  const { t } = useTranslation(translations)
+
   const distributionData = useMemo(() => {
     if (!data) return []
 
-    const colorMap = {
-      Tenure: '#046812',
-      Performance: '#3b82f6',
-      Unexplained: '#a60202'
-    }
-
     return [
       {
-        name: 'Tenure',
+        category: 'tenure' as const,
+        name: t('hr-analytics-pay-gap-tenure-share'),
         count: data.tenureExplainedPercent,
         percentage: data.tenureExplainedPercent
       },
       {
-        name: 'Performance',
+        category: 'performance' as const,
+        name: t('hr-analytics-pay-gap-performance-share'),
         count: data.performanceExplainedPercent,
         percentage: data.performanceExplainedPercent
       },
       {
-        name: 'Unexplained',
+        category: 'unexplained' as const,
+        name: t('hr-analytics-pay-gap-unexplained-share'),
         count: data.unexplainedPercent,
         percentage: data.unexplainedPercent
       }
@@ -61,9 +71,9 @@ function PayGapExplanationPieChart({
         name: item.name,
         value: item.count,
         percentage: Number(item.percentage.toFixed(2)),
-        fill: colorMap[item.name as keyof typeof colorMap]
+        fill: PAY_GAP_EXPLANATION_COLORS[item.category]
       }))
-  }, [data])
+  }, [data, t])
 
   const shellClassName = embedded
     ? `gba:flex gba:flex-col gba:flex-1 gba:min-h-0 ${className ?? ''}`
