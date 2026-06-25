@@ -86039,9 +86039,9 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 14106,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/14106/",
-    "chunkJsBytes": 2021109,
+    "bitbucketBuildNumber": 14109,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/14109/",
+    "chunkJsBytes": 2021106,
     "top": [
       {
         "kind": "bucket",
@@ -97989,25 +97989,25 @@
     ]
   },
   "core/every-fabric/apps/every-fabric": {
-    "bitbucketBuildNumber": 14106,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/14106/",
-    "chunkJsBytes": 3399519,
+    "bitbucketBuildNumber": 14109,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/14109/",
+    "chunkJsBytes": 3404242,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/core",
-        "rendered": 3085148,
-        "gzip": 806410,
+        "rendered": 3092953,
+        "gzip": 809268,
         "leaves": [
           {
             "name": "src/business-apps/core/every-fabric/apps/every-fabric/_i18n/de-DE.ftl?raw",
-            "rendered": 127025,
-            "gzip": 34047
+            "rendered": 127277,
+            "gzip": 34111
           },
           {
             "name": "src/business-apps/core/every-fabric/apps/every-fabric/_i18n/ro-RO.ftl?raw",
-            "rendered": 126851,
-            "gzip": 33765
+            "rendered": 127114,
+            "gzip": 33832
           }
         ]
       },
@@ -113085,25 +113085,25 @@
     ]
   },
   "platform/apps/digital-workplace": {
-    "bitbucketBuildNumber": 14094,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/14094/",
-    "chunkJsBytes": 3448840,
+    "bitbucketBuildNumber": 14109,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/14109/",
+    "chunkJsBytes": 3449564,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/core",
-        "rendered": 2310647,
-        "gzip": 540857,
+        "rendered": 2311389,
+        "gzip": 541048,
         "leaves": [
           {
             "name": "src/business-apps/core/every-fabric/apps/every-fabric/_i18n/de-DE.ftl?raw",
-            "rendered": 127025,
-            "gzip": 34046
+            "rendered": 127277,
+            "gzip": 34111
           },
           {
             "name": "src/business-apps/core/every-fabric/apps/every-fabric/_i18n/ro-RO.ftl?raw",
-            "rendered": 126851,
-            "gzip": 33764
+            "rendered": 127114,
+            "gzip": 33831
           }
         ]
       },
@@ -117489,7 +117489,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-06-25T10:13:43.159Z",
+    "generatedAt": "2026-06-25T10:14:26.014Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
