@@ -182,6 +182,17 @@ const NEEDS_YOU_STATUSES: ReadonlySet<WorkforceRunStatus> = new Set<WorkforceRun
   'budget_paused'
 ])
 
+/**
+ * True when a feed item is action-required (a human must intervene): a
+ * non-terminal run that is waiting / escalated / budget-paused, or a completed
+ * run whose triggered flow is paused on a human approval. Shared by the
+ * grouping logic and the feed card so the "Needs you" classification and its
+ * amber (not green "working") styling stay in lockstep.
+ */
+export function isNeedsYouItem(item: Pick<WorkforceFeedItem, 'status' | 'pendingFlowApproval'>): boolean {
+  return NEEDS_YOU_STATUSES.has(item.status) || item.pendingFlowApproval
+}
+
 // Per-section presentation config.
 // - ``initialVisible`` caps how many cards a section shows before a "Show N
 //   more" toggle. The header always shows the full count, so the cap only
@@ -236,7 +247,7 @@ export function groupFeed(items: readonly WorkforceFeedItem[]): GroupedWorkforce
   for (const item of items) {
     // A completed run whose flow is paused on a human approval is action-required
     // too, even though its kind is "finished".
-    if (NEEDS_YOU_STATUSES.has(item.status) || item.pendingFlowApproval) {
+    if (isNeedsYouItem(item)) {
       grouped.needsYou.push(item)
     } else if (item.kind === 'active') {
       grouped.active.push(item)

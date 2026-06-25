@@ -9,7 +9,7 @@ import { useTranslation } from '@newwork/nw-design-system'
 import React from 'react'
 import { statusVisualForRun } from '../runDisplay'
 import { sourceVisual } from '../workforceSourceDisplay'
-import type { WorkforceFeedItem } from '../workforceFeedModel'
+import { isNeedsYouItem, type WorkforceFeedItem } from '../workforceFeedModel'
 import { caseRefLabel, elapsedSince, formatDurationMs } from './commandCenterFormat'
 import translations from '../../../_i18n'
 
@@ -28,7 +28,13 @@ export const CommandCenterFeedItem: React.FC<CommandCenterFeedItemProps> = ({ it
   const source = sourceVisual(item.source)
   const sourceLabel = t(source.labelKey)
   const SourceIcon = source.icon
-  const isActive = item.kind === 'active'
+  // A non-terminal run is "live", but only genuinely-working runs (running /
+  // pending) get the green pulse. Action-required runs (waiting / escalated /
+  // budget-paused / flow approval) are live too, yet must read amber, so they
+  // render as a status card like finished runs — never the green dot.
+  const isLiveRun = item.kind === 'active'
+  const needsAttention = isNeedsYouItem(item)
+  const isWorking = isLiveRun && !needsAttention
   const statusVisual = statusVisualForRun({
     status: item.status,
     pending_flow_approval: item.pendingFlowApproval
@@ -47,7 +53,7 @@ export const CommandCenterFeedItem: React.FC<CommandCenterFeedItemProps> = ({ it
       data-kind={item.kind}
     >
       <div className="gba:flex gba:items-center gba:gap-2">
-        {isActive ? (
+        {isWorking ? (
           <span className="gba:relative gba:flex gba:h-1.5 gba:w-1.5 gba:shrink-0">
             <span className="gba:absolute gba:inline-flex gba:h-full gba:w-full gba:animate-ping gba:rounded-full gba:bg-emerald-400" />
             <span className="gba:relative gba:inline-flex gba:h-1.5 gba:w-1.5 gba:rounded-full gba:bg-emerald-500" />
@@ -64,18 +70,18 @@ export const CommandCenterFeedItem: React.FC<CommandCenterFeedItemProps> = ({ it
         </span>
         <span className="gba:ml-auto gba:inline-flex gba:items-center gba:gap-1 gba:text-[10px] gba:text-muted-foreground">
           <ClockIcon className="gba:h-3 gba:w-3" />
-          {isActive ? elapsedSince(item.timestamp) : (duration ?? '—')}
+          {isLiveRun ? elapsedSince(item.timestamp) : (duration ?? '—')}
         </span>
       </div>
 
       <p className="gba:flex gba:items-center gba:gap-1.5 gba:text-[11px] gba:text-muted-foreground">
-        {isActive ? (
+        {isWorking ? (
           <PulseIcon className="gba:h-3 gba:w-3 gba:shrink-0 gba:text-emerald-600" weight="bold" />
         ) : (
           <SourceIcon className="gba:h-3 gba:w-3 gba:shrink-0" weight="bold" />
         )}
         <span className="gba:truncate">
-          {isActive ? item.currentActivity || t('action-working') : caseLabel || sourceLabel}
+          {isWorking ? item.currentActivity || t('action-working') : caseLabel || sourceLabel}
         </span>
       </p>
 
@@ -85,7 +91,7 @@ export const CommandCenterFeedItem: React.FC<CommandCenterFeedItemProps> = ({ it
           {sourceLabel}
         </span>
         {item.trigger?.name && <span className="gba:truncate">· {item.trigger.name}</span>}
-        {!isActive && item.credits !== null && (
+        {!isLiveRun && item.credits !== null && (
           <span className="gba:ml-auto gba:inline-flex gba:items-center gba:gap-1">
             <CoinsIcon className="gba:h-3 gba:w-3" />
             {item.credits}

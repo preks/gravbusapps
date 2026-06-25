@@ -139,6 +139,11 @@ describe('LiveCommandCenter', () => {
     expect(screen.getByTestId('command-center-item-s-wait')).toBeInTheDocument()
     expect(screen.getByTestId('command-center-item-s-active')).toBeInTheDocument()
     expect(screen.getByTestId('command-center-item-s-done')).toBeInTheDocument()
+    // A "Needs you" (waiting) card renders the amber status pill, not the green
+    // "working" dot, so its status label is visible on the card.
+    expect(screen.getByTestId('command-center-item-s-wait')).toHaveTextContent('Waiting for human')
+    // A genuinely-working run shows its current activity instead of a status pill.
+    expect(screen.getByTestId('command-center-item-s-active')).toHaveTextContent('Searching CRM')
     // Every jump pill is enabled because every section has at least one item.
     expect(screen.getByTestId('command-center-jump-needsYou')).toBeEnabled()
     expect(screen.getByTestId('command-center-jump-active')).toBeEnabled()
