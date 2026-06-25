@@ -60,7 +60,8 @@ function historySessionToActiveSnapshot(session: FabricSessionSummary): ActiveSe
       : null,
     current_activity: {
       step: status === 'waiting_for_human' ? 'awaiting_human' : 'thinking',
-      label: status === 'pending' ? 'Starting...' : status === 'waiting_for_human' ? 'Waiting for your input' : 'Working...',
+      label:
+        status === 'pending' ? 'Starting...' : status === 'waiting_for_human' ? 'Waiting for your input' : 'Working...',
       started_at: session.updated_at ?? session.created_at ?? null
     },
     todos_summary: { done: 0, total: 0 },
