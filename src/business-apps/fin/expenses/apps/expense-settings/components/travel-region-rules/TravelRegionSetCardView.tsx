@@ -13,7 +13,8 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
-  DialogFooter
+  DialogFooter,
+  Toaster
 } from '@newwork/nw-design-system'
 import { PlusIcon, MapPinIcon, TableIcon, TrashIcon, PencilIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -22,9 +23,7 @@ import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogMan
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import TravelRegionSetModal from './TravelRegionSetModal'
 import { expenseSettingsClient } from '../../utils/ExpenseSettingsClient'
-
-// Custom toast function
-const toast = () => {}
+import { toast } from 'sonner'
 
 interface TravelRegionSet {
   id: string
@@ -238,7 +237,7 @@ const TravelRegionSetCardView: React.FC<TravelRegionSetCardViewProps> = ({
     // Refresh the list to show the newly created/updated set
     loadTravelRegionSets()
     const message = editingSet ? 'Travel Region Set updated successfully' : 'Travel Region Set created successfully'
-    toast(message, 'success')
+    toast.success(message)
     setEditingSet(null)
   }
 
@@ -399,7 +398,7 @@ const TravelRegionSetCardView: React.FC<TravelRegionSetCardViewProps> = ({
           ? `Travel Region Set "${set.value}" and ${childCount} travel region${childCount > 1 ? 's' : ''} deleted successfully`
           : `Travel Region Set "${set.value}" deleted successfully`
 
-      toast(message, 'success')
+      toast.success(message)
 
       // Close dialog and refresh list
       setDeleteConfirmation({ isOpen: false, set: null })
@@ -407,7 +406,7 @@ const TravelRegionSetCardView: React.FC<TravelRegionSetCardViewProps> = ({
     } catch (err) {
       console.error('❌ Error deleting travel region set:', err)
       const errorMessage = err instanceof Error ? err.message : 'Unknown error'
-      toast(`Failed to delete Travel Region Set: ${errorMessage}`, 'error')
+      toast.error(`Failed to delete Travel Region Set: ${errorMessage}`)
     } finally {
       setIsDeleting(false)
     }
@@ -626,6 +625,7 @@ const TravelRegionSetCardView: React.FC<TravelRegionSetCardViewProps> = ({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <Toaster />
     </div>
   )
 }

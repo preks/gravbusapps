@@ -22,6 +22,7 @@ export const useGroupedDetails = ({ formData, countries, currencies }: UseGroupe
 
         groups[groupKey] = {
           key: groupKey,
+          stableKey: uniqueId,
           countryRef: detail.countryRef,
           countryName: country?.value || 'Unknown',
           travelRegion: detail.travelRegion,

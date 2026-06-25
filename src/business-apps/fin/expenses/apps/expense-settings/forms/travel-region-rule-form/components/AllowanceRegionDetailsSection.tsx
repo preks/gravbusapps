@@ -53,7 +53,7 @@ export const AllowanceRegionDetailsSection: React.FC<AllowanceRegionDetailsSecti
           <div className="gba:space-y-4">
             {groups.map((group, groupIndex) => (
               <RegionGroupCard
-                key={group.key}
+                key={group.stableKey}
                 group={group}
                 groupIndex={groupIndex}
                 countries={countries}

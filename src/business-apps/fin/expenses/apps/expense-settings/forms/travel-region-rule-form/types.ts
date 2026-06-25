@@ -27,6 +27,7 @@ export interface CatalogOption {
 
 export interface SmartColumnGroup {
   key: string
+  stableKey: string
   countryRef: string
   countryName: string
   travelRegion: string
