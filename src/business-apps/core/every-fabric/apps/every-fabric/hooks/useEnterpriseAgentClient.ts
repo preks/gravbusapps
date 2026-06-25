@@ -367,9 +367,11 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
    * Auth is sent via `Authorization: Bearer` in `connectPromptManagerSse` (fetch),
    * not as a query param — Kong on dev redirects unauthenticated `?token=` SSE to Keycloak.
    */
-  const buildActiveSessionsStreamUrl = useCallback((): string => {
+  const buildActiveSessionsStreamUrl = useCallback((options?: { traceReplay?: 'full' | 'lifecycle' }): string => {
     const base = PROMPT_MANAGER_API_URL.endsWith('/') ? PROMPT_MANAGER_API_URL.slice(0, -1) : PROMPT_MANAGER_API_URL
-    return `${base}/deep-agent/sessions/active/stream`
+    const replay = options?.traceReplay ?? 'lifecycle'
+    const qs = replay === 'lifecycle' ? '?trace_replay=lifecycle' : '?trace_replay=full'
+    return `${base}/deep-agent/sessions/active/stream${qs}`
   }, [])
 
   const getMemory = useCallback(

@@ -1,6 +1,7 @@
 import React from 'react'
 import { useTranslation } from '@newwork/nw-design-system'
 import translations from '../../_i18n'
+import { ShimmerText } from './ShimmerText'
 
 export const AgentTypingIndicator = () => {
   const { t } = useTranslation(translations)
@@ -12,7 +13,7 @@ export const AgentTypingIndicator = () => {
         <span className="gba:w-1.5 gba:h-1.5 gba:rounded-full gba:bg-muted-foreground/45 gba:animate-pulse" />
         <span className="gba:w-1.5 gba:h-1.5 gba:rounded-full gba:bg-muted-foreground/30 gba:animate-pulse" />
       </div>
-      <span className="gba:text-xs gba:text-muted-foreground">{t('chat-agent-working')}</span>
+      <ShimmerText className="gba:text-xs">{t('chat-agent-working')}</ShimmerText>
     </div>
   )
 }

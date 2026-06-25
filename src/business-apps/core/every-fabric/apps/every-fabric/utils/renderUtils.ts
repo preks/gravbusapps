@@ -113,6 +113,30 @@ export function parseIsoTimestampMs(input: string | Date | null | undefined): nu
   return date ? date.getTime() : null
 }
 
+/** Best timestamp for sidebar ordering/display. */
+export function sessionActivityIso(session: {
+  status?: string | null
+  completed_at?: string | null
+  updated_at?: string | null
+  created_at?: string | null
+}): string | null {
+  const terminal = session.status === 'completed' || session.status === 'failed' || session.status === 'cancelled'
+  const value = terminal
+    ? (session.completed_at ?? session.created_at ?? null)
+    : (session.updated_at ?? session.created_at ?? null)
+  if (value === null || value === undefined) return null
+  const trimmed = String(value).trim()
+  return trimmed || null
+}
+
+export function sessionActivityMs(session: {
+  completed_at?: string | null
+  updated_at?: string | null
+  created_at?: string | null
+}): number | null {
+  return parseIsoTimestampMs(sessionActivityIso(session))
+}
+
 /** Format relative time from ISO string */
 export function formatRelativeTime(isoString: string): string {
   const date = parseIsoTimestamp(isoString)

@@ -21,17 +21,17 @@ export interface ConnectPromptManagerSseOptions {
 
 /** Parse complete SSE frames from a buffer; returns the incomplete trailing chunk. */
 export function parseSseMessageBuffer(buffer: string, onData: (data: string) => void): string {
-  const normalized = buffer.replace(/\r\n/g, '\n')
-  const parts = normalized.split('\n\n')
+  const parts = buffer.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n\n')
   const remainder = parts.pop() ?? ''
   for (const frame of parts) {
     if (!frame.trim()) continue
-    let data = ''
+    const dataLines: string[] = []
     for (const line of frame.split('\n')) {
       if (line.startsWith('data:')) {
-        data += line.slice(5).trimStart()
+        dataLines.push(line.slice(5).trimStart())
       }
     }
+    const data = dataLines.join('\n')
     if (data) onData(data)
   }
   return remainder

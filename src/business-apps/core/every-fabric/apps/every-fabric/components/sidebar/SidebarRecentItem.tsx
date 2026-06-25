@@ -2,7 +2,7 @@ import React from 'react'
 import { useTranslation } from '@newwork/nw-design-system'
 import { TrashIcon } from '@phosphor-icons/react'
 import type { FabricSessionSummary } from '../../types/fabric'
-import { formatRelativeTime } from '../../utils/renderUtils'
+import { formatRelativeTime, sessionActivityIso } from '../../utils/renderUtils'
 import translations from '../../_i18n'
 
 interface SidebarRecentItemProps {
@@ -44,7 +44,7 @@ const SidebarRecentItemBase: React.FC<SidebarRecentItemProps> = ({ session, isSe
       >
         <span className="gba:truncate gba:text-[13px] gba:text-foreground">{title}</span>
         <span className="gba:mt-0.5 gba:flex gba:items-center gba:gap-1.5 gba:text-[11px] gba:text-muted-foreground/80">
-          <span>{formatRelativeTime(session.updated_at)}</span>
+          <span>{formatRelativeTime(sessionActivityIso(session) ?? '')}</span>
           {meta ? (
             <>
               <span aria-hidden="true">·</span>

@@ -111,9 +111,9 @@ describe('groupRecentsByDay', () => {
     const now = fixedNow.getTime()
     const hour = 60 * 60 * 1000
     const sessions = [
-      makeRecent({ session_id: 'today-1', updated_at: new Date(now - 2 * hour).toISOString() }),
-      makeRecent({ session_id: 'yesterday-1', updated_at: new Date(now - 30 * hour).toISOString() }),
-      makeRecent({ session_id: 'earlier-1', updated_at: new Date(now - 7 * 24 * hour).toISOString() })
+      makeRecent({ session_id: 'today-1', completed_at: new Date(now - 2 * hour).toISOString() }),
+      makeRecent({ session_id: 'yesterday-1', completed_at: new Date(now - 30 * hour).toISOString() }),
+      makeRecent({ session_id: 'earlier-1', completed_at: new Date(now - 7 * 24 * hour).toISOString() })
     ]
 
     const groups = groupRecentsByDay(sessions)

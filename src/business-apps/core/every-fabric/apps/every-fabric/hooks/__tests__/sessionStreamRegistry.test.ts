@@ -145,6 +145,41 @@ describe('sessionStreamRegistry', () => {
     __testing__.disposeAll()
   })
 
+  it('accumulates delta response_stream chunks into cumulative text', async () => {
+    const mod = await import('../sessionStreamRegistry')
+    const { acquireSessionStream, getSessionStreamState, __testing__ } = mod
+
+    const { release } = acquireSessionStream('s3c', 'token-a')
+    const src = FakeSseConnection.instances[0]
+
+    src.emitOpen()
+    src.emitMessage({
+      type: 'agent_chunk',
+      role: 'ai',
+      chunk_kind: 'response_stream',
+      event_id: 'rs-d1',
+      seq: 3,
+      content: 'Hello',
+      metadata: { mode: 'delta', stream_key: 'primary', segment_id: 0 }
+    })
+    src.emitMessage({
+      type: 'agent_chunk',
+      role: 'ai',
+      chunk_kind: 'response_stream',
+      event_id: 'rs-d2',
+      seq: 4,
+      content: ' world',
+      metadata: { mode: 'delta', stream_key: 'primary', segment_id: 0, cumulative_length: 11 }
+    })
+
+    const state = getSessionStreamState('s3c')!
+    expect(state.events).toHaveLength(1)
+    expect(state.events[0]).toMatchObject({ content: 'Hello world', seq: 4 })
+
+    release()
+    __testing__.disposeAll()
+  })
+
   it('closes source on terminal event', async () => {
     const mod = await import('../sessionStreamRegistry')
     const { acquireSessionStream, __testing__ } = mod
@@ -155,6 +190,22 @@ describe('sessionStreamRegistry', () => {
     src.emitMessage({ type: 'terminal', event_id: 't1', seq: 1, status: 'completed' })
 
     expect(src.abort).toHaveBeenCalled()
+
+    release()
+    __testing__.disposeAll()
+  })
+
+  it('keeps the source open on waiting_for_human terminal event', async () => {
+    const mod = await import('../sessionStreamRegistry')
+    const { acquireSessionStream, getSessionStreamState, __testing__ } = mod
+
+    const { release } = acquireSessionStream('s4-waiting', 'token-a')
+    const src = FakeSseConnection.instances[0]
+    src.emitOpen()
+    src.emitMessage({ type: 'terminal', event_id: 't-wait', seq: 1, status: 'waiting_for_human' })
+
+    expect(src.abort).not.toHaveBeenCalled()
+    expect(getSessionStreamState('s4-waiting')?.terminalReached).toBe(false)
 
     release()
     __testing__.disposeAll()
@@ -171,6 +222,38 @@ describe('sessionStreamRegistry', () => {
 
     expect(src.abort).toHaveBeenCalled()
     expect(getSessionStreamState('s4b')?.terminalReached).toBe(true)
+
+    release()
+    __testing__.disposeAll()
+  })
+
+  it('keeps the source open on waiting_for_human turn_snapshot event', async () => {
+    const mod = await import('../sessionStreamRegistry')
+    const { acquireSessionStream, getSessionStreamState, __testing__ } = mod
+
+    const { release } = acquireSessionStream('s4b-waiting', 'token-a')
+    const src = FakeSseConnection.instances[0]
+    src.emitOpen()
+    src.emitMessage({ type: 'turn_snapshot', event_id: 'ts-wait', seq: 1, status: 'waiting_for_human' })
+
+    expect(src.abort).not.toHaveBeenCalled()
+    expect(getSessionStreamState('s4b-waiting')?.terminalReached).toBe(false)
+
+    release()
+    __testing__.disposeAll()
+  })
+
+  it('keeps the source open on active turn_snapshot events', async () => {
+    const mod = await import('../sessionStreamRegistry')
+    const { acquireSessionStream, getSessionStreamState, __testing__ } = mod
+
+    const { release } = acquireSessionStream('s4b-running', 'token-a')
+    const src = FakeSseConnection.instances[0]
+    src.emitOpen()
+    src.emitMessage({ type: 'turn_snapshot', event_id: 'ts-running', seq: 1, status: 'running' })
+
+    expect(src.abort).not.toHaveBeenCalled()
+    expect(getSessionStreamState('s4b-running')?.terminalReached).toBe(false)
 
     release()
     __testing__.disposeAll()
@@ -282,6 +365,27 @@ describe('sessionStreamRegistry', () => {
     const state = getSessionStreamState('s7')!
     expect(state.lastSeq).toBe(42)
     expect(state.events).toHaveLength(0)
+
+    release()
+    __testing__.disposeAll()
+  })
+
+  it('allows duplicate replay events to repair a stale cursor', async () => {
+    const mod = await import('../sessionStreamRegistry')
+    const { acquireSessionStream, getSessionStreamState, __testing__ } = mod
+
+    const { release } = acquireSessionStream('s8', 'token-a')
+    const src = FakeSseConnection.instances[0]
+    src.emitOpen()
+    src.emitMessage({ type: 'agent_chunk', event_id: 'e1', seq: 10, content: 'first' })
+
+    const entry = __testing__.entries.get('s8')!
+    entry.state = { ...entry.state, lastSeq: 5 }
+    src.emitMessage({ type: 'agent_chunk', event_id: 'e1', seq: 10, content: 'duplicate replay' })
+
+    const state = getSessionStreamState('s8')!
+    expect(state.events).toHaveLength(1)
+    expect(state.lastSeq).toBe(10)
 
     release()
     __testing__.disposeAll()

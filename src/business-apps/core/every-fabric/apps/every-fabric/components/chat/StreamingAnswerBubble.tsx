@@ -8,6 +8,7 @@ import { AgentActivityTimeline } from './AgentActivityTimeline'
 import { useAnimatedGreeting } from './useAnimatedGreeting'
 import { useSmoothStreamingText } from './useSmoothStreamingText'
 import translations from '../../_i18n'
+import { ShimmerText } from './ShimmerText'
 
 interface StreamingAnswerBubbleProps {
   greetingContent: string
@@ -36,7 +37,7 @@ const ThinkingIndicator: React.FC = () => (
         style={{ animation: 'thinking-dot 1.4s ease-in-out 0.4s infinite' }}
       />
     </div>
-    <span className="gba:text-sm gba:text-muted-foreground gba:font-medium">Thinking...</span>
+    <ShimmerText className="gba:text-sm gba:font-medium">Thinking...</ShimmerText>
   </div>
 )
 
@@ -177,9 +178,9 @@ export const StreamingAnswerBubble: React.FC<StreamingAnswerBubbleProps> = ({
         </span>
         {isStreaming && !answerStreaming ? (
           <span className="gba:inline-flex gba:items-center gba:gap-1.5 gba:text-[11px] gba:text-muted-foreground gba:transition-opacity gba:duration-200">
-            <span className="gba:relative gba:flex gba:h-2 gba:w-2">
-              <span className="gba:animate-ping gba:absolute gba:inline-flex gba:h-full gba:w-full gba:rounded-full gba:bg-primary gba:opacity-75" />
-              <span className="gba:relative gba:inline-flex gba:rounded-full gba:h-2 gba:w-2 gba:bg-primary" />
+            <span className="gba:relative gba:inline-flex gba:size-2 gba:shrink-0 gba:items-center gba:justify-center">
+              <span className="gba:absolute gba:inset-0 gba:origin-center gba:animate-ping gba:rounded-full gba:bg-primary gba:opacity-75" />
+              <span className="gba:relative gba:block gba:size-2 gba:rounded-full gba:bg-primary" />
             </span>{' '}
             Generating response
           </span>

@@ -33,6 +33,8 @@ describe('AgentActivityTimeline', () => {
     expect(screen.getByTestId('agent-activity-timeline')).toHaveAttribute('aria-label', 'chat-activity-aria')
     expect(screen.getByText('Looking up information')).toBeTruthy()
     expect(screen.getByText('Preparing workspace')).toBeTruthy()
+    expect(screen.getByTestId('agent-activity-dot-active')).toBeTruthy()
+    expect(screen.getByTestId('shimmer-text')).toBeTruthy()
     expect(screen.queryByTestId('agent-thinking-wave')).toBeNull()
     expect(screen.queryByTestId('agent-activity-track')).toBeNull()
   })

@@ -1,4 +1,4 @@
-import { formatRelativeTime, parseIsoTimestamp, parseIsoTimestampMs } from '../renderUtils'
+import { formatRelativeTime, parseIsoTimestamp, parseIsoTimestampMs, sessionActivityIso } from '../renderUtils'
 
 describe('parseIsoTimestamp', () => {
   it('returns null for nullish / empty input', () => {
@@ -53,6 +53,27 @@ describe('parseIsoTimestamp', () => {
   it('parseIsoTimestampMs mirrors parseIsoTimestamp', () => {
     expect(parseIsoTimestampMs('2026-04-22T08:22:55')).toBe(new Date('2026-04-22T08:22:55Z').getTime())
     expect(parseIsoTimestampMs(null)).toBeNull()
+  })
+
+  it('sessionActivityIso prefers completed_at over corrupted updated_at', () => {
+    expect(
+      sessionActivityIso({
+        status: 'completed',
+        completed_at: '2026-05-19T10:00:00Z',
+        updated_at: '2026-06-25T14:23:05Z',
+        created_at: '2026-05-19T09:00:00Z'
+      })
+    ).toBe('2026-05-19T10:00:00Z')
+  })
+
+  it('sessionActivityIso uses created_at for terminal sessions without completed_at', () => {
+    expect(
+      sessionActivityIso({
+        status: 'failed',
+        updated_at: '2026-06-25T14:23:05Z',
+        created_at: '2026-05-19T09:00:00Z'
+      })
+    ).toBe('2026-05-19T09:00:00Z')
   })
 })
 

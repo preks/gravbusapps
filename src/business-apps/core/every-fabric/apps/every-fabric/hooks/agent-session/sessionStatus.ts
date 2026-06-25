@@ -14,11 +14,11 @@ export const isTerminalSessionStatus = (status: DeepAgentSession['status'] | und
 export const isRestTerminalStatus = (status: DeepAgentSession['status']): boolean =>
   status === 'completed' || status === 'failed' || status === 'cancelled'
 
-/** Suppress live SSE when REST is terminal unless the client is mid-turn (reply in flight). */
+/** Suppress live SSE only when REST is final; waiting_for_human should keep the stream warm for replies. */
 export const deriveStreamSuppressed = (
   restSession: Pick<DeepAgentSession, 'status'> | null | undefined,
   isAgentRunning: boolean
-): boolean => !!(restSession && isTerminalStatus(restSession.status) && !isAgentRunning)
+): boolean => !!(restSession && isRestTerminalStatus(restSession.status) && !isAgentRunning)
 
 const parseSessionTimestamp = (value: string): number => {
   const normalized = /(?:z|[+-]\d{2}:?\d{2})$/i.test(value) ? value : `${value}Z`
@@ -44,7 +44,7 @@ export const isRestTerminalForCurrentTurn = (
   session: Pick<DeepAgentSession, 'status' | 'completed_at' | 'updated_at'> | null | undefined,
   lastReplyTimestamp: number
 ): boolean => {
-  if (!session || !isTerminalStatus(session.status)) return false
+  if (!session || !isRestTerminalStatus(session.status)) return false
   if (lastReplyTimestamp <= 0) return true
   const stamp = session.completed_at || session.updated_at
   if (!stamp) return false

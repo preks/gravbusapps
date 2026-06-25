@@ -71,8 +71,12 @@ const entries = new Map<string, InternalEntry>()
 const sessionListeners = new Map<string, Set<Listener>>()
 let graceSweepTimer: ReturnType<typeof setInterval> | null = null
 
-const isStreamEndEvent = (event: AgentStreamEvent): boolean =>
-  event.type === 'terminal' || event.type === 'turn_snapshot'
+const TERMINAL_STREAM_STATUSES = new Set(['completed', 'failed', 'cancelled'])
+
+const isStreamEndEvent = (event: AgentStreamEvent): boolean => {
+  if (event.type !== 'terminal' && event.type !== 'turn_snapshot') return false
+  return TERMINAL_STREAM_STATUSES.has(String((event as { status?: unknown }).status ?? ''))
+}
 
 const dedupeKey = (event: AgentStreamEvent): string => {
   if ('event_id' in event && event.event_id) return String(event.event_id)
@@ -127,6 +131,34 @@ const responseStreamCoalesceKey = (event: AgentChunkEvent): string => {
   return `${streamKey}:${segmentId}`
 }
 
+const isDeltaStreamChunk = (event: AgentChunkEvent): boolean => event.metadata?.mode === 'delta'
+
+/**
+ * Expand delta wire events into cumulative snapshots for downstream consumers.
+ */
+const normalizeStreamChunk = (event: AgentChunkEvent, priorText: string | undefined): AgentChunkEvent => {
+  if (!isDeltaStreamChunk(event)) return event
+  const mergedContent = `${priorText ?? ''}${event.content ?? ''}`
+  return {
+    ...event,
+    content: mergedContent,
+    metadata: {
+      ...(event.metadata ?? {}),
+      mode: 'cumulative'
+    }
+  }
+}
+
+const priorResponseStreamText = (events: AgentStreamEvent[], coalesceKey: string): string | undefined => {
+  for (let i = events.length - 1; i >= 0; i -= 1) {
+    const existing = events[i]
+    if (!isResponseStreamChunk(existing)) continue
+    if (responseStreamCoalesceKey(existing) !== coalesceKey) continue
+    return typeof existing.content === 'string' ? existing.content : ''
+  }
+  return undefined
+}
+
 /**
  * Cumulative response_stream snapshots replace the prior snapshot for the same
  * segment instead of appending — fewer array copies and less React churn.
@@ -136,27 +168,42 @@ const ingestStreamEvent = (
   event: AgentStreamEvent
 ): { applied: boolean; immediateNotify: boolean } => {
   const key = dedupeKey(event)
+  const eventSeq = 'seq' in event && typeof event.seq === 'number' ? event.seq : null
+  const terminalReached = isStreamEndEvent(event)
   if (entry.seenEventKeys.has(key)) {
-    return { applied: false, immediateNotify: false }
+    let nextState = entry.state
+    let stateChanged = false
+    if (eventSeq !== null && eventSeq > nextState.lastSeq) {
+      nextState = { ...nextState, lastSeq: eventSeq, errorCount: 0 }
+      stateChanged = true
+    }
+    if (terminalReached && !nextState.terminalReached) {
+      nextState = { ...nextState, terminalReached: true, errorCount: 0 }
+      stateChanged = true
+    }
+    if (stateChanged) {
+      entry.state = nextState
+    }
+    return { applied: stateChanged, immediateNotify: terminalReached }
   }
   entry.seenEventKeys.add(key)
 
   let lastSeq = entry.state.lastSeq
-  if ('seq' in event && typeof event.seq === 'number' && event.seq > lastSeq) {
-    lastSeq = event.seq
+  if (eventSeq !== null && eventSeq > lastSeq) {
+    lastSeq = eventSeq
   }
 
-  const terminalReached = isStreamEndEvent(event)
   let nextEvents = entry.state.events
 
   if (isResponseStreamChunk(event)) {
     const coalesceKey = responseStreamCoalesceKey(event)
+    const normalized = normalizeStreamChunk(event, priorResponseStreamText(nextEvents, coalesceKey))
     for (let i = nextEvents.length - 1; i >= 0; i -= 1) {
       const existing = nextEvents[i]
       if (!isResponseStreamChunk(existing)) continue
       if (responseStreamCoalesceKey(existing) === coalesceKey) {
         nextEvents = [...nextEvents]
-        nextEvents[i] = event
+        nextEvents[i] = normalized
         entry.state = {
           ...entry.state,
           events: nextEvents,
@@ -164,13 +211,18 @@ const ingestStreamEvent = (
           errorCount: 0,
           terminalReached: entry.state.terminalReached || terminalReached
         }
-        // Paint each cumulative snapshot immediately — rAF batching here made
-        // long answers appear to "dump" at turn end when SSE delivered many
-        // upserts in one frame.
         return { applied: true, immediateNotify: true }
       }
       break
     }
+    entry.state = {
+      ...entry.state,
+      events: [...nextEvents, normalized],
+      lastSeq,
+      errorCount: 0,
+      terminalReached: entry.state.terminalReached || terminalReached
+    }
+    return { applied: true, immediateNotify: true }
   }
 
   entry.state = {

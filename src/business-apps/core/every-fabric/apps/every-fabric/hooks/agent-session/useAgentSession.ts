@@ -14,10 +14,15 @@ import { useSessionStream } from '../useSessionStream'
 import { isFlowBotFabricRuntime } from '../../utils/fabricRuntime'
 import { postSessionReply } from './replyFlow'
 import { readSessionUiCache, writeSessionUiCache } from './sessionUiStateCache'
-import { deriveStreamSuppressed, isRestTerminalForCurrentTurn, isTerminalStatus } from './sessionStatus'
+import {
+  deriveStreamSuppressed,
+  isRestTerminalForCurrentTurn,
+  isRestTerminalStatus,
+  isTerminalStatus
+} from './sessionStatus'
 import { currentTurnTraceSince, epochFromStreamEvent } from './traceTurn'
 import type { ActiveSkillInfo, AgentExecutionClient } from './types'
-import { POLL_INTERVAL_MS, POLL_INTERVAL_WHILE_SSE_CONNECTED_MS } from './types'
+import { POLL_INTERVAL_MS, RECONNECT_POLL_GRACE_MS } from './types'
 import { pickActiveSkillFromEvents } from './skillFromEvents'
 import { useAgentSessionDerived } from './useAgentSessionDerived'
 
@@ -65,8 +70,16 @@ export const useAgentSession = (
   isAgentRunningRef.current = isAgentRunning
   const isConnectedRef = useRef(isConnected)
   isConnectedRef.current = isConnected
+  const lastSseConnectedAtRef = useRef(isConnected ? Date.now() : 0)
+  if (isConnected) {
+    lastSseConnectedAtRef.current = Date.now()
+  }
   const streamSuppressedRef = useRef(streamSuppressed)
   streamSuppressedRef.current = streamSuppressed
+  const inFlightSessionFetchRef = useRef<{
+    key: string
+    promise: Promise<DeepAgentSession | null>
+  } | null>(null)
   const lastReplyTimestampRef = useRef(lastReplyTimestamp)
   lastReplyTimestampRef.current = lastReplyTimestamp
 
@@ -84,7 +97,12 @@ export const useAgentSession = (
   const fetchSession = useCallback(
     async (options?: { bypassCache?: boolean }) => {
       if (!sessionId) return null
-      try {
+      const fetchKey = `${sessionId}:${options?.bypassCache ? 'bypass' : 'cached'}`
+      if (inFlightSessionFetchRef.current?.key === fetchKey) {
+        return inFlightSessionFetchRef.current.promise
+      }
+
+      const promise = (async () => {
         const s = await client.getSession(sessionId, options)
         setSessionLoadError(false)
         setSession(s)
@@ -111,9 +129,18 @@ export const useAgentSession = (
           markSessionStreamRestTerminal(sessionId)
         }
         return s
-      } catch {
+      })().catch(() => {
         setSessionLoadError(true)
         return null
+      })
+
+      inFlightSessionFetchRef.current = { key: fetchKey, promise }
+      try {
+        return await promise
+      } finally {
+        if (inFlightSessionFetchRef.current?.key === fetchKey) {
+          inFlightSessionFetchRef.current = null
+        }
       }
     },
     [sessionId, client, accessToken]
@@ -171,9 +198,14 @@ export const useAgentSession = (
 
       const sessionActivelyStreaming =
         isAgentRunningRef.current || current?.status === 'running' || current?.status === 'pending'
-      const sseLive = sessionActivelyStreaming && isConnectedRef.current && !streamSuppressedRef.current
-      // SSE owns incremental tokens; REST still syncs coalesced trace rows on a
-      // slower cadence so missed SSE upserts do not freeze the bubble until terminal.
+      const sseRecentlyLive =
+        isConnectedRef.current || Date.now() - lastSseConnectedAtRef.current <= RECONNECT_POLL_GRACE_MS
+      const sseLiveOrReconnecting = sessionActivelyStreaming && sseRecentlyLive && !streamSuppressedRef.current
+      if (sseLiveOrReconnecting) {
+        scheduleNext(POLL_INTERVAL_MS)
+        return
+      }
+
       const next = await fetchSession(needsWork ? { bypassCache: true } : undefined)
       // Ignore a stale previous-turn terminal snapshot while a reply is in
       // flight; otherwise streaming flips off mid-turn and the bubble freezes.
@@ -182,8 +214,7 @@ export const useAgentSession = (
         setLastReplyTimestamp(0)
       }
 
-      const nextDelay = sseLive ? POLL_INTERVAL_WHILE_SSE_CONNECTED_MS : POLL_INTERVAL_MS
-      scheduleNext(nextDelay)
+      scheduleNext(POLL_INTERVAL_MS)
     }
 
     scheduleNext(POLL_INTERVAL_MS)
@@ -242,7 +273,7 @@ export const useAgentSession = (
 
   useEffect(() => {
     if (!derived.mergedSession) return
-    if (!isTerminalStatus(derived.mergedSession.status)) return
+    if (!isRestTerminalStatus(derived.mergedSession.status)) return
     const turnStartedAt = lastReplyTimestampRef.current
     const restTerminalIsCurrent = isRestTerminalForCurrentTurn(session ?? matchedBootstrapSession, turnStartedAt)
     if (!restTerminalIsCurrent && !hasCurrentTerminalStreamEvent(turnStartedAt)) return

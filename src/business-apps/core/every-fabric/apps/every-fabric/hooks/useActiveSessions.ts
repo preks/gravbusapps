@@ -425,7 +425,7 @@ export const useActiveSessions = (accessToken: string): UseActiveSessionsResult 
       const token = accessTokenRef.current
       if (!token) return
 
-      const url = clientRef.current.buildActiveSessionsStreamUrl()
+      const url = clientRef.current.buildActiveSessionsStreamUrl({ traceReplay: 'lifecycle' })
       source = connectPromptManagerSse({
         url,
         accessToken: token,
