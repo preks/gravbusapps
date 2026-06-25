@@ -26,6 +26,23 @@ export const currentTurnTrace = (events: AgentStreamEvent[]): AgentStreamEvent[]
   return events.filter(event => !('seq' in event) || typeof event.seq !== 'number' || event.seq >= latestHumanSeq)
 }
 
+export const currentTurnTraceSince = (events: AgentStreamEvent[], turnStartedAt: number): AgentStreamEvent[] => {
+  if (events.length === 0) return events
+  if (turnStartedAt <= 0) return currentTurnTrace(events)
+
+  let latestHumanSeq = -1
+  for (const event of events) {
+    if (event.type !== 'agent_chunk' || event.role !== 'human' || typeof event.seq !== 'number') continue
+    const eventTime = epochFromStreamEvent(event)
+    if (eventTime !== null && eventTime >= turnStartedAt) {
+      latestHumanSeq = Math.max(latestHumanSeq, event.seq)
+    }
+  }
+
+  if (latestHumanSeq < 0) return []
+  return events.filter(event => !('seq' in event) || typeof event.seq !== 'number' || event.seq >= latestHumanSeq)
+}
+
 export const maxSeqFromTrace = (trace: AgentStreamEvent[] | undefined): number => {
   let max = 0
   for (const ev of trace ?? []) {

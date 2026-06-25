@@ -56,10 +56,19 @@ interface InternalEntry {
   disposeAt: number | null
   lastAccess: number
   disposed: boolean
-  listeners: Set<Listener>
 }
 
 const entries = new Map<string, InternalEntry>()
+/**
+ * Listeners are keyed by ``sessionId`` rather than stored on the entry so that
+ * a `useSyncExternalStore` subscription survives entry recreation. Entries are
+ * disposed + rebuilt for the same session on LRU eviction or auth-token change;
+ * if the listener lived on the entry it would stay bound to the dead object and
+ * the component would stop re-rendering even though the *new* entry receives
+ * live SSE events (symptom: "stream events arrive but the UI never updates;
+ * a refresh fixes it"). Keying by session id keeps subscriptions stable.
+ */
+const sessionListeners = new Map<string, Set<Listener>>()
 let graceSweepTimer: ReturnType<typeof setInterval> | null = null
 
 const isStreamEndEvent = (event: AgentStreamEvent): boolean =>
@@ -78,7 +87,9 @@ const buildStreamUrl = (sessionId: string, sinceSeq: number): string => {
 }
 
 const notify = (entry: InternalEntry) => {
-  for (const listener of entry.listeners) listener()
+  const listeners = sessionListeners.get(entry.sessionId)
+  if (!listeners) return
+  for (const listener of listeners) listener()
 }
 
 const pendingNotifyEntries = new Set<InternalEntry>()
@@ -309,8 +320,7 @@ const createEntry = (sessionId: string, accessToken: string): InternalEntry => (
   refcount: 0,
   disposeAt: null,
   lastAccess: Date.now(),
-  disposed: false,
-  listeners: new Set()
+  disposed: false
 })
 
 export const ensureSessionStreamEntry = (sessionId: string, accessToken = ''): void => {
@@ -444,11 +454,19 @@ export const resetSessionStream = (sessionId: string, reconnect = true): void =>
 }
 
 export const subscribeSessionStream = (sessionId: string, listener: Listener): (() => void) => {
-  const entry = entries.get(sessionId)
-  if (!entry) return () => {}
-  entry.listeners.add(listener)
+  // Keyed by session id (not the entry) so the subscription keeps working
+  // across entry disposal/recreation for the same session.
+  let listeners = sessionListeners.get(sessionId)
+  if (!listeners) {
+    listeners = new Set()
+    sessionListeners.set(sessionId, listeners)
+  }
+  listeners.add(listener)
   return () => {
-    entry.listeners.delete(listener)
+    const set = sessionListeners.get(sessionId)
+    if (!set) return
+    set.delete(listener)
+    if (set.size === 0) sessionListeners.delete(sessionId)
   }
 }
 
@@ -464,6 +482,7 @@ export const __testing__ = {
   MAX_STREAMS,
   disposeAll: () => {
     for (const entry of Array.from(entries.values())) disposeEntry(entry)
+    sessionListeners.clear()
     if (graceSweepTimer !== null) {
       clearInterval(graceSweepTimer)
       graceSweepTimer = null

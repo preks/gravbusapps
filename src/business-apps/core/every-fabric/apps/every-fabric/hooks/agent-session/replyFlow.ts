@@ -3,7 +3,7 @@ import type { AgentStreamEvent, ChatMessage, DeepAgentSession, MessageAttachment
 import { advanceSessionStreamCursor } from '../sessionStreamRegistry'
 import { invalidateDeepAgentSessionEtagCache } from '../useEnterpriseAgentClient'
 import { isFlowBotFabricRuntime } from '../../utils/fabricRuntime'
-import { isTerminalStatus } from './sessionStatus'
+import { isRestTerminalForCurrentTurn } from './sessionStatus'
 import type { AgentExecutionClient } from './types'
 import { REST_SYNC_INTERVAL_MS, REST_SYNC_MAX_MS } from './types'
 import { maxSeqFromTrace, streamOverlayTerminalStatus } from './traceTurn'
@@ -104,7 +104,8 @@ export async function postSessionReply(params: {
   await waitForRestSyncWithWaitingHumanStream(eventsSnapshot, readRestStatus, fetchSession)
   invalidateDeepAgentSessionEtagCache(sessionId)
   setIsAgentRunning(true)
-  setLastReplyTimestamp(Date.now())
+  const replyStartedAt = Date.now()
+  setLastReplyTimestamp(replyStartedAt)
 
   const attachmentRefs = attachments?.map(a => ({
     id: a.id,
@@ -130,7 +131,10 @@ export async function postSessionReply(params: {
     if (!isFlowBotFabricRuntime()) {
       setStreamVersion(v => v + 1)
     }
-    if (updated && isTerminalStatus(updated.status)) {
+    // Only treat the post-reply snapshot as terminal when it belongs to *this*
+    // turn. Right after posting, REST can still echo the previous turn's
+    // `completed` status; acting on it would stop the live turn before it runs.
+    if (isRestTerminalForCurrentTurn(updated, replyStartedAt)) {
       setIsAgentRunning(false)
       setLastReplyTimestamp(0)
     }

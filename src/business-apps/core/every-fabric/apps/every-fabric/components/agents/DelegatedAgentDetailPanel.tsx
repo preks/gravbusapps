@@ -93,10 +93,10 @@ export const DelegatedAgentDetailPanel: React.FC<DelegatedAgentDetailPanelProps>
       <aside
         role="dialog"
         aria-label={`${detail.agentName} delegation detail`}
-        className="gba:fixed gba:right-0 gba:top-14 gba:bottom-0 gba:flex gba:w-[420px] gba:max-w-[calc(100vw-2rem)] gba:flex-col gba:overflow-hidden gba:border-l gba:border-border/60 gba:bg-card gba:shadow-[0_16px_48px_-16px_rgba(15,23,42,0.35)] gba:animate-in gba:slide-in-from-right gba:duration-200"
+        className="gba:fixed gba:right-0 gba:top-0 gba:bottom-0 gba:flex gba:w-[440px] gba:max-w-[calc(100vw-2rem)] gba:flex-col gba:overflow-hidden gba:border-l gba:border-border/60 gba:bg-card gba:shadow-[0_16px_48px_-16px_rgba(15,23,42,0.35)] gba:animate-in gba:slide-in-from-right gba:duration-200"
         style={{ zIndex: PANEL_Z_INDEX }}
       >
-        <header className="gba:flex gba:items-start gba:justify-between gba:gap-3 gba:border-b gba:border-border/50 gba:px-5 gba:py-4">
+        <header className="gba:flex gba:items-start gba:justify-between gba:gap-3 gba:border-b gba:border-border/50 gba:bg-muted/20 gba:px-5 gba:pb-4 gba:pt-5">
           <div className="gba:flex gba:min-w-0 gba:items-start gba:gap-3">
             <span className="gba:flex gba:h-9 gba:w-9 gba:shrink-0 gba:items-center gba:justify-center gba:rounded-full gba:bg-sky-50 gba:text-sky-700 gba:ring-1 gba:ring-sky-500/15 dark:gba:bg-sky-950/40 dark:gba:text-sky-200">
               <HeadCircuitIcon className="gba:h-4.5 gba:w-4.5" weight="duotone" />

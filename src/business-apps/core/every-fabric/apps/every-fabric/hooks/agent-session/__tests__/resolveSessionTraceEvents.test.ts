@@ -40,4 +40,25 @@ describe('resolveSessionTraceEvents', () => {
     expect(snapshots[0]?.content).toBe('Hello world')
     expect(snapshots[0]?.seq).toBe(12)
   })
+
+  it('keeps same-segment response_stream snapshots across turn boundaries', () => {
+    const turn1 = responseStream(12, 'First turn answer', 's:12')
+    const terminal1 = {
+      type: 'terminal',
+      event_id: 's:13',
+      seq: 13,
+      status: 'completed',
+      timestamp: '2026-01-01T00:00:13Z'
+    } as AgentStreamEvent
+    const turn2Partial = responseStream(20, 'Second', 's:20')
+    const turn2Final = responseStream(22, 'Second turn answer', 's:22')
+
+    const merged = resolveSessionTraceEvents([turn2Partial], [turn1, terminal1, turn2Final])
+    const snapshots = merged.filter(
+      (e): e is AgentChunkEvent => e.type === 'agent_chunk' && e.chunk_kind === 'response_stream'
+    )
+
+    expect(snapshots).toHaveLength(2)
+    expect(snapshots.map(e => e.content)).toEqual(['First turn answer', 'Second turn answer'])
+  })
 })

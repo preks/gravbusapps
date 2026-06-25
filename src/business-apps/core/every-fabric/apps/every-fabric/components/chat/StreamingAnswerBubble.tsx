@@ -6,6 +6,7 @@ import type { EnterprisePresentationMode } from '../../types/enterpriseAgent'
 import { AgentThinkingStream } from './AgentThinkingStream'
 import { AgentActivityTimeline } from './AgentActivityTimeline'
 import { useAnimatedGreeting } from './useAnimatedGreeting'
+import { useSmoothStreamingText } from './useSmoothStreamingText'
 import translations from '../../_i18n'
 
 interface StreamingAnswerBubbleProps {
@@ -57,6 +58,8 @@ interface StreamingAnswerContentProps {
   animatedGreetingContent: string
   isGreetingAnimating: boolean
   responseContent: string
+  /** Progressively-revealed response text used for the live streaming render. */
+  streamedResponseContent: string
   thinkingContent: string
   isStreaming: boolean
   statusMessage?: string | null
@@ -70,6 +73,7 @@ const StreamingAnswerContent: React.FC<StreamingAnswerContentProps> = ({
   animatedGreetingContent,
   isGreetingAnimating,
   responseContent,
+  streamedResponseContent,
   thinkingContent,
   isStreaming,
   statusMessage,
@@ -113,7 +117,7 @@ const StreamingAnswerContent: React.FC<StreamingAnswerContentProps> = ({
         <div className={responseSpacingClass}>
           {isStreaming ? (
             <StreamingMarkdown
-              content={responseContent}
+              content={streamedResponseContent}
               isStreaming
               variant={streamingVariant}
               accessToken={accessToken}
@@ -140,6 +144,9 @@ export const StreamingAnswerBubble: React.FC<StreamingAnswerBubbleProps> = ({
   const { animatedGreetingContent, isGreetingAnimating } = useAnimatedGreeting(greetingContent, {
     enabled: Boolean(greetingContent) && !responseContent
   })
+  // Smoothly type the response forward between server snapshots so it reads as a
+  // continuous stream instead of arriving in ~50-char chunks.
+  const { revealed: streamedResponseContent } = useSmoothStreamingText(responseContent, { enabled: isStreaming })
   const { t } = useTranslation(translations)
 
   if (!greetingContent && !responseContent && !isStreaming) return null
@@ -192,6 +199,7 @@ export const StreamingAnswerBubble: React.FC<StreamingAnswerBubbleProps> = ({
             animatedGreetingContent={animatedGreetingContent}
             isGreetingAnimating={isGreetingAnimating}
             responseContent={responseContent}
+            streamedResponseContent={streamedResponseContent}
             thinkingContent={thinkingContent}
             isStreaming={isStreaming}
             statusMessage={statusMessage}
