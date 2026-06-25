@@ -71,9 +71,25 @@ describe('splitSessions', () => {
     const stillRunning = makeRecent({ session_id: 'running-1', status: 'running' })
     const done = makeRecent({ session_id: 'done-1', status: 'completed' })
 
-    const { recents } = splitSessions([stillRunning, done], [])
+    const { active, recents } = splitSessions([stillRunning, done], [])
 
+    expect(active.map(s => s.session_id)).toEqual(['running-1'])
+    expect(active[0].current_activity.label).toBe('Working...')
     expect(recents.map(r => r.session_id)).toEqual(['done-1'])
+  })
+
+  it('uses the live snapshot instead of the local active history fallback when available', () => {
+    const stillRunning = makeRecent({ session_id: 'running-1', status: 'running' })
+    const live = makeActive({
+      session_id: 'running-1',
+      current_activity: { step: 'thinking', label: 'Reading live stream' }
+    })
+
+    const { active, recents } = splitSessions([stillRunning], [live])
+
+    expect(active).toHaveLength(1)
+    expect(active[0].current_activity.label).toBe('Reading live stream')
+    expect(recents).toEqual([])
   })
 })
 

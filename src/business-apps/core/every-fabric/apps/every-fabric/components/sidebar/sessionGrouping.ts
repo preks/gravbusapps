@@ -37,9 +37,46 @@ export function splitSessions(
   historySessions: FabricSessionSummary[],
   activeSnapshots: ActiveSessionSnapshot[]
 ): { active: ActiveSessionSnapshot[]; recents: FabricSessionSummary[] } {
-  const activeIds = new Set(activeSnapshots.map(s => s.session_id))
-  const recents = historySessions.filter(s => !activeIds.has(s.session_id) && !isActiveStatus(s.status))
-  return { active: activeSnapshots, recents }
+  const activeById = new Map(activeSnapshots.map(s => [s.session_id, s]))
+  const fallbackActive = historySessions
+    .filter(s => !activeById.has(s.session_id) && isActiveStatus(s.status))
+    .map(historySessionToActiveSnapshot)
+  const recents = historySessions.filter(s => !activeById.has(s.session_id) && !isActiveStatus(s.status))
+  return { active: [...activeSnapshots, ...fallbackActive].sort(sortActiveByUpdatedDesc), recents }
+}
+
+function historySessionToActiveSnapshot(session: FabricSessionSummary): ActiveSessionSnapshot {
+  const selectedSkill = session.config?.selectedEnterpriseSkill
+  const status = isActiveStatus(session.status) ? (session.status as ActiveSessionSnapshot['status']) : 'running'
+  return {
+    session_id: session.session_id,
+    input: session.input,
+    status,
+    skill: selectedSkill
+      ? {
+          id: selectedSkill.id ?? selectedSkill.name ?? 'selected-skill',
+          name: selectedSkill.name ?? null
+        }
+      : null,
+    current_activity: {
+      step: status === 'waiting_for_human' ? 'awaiting_human' : 'thinking',
+      label:
+        status === 'pending' ? 'Starting...' : status === 'waiting_for_human' ? 'Waiting for your input' : 'Working...',
+      started_at: session.updated_at ?? session.created_at ?? null
+    },
+    todos_summary: { done: 0, total: 0 },
+    pending_human_question: session.human_question ?? null,
+    trace_count: 0,
+    next_event_seq: 0,
+    updated_at: session.updated_at,
+    created_at: session.created_at
+  }
+}
+
+function sortActiveByUpdatedDesc(a: ActiveSessionSnapshot, b: ActiveSessionSnapshot): number {
+  const aTs = parseIsoTimestampMs(a.updated_at ?? a.created_at ?? null) ?? 0
+  const bTs = parseIsoTimestampMs(b.updated_at ?? b.created_at ?? null) ?? 0
+  return bTs - aTs
 }
 
 function startOfDay(d: Date): number {

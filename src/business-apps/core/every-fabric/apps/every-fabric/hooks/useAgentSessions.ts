@@ -149,6 +149,7 @@ export const useAgentSessions = (accessToken: string) => {
 
   const addSession = useCallback(
     (session: DeepAgentSession | FabricSessionSummary) => {
+      requestSeqRef.current += 1
       setSessions(prev => upsertSession(prev, session))
     },
     [upsertSession]

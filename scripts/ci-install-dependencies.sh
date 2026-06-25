@@ -3,8 +3,6 @@ set -euo pipefail
 
 echo "${NEWWORK_NMP_CREDENTIALS}" | base64 -d > ~/.npmrc
 
-apt-get update && apt-get install gettext -y
-
 npm ci
 
 # Pre-install native deps; optionalDependency resolution on Linux CI can skip these.
