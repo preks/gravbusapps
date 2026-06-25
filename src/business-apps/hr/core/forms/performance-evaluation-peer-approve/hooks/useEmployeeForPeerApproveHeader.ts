@@ -115,14 +115,22 @@ export function useEmployeeForPeerApproveHeader(
     fetchProcessAndSetEmployeeId()
   }, [fetchProcessAndSetEmployeeId])
 
-  const employeeIdForFallbackLookup = shouldUseRestFallback ? employeeIdFromProcess : null
+  const employeeIdForHeaderLookup = employeeUserIdFromPayload ? employeeIdFromUserIdLookup : employeeIdFromProcess
 
-  const { employee: employeeByIdFallback, loading: employeeByIdFallbackLoading } = useEmployeeById({
+  const { employee: employeeByIdForHeader, loading: employeeByIdForHeaderLoading } = useEmployeeById({
     accessToken: accessToken ?? '',
-    employeeId: employeeIdForFallbackLookup ?? undefined
+    employeeId: employeeIdForHeaderLookup ?? undefined
   })
 
   const employeeForHeader = useMemo((): EmployeeForHeader | null => {
+    if (employeeByIdForHeader) {
+      return {
+        firstName: employeeByIdForHeader.firstName ?? '',
+        lastName: employeeByIdForHeader.lastName ?? '',
+        pictureThumbnail: employeeByIdForHeader.employee?.pictureThumbnail ?? undefined,
+        jobTitle: employeeByIdForHeader.jobPosition?.name ?? undefined
+      }
+    }
     if (employeeUserIdFromPayload && employeeByUserId) {
       return {
         firstName: employeeByUserId.firstName ?? '',
@@ -131,22 +139,14 @@ export function useEmployeeForPeerApproveHeader(
         jobTitle: undefined
       }
     }
-    if (employeeByIdFallback) {
-      return {
-        firstName: employeeByIdFallback.firstName ?? '',
-        lastName: employeeByIdFallback.lastName ?? '',
-        pictureThumbnail: employeeByIdFallback.employee?.pictureThumbnail ?? undefined,
-        jobTitle: employeeByIdFallback.jobPosition?.name ?? undefined
-      }
-    }
     return null
-  }, [employeeUserIdFromPayload, employeeByUserId, employeeByIdFallback])
+  }, [employeeByIdForHeader, employeeUserIdFromPayload, employeeByUserId])
 
   const evaluatedEmployeeId = employeeUserIdFromPayload ? employeeIdFromUserIdLookup : employeeIdFromProcess
 
   const loading = shouldUseRestFallback
-    ? processLoading || (employeeIdFromProcess != null && employeeByIdFallbackLoading)
-    : employeeByUserIdLoading
+    ? processLoading || (employeeIdFromProcess != null && employeeByIdForHeaderLoading)
+    : employeeByUserIdLoading || (employeeIdFromUserIdLookup != null && employeeByIdForHeaderLoading)
 
   const error = shouldUseRestFallback ? processFetchError : (employeeByUserIdError ?? null)
 

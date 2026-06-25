@@ -37,6 +37,7 @@ export interface ChangeWorkingHoursContextState {
   employees: Array<{ id: string; firstName: string; lastName: string }>
   defaults: WorkingHoursFormValues | null
   employeeHireDate: string
+  isFirstWorkingHoursEntry: boolean
   existingWorkingMeta: { id?: string; version?: number; remoteRef?: string } | null
   workingHoursValidationRecords: WorkingHoursValidationRecord[]
   selectedEmployeeId: string
@@ -145,6 +146,7 @@ export function ChangeWorkingHoursProvider({
   const [employee, setEmployee] = useState<EmployeeLite | null>(null)
   const [defaults, setDefaults] = useState<WorkingHoursFormValues | null>(null)
   const [employeeHireDate, setEmployeeHireDate] = useState('')
+  const [isFirstWorkingHoursEntry, setIsFirstWorkingHoursEntry] = useState(false)
   const [existingWorkingMeta, setExistingWorkingMeta] = useState<{
     id?: string
     version?: number
@@ -210,6 +212,7 @@ export function ChangeWorkingHoursProvider({
       const hireDate = getEmployeeHireDate(emp)
       setEmployee(emp)
       setEmployeeHireDate(hireDate)
+      setIsFirstWorkingHoursEntry(workingHoursCandidates.length === 0)
       setWorkingHoursValidationRecords(res?.employee?.[0]?.workingHoursValidationRecords || [])
       const d: WorkingHoursFormValues = {
         activeFrom: toDateInputValue(working?.activeFrom) || hireDate,
@@ -263,6 +266,7 @@ export function ChangeWorkingHoursProvider({
       }
       setEmployee(null)
       setEmployeeHireDate('')
+      setIsFirstWorkingHoursEntry(false)
       setExistingWorkingMeta(null)
       setWorkingHoursValidationRecords([])
       setDefaults(zeroDefaults)
@@ -341,6 +345,7 @@ export function ChangeWorkingHoursProvider({
       employees,
       defaults,
       employeeHireDate,
+      isFirstWorkingHoursEntry,
       existingWorkingMeta,
       workingHoursValidationRecords,
       selectedEmployeeId,
@@ -358,6 +363,7 @@ export function ChangeWorkingHoursProvider({
       employees,
       defaults,
       employeeHireDate,
+      isFirstWorkingHoursEntry,
       existingWorkingMeta,
       workingHoursValidationRecords,
       selectedEmployeeId,

@@ -175,6 +175,7 @@ export const ChangeWorkingHoursForm: React.FC = () => {
     employees,
     defaults,
     employeeHireDate,
+    isFirstWorkingHoursEntry,
     existingWorkingMeta,
     workingHoursValidationRecords,
     selectedEmployeeId,
@@ -192,6 +193,7 @@ export const ChangeWorkingHoursForm: React.FC = () => {
   const [isProcessPending, setIsProcessPending] = useState(false)
   const [activeFromDraft, setActiveFromDraft] = useState('')
   const processPendingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const isActiveFromLockedToHireDate = isFirstWorkingHoursEntry && Boolean(employeeHireDate)
 
   const form = useForm<WorkingHoursFormValues>({
     defaultValues: {
@@ -219,6 +221,15 @@ export const ChangeWorkingHoursForm: React.FC = () => {
       setActiveFromDraft(defaults.activeFrom || '')
     }
   }, [defaults, existingWorkingMeta?.id, form])
+
+  useEffect(() => {
+    if (!isActiveFromLockedToHireDate) {
+      return
+    }
+
+    form.setValue('activeFrom', employeeHireDate, { shouldDirty: false, shouldValidate: true })
+    setActiveFromDraft(employeeHireDate)
+  }, [employeeHireDate, form, isActiveFromLockedToHireDate])
 
   useEffect(() => {
     return () => {
@@ -641,6 +652,10 @@ export const ChangeWorkingHoursForm: React.FC = () => {
                     type="date"
                     value={getDateInputValue(activeFromDraft || watchedValues?.activeFrom)}
                     onDraftChange={(value: string) => {
+                      if (isActiveFromLockedToHireDate) {
+                        return
+                      }
+
                       setActiveFromDraft(value)
                       const normalizedValue = normalizeDateInputValue(value)
 
@@ -652,6 +667,10 @@ export const ChangeWorkingHoursForm: React.FC = () => {
                       }
                     }}
                     onChange={(value: DateInputValue) => {
+                      if (isActiveFromLockedToHireDate) {
+                        return
+                      }
+
                       const singleDateValue = getSingleDateValue(value)
                       setActiveFromDraft(singleDateValue)
                       form.setValue('activeFrom', singleDateValue, {
@@ -660,9 +679,18 @@ export const ChangeWorkingHoursForm: React.FC = () => {
                       })
                     }}
                     min={employeeHireDate || undefined}
+                    disabled={isActiveFromLockedToHireDate}
                     outputFormat="iso"
                     data-testid="flw_updateWorkingHours_activeFromDatePicker"
                   />
+                  {isActiveFromLockedToHireDate ? (
+                    <p
+                      className="gba:mt-1 gba:text-xs gba:text-muted-foreground"
+                      data-testid="flw_updateWorkingHours_activeFromHireDateHelper"
+                    >
+                      {t('working-hours-active-from-hire-date-preselected')}
+                    </p>
+                  ) : null}
                   {isActiveFromMissing ? (
                     <div
                       className="gba:text-sm gba:text-destructive"

@@ -345,13 +345,6 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
           })
         }
       }
-
-      const message =
-        runFor === 'self'
-          ? (t('cycle-started', { name: cycle.name }) ?? `Starting evaluation for: ${cycle.name}`)
-          : (t('cycle-started', { name: cycle.name }) ??
-            `Starting evaluation for: ${cycle.name} (${selectedTeamIds.length} team${selectedTeamIds.length > 1 ? 's' : ''})`)
-      toast.success(message)
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to start performance evaluation'
       toast.error(message, { position: 'bottom-right', className: 'gba:text-base' })
