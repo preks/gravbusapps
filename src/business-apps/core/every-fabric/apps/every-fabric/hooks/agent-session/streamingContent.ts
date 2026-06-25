@@ -55,7 +55,11 @@ function buildStreamingContentFromSnapshots(events: AgentStreamEvent[]): string 
         entry.content.trim().length > 0 &&
         !demoted.has(responseStreamIdentity(entry))
     )
-    .sort((a, b) => toEpoch(a.timestamp) - toEpoch(b.timestamp))
+    .sort((a, b) => {
+      const seqDelta = (a.seq ?? 0) - (b.seq ?? 0)
+      if (seqDelta !== 0) return seqDelta
+      return toEpoch(a.timestamp) - toEpoch(b.timestamp)
+    })
 
   if (responseSnapshots.length === 0) {
     return null

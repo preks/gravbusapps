@@ -153,7 +153,10 @@ const ingestStreamEvent = (
           errorCount: 0,
           terminalReached: entry.state.terminalReached || terminalReached
         }
-        return { applied: true, immediateNotify: terminalReached }
+        // Paint each cumulative snapshot immediately — rAF batching here made
+        // long answers appear to "dump" at turn end when SSE delivered many
+        // upserts in one frame.
+        return { applied: true, immediateNotify: true }
       }
       break
     }

@@ -41,5 +41,7 @@ export interface AgentExecutionClient {
 }
 
 export const POLL_INTERVAL_MS = 3000
+/** When SSE is connected, REST syncs coalesced trace on this cadence (trace is small after upsert). */
+export const POLL_INTERVAL_WHILE_SSE_CONNECTED_MS = 5000
 export const REST_SYNC_MAX_MS = 4000
 export const REST_SYNC_INTERVAL_MS = 120
