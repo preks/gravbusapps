@@ -61,7 +61,12 @@ function useSmartScroll(
   streamingThinking: string
 ) {
   const isUserScrolledRef = useRef(false)
+  const ignoreProgrammaticScrollUntilRef = useRef(0)
   const observerRef = useRef<IntersectionObserver | null>(null)
+
+  const markProgrammaticScroll = useCallback(() => {
+    ignoreProgrammaticScrollUntilRef.current = Date.now() + 900
+  }, [])
 
   useEffect(() => {
     const scrollEl = scrollRef.current
@@ -89,6 +94,7 @@ function useSmartScroll(
 
   useEffect(() => {
     if (!isStreaming || isUserScrolledRef.current) return
+    if (!streamingGreeting.trim() && !streamingContent.trim()) return
 
     const scrollEl = scrollRef.current
     if (!scrollEl) return
@@ -97,15 +103,17 @@ function useSmartScroll(
     rafId = requestAnimationFrame(() => {
       rafId = null
       if (isUserScrolledRef.current) return
+      markProgrammaticScroll()
       scrollEl.scrollTo({ top: scrollEl.scrollHeight, behavior: 'smooth' })
     })
 
     return () => {
       if (rafId !== null) cancelAnimationFrame(rafId)
     }
-  }, [scrollRef, isStreaming, streamingGreeting, streamingContent, streamingThinking])
+  }, [markProgrammaticScroll, scrollRef, isStreaming, streamingGreeting, streamingContent, streamingThinking])
 
   const handleScroll = useCallback(() => {
+    if (Date.now() < ignoreProgrammaticScrollUntilRef.current) return
     const el = scrollRef.current
     if (!el) return
     const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight
@@ -116,19 +124,21 @@ function useSmartScroll(
     (immediate = false) => {
       const scrollEl = scrollRef.current
       if (scrollEl) {
+        markProgrammaticScroll()
         scrollEl.scrollTo({ top: scrollEl.scrollHeight, behavior: immediate ? 'auto' : 'smooth' })
         isUserScrolledRef.current = false
         return
       }
       const endEl = endRef.current
       if (!endEl) return
+      markProgrammaticScroll()
       endEl.scrollIntoView({ behavior: immediate ? 'auto' : 'smooth', block: 'end' })
       isUserScrolledRef.current = false
     },
-    [endRef, scrollRef]
+    [endRef, markProgrammaticScroll, scrollRef]
   )
 
-  return { handleScroll, scrollToBottom, isUserScrolledRef }
+  return { handleScroll, markProgrammaticScroll, scrollToBottom, isUserScrolledRef }
 }
 
 export const ConversationPanel: React.FC<ConversationPanelProps> = ({
@@ -152,10 +162,11 @@ export const ConversationPanel: React.FC<ConversationPanelProps> = ({
 }) => {
   const scrollRef = useRef<HTMLDivElement>(null)
   const endRef = useRef<HTMLDivElement>(null)
+  const streamingAnswerRef = useRef<HTMLDivElement>(null)
   const hadFixedFollowUpsRef = useRef(false)
   const wasStreamingRef = useRef(false)
 
-  const { handleScroll, scrollToBottom, isUserScrolledRef } = useSmartScroll(
+  const { handleScroll, markProgrammaticScroll, scrollToBottom, isUserScrolledRef } = useSmartScroll(
     scrollRef,
     endRef,
     isStreaming,
@@ -178,16 +189,34 @@ export const ConversationPanel: React.FC<ConversationPanelProps> = ({
   const isFollowup = hasHitlQuestions || hasCompletedResponses
   const displayGreeting = isFollowup ? '' : streamingGreeting
 
+  const scrollToStreamingStart = useCallback(
+    (immediate = false) => {
+      const scrollEl = scrollRef.current
+      const targetEl = streamingAnswerRef.current
+      if (!scrollEl || !targetEl) {
+        scrollToBottom(immediate)
+        return
+      }
+      markProgrammaticScroll()
+      scrollEl.scrollTo({
+        top: Math.max(0, targetEl.offsetTop - 24),
+        behavior: immediate ? 'auto' : 'smooth'
+      })
+      isUserScrolledRef.current = false
+    },
+    [isUserScrolledRef, markProgrammaticScroll, scrollToBottom]
+  )
+
   useLayoutEffect(() => {
     const justStartedStreaming = isStreaming && !wasStreamingRef.current
     wasStreamingRef.current = isStreaming
     if (!justStartedStreaming) return
 
     const rafId = requestAnimationFrame(() => {
-      scrollToBottom(true)
+      scrollToStreamingStart(true)
     })
     return () => cancelAnimationFrame(rafId)
-  }, [isStreaming, scrollToBottom])
+  }, [isStreaming, scrollToStreamingStart])
 
   useLayoutEffect(() => {
     if (!hasFixedFollowUps) {
@@ -252,16 +281,18 @@ export const ConversationPanel: React.FC<ConversationPanelProps> = ({
           ))}
 
           {isStreaming ? (
-            <StreamingAnswerBubble
-              greetingContent={displayGreeting}
-              responseContent={streamingContent}
-              thinkingContent={streamingThinking}
-              isStreaming={isStreaming}
-              statusMessage={statusHeadline}
-              activityLines={activityLines ?? []}
-              presentationMode={presentationMode}
-              accessToken={accessToken}
-            />
+            <div ref={streamingAnswerRef}>
+              <StreamingAnswerBubble
+                greetingContent={displayGreeting}
+                responseContent={streamingContent}
+                thinkingContent={streamingThinking}
+                isStreaming={isStreaming}
+                statusMessage={statusHeadline}
+                activityLines={activityLines ?? []}
+                presentationMode={presentationMode}
+                accessToken={accessToken}
+              />
+            </div>
           ) : null}
 
           {messagesAfterStreaming.map(msg => (
