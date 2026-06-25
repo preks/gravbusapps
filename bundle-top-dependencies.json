@@ -34187,9 +34187,9 @@
     ]
   },
   "flow/apps/guardian": {
-    "bitbucketBuildNumber": 14093,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/14093/",
-    "chunkJsBytes": 406735,
+    "bitbucketBuildNumber": 14094,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/14094/",
+    "chunkJsBytes": 406738,
     "top": [
       {
         "kind": "bucket",
@@ -34509,9 +34509,9 @@
     ]
   },
   "flow/apps/inbox": {
-    "bitbucketBuildNumber": 14093,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/14093/",
-    "chunkJsBytes": 481580,
+    "bitbucketBuildNumber": 14094,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/14094/",
+    "chunkJsBytes": 481583,
     "top": [
       {
         "kind": "bucket",
@@ -35148,9 +35148,9 @@
     ]
   },
   "flow/apps/success": {
-    "bitbucketBuildNumber": 14093,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/14093/",
-    "chunkJsBytes": 565084,
+    "bitbucketBuildNumber": 14094,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/14094/",
+    "chunkJsBytes": 565087,
     "top": [
       {
         "kind": "bucket",
@@ -86026,9 +86026,9 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 14093,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/14093/",
-    "chunkJsBytes": 2020963,
+    "bitbucketBuildNumber": 14094,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/14094/",
+    "chunkJsBytes": 2020966,
     "top": [
       {
         "kind": "bucket",
@@ -97976,15 +97976,15 @@
     ]
   },
   "core/every-fabric/apps/every-fabric": {
-    "bitbucketBuildNumber": 14093,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/14093/",
-    "chunkJsBytes": 3395469,
+    "bitbucketBuildNumber": 14094,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/14094/",
+    "chunkJsBytes": 3398603,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/core",
-        "rendered": 3077688,
-        "gzip": 804358,
+        "rendered": 3082819,
+        "gzip": 805720,
         "leaves": [
           {
             "name": "src/business-apps/core/every-fabric/apps/every-fabric/_i18n/de-DE.ftl?raw",
@@ -98014,8 +98014,8 @@
       {
         "kind": "bucket",
         "name": "(src)/common/components",
-        "rendered": 177324,
-        "gzip": 45999,
+        "rendered": 178325,
+        "gzip": 46278,
         "leaves": [
           {
             "name": "src/common/components/flow/flow-viewer/nodes/NodeOutcomeBadge.tsx",
@@ -105656,9 +105656,9 @@
     ]
   },
   "flow/apps/detail": {
-    "bitbucketBuildNumber": 14093,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/14093/",
-    "chunkJsBytes": 338471,
+    "bitbucketBuildNumber": 14094,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/14094/",
+    "chunkJsBytes": 338474,
     "top": [
       {
         "kind": "bucket",
@@ -113072,9 +113072,9 @@
     ]
   },
   "platform/apps/digital-workplace": {
-    "bitbucketBuildNumber": 14093,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/14093/",
-    "chunkJsBytes": 3448837,
+    "bitbucketBuildNumber": 14094,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/14094/",
+    "chunkJsBytes": 3448840,
     "top": [
       {
         "kind": "bucket",
@@ -117476,7 +117476,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-06-25T08:26:37.715Z",
+    "generatedAt": "2026-06-25T08:27:41.668Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
