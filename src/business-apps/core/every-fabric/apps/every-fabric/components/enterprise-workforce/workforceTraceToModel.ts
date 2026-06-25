@@ -3,17 +3,17 @@
 // Workforce runs are deep-agent sessions, so their `session.trace` entries are
 // the very same structured events the interactive SSE stream emits. The mesh /
 // trace-explorer renderer already knows how to normalize `AgentStreamEvent[]`
-// via `buildTraceModel`, so this adapter only has to:
+// via `buildMeshTraceModel`, so this adapter only has to:
 //   1. drop malformed entries (no string `type`),
 //   2. guarantee a monotonic `seq` (REST traces occasionally omit it), and
-//   3. hand the list to `buildTraceModel` unchanged.
+//   3. hand the list to `buildMeshTraceModel` unchanged.
 //
 // `WorkforceRunTraceEvent` is intentionally loose (open record); the cast to
-// `AgentStreamEvent` is safe because `buildTraceModel` reads only known fields
+// `AgentStreamEvent` is safe because `buildMeshTraceModel` reads only known fields
 // and ignores everything else (Tolerant Reader).
 
 import type { AgentStreamEvent } from '../../types/enterpriseAgent'
-import { EMPTY_TRACE_MODEL, buildTraceModel, type TraceModel } from '../../utils/traceModel'
+import { EMPTY_TRACE_MODEL, buildMeshTraceModel, type TraceModel } from '../../utils/traceModel'
 import type { WorkforceRunTraceEvent } from './workforceTypes'
 
 function normalizeEvents(trace: readonly WorkforceRunTraceEvent[]): AgentStreamEvent[] {
@@ -31,5 +31,5 @@ export function workforceTraceToModel(trace: readonly WorkforceRunTraceEvent[] |
   if (!trace || trace.length === 0) return EMPTY_TRACE_MODEL
   const events = normalizeEvents(trace)
   if (events.length === 0) return EMPTY_TRACE_MODEL
-  return buildTraceModel(events)
+  return buildMeshTraceModel(events)
 }

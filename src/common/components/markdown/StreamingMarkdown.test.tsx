@@ -113,6 +113,20 @@ describe('StreamingMarkdown (enterprise variant)', () => {
     expect(strong.className).not.toContain('gba:tracking-[0.01em]')
   })
 
+  it('shows a blinking caret while streaming and hides it when complete', async () => {
+    const { rerender } = render(<StreamingMarkdown content="Hello" isStreaming />)
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 0))
+    })
+    expect(screen.getByTestId('streaming-caret')).toBeInTheDocument()
+
+    rerender(<StreamingMarkdown content="Hello" isStreaming={false} />)
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 0))
+    })
+    expect(screen.queryByTestId('streaming-caret')).not.toBeInTheDocument()
+  })
+
   it('streaming and final-committed enterprise rendering produce the same hierarchy', async () => {
     const { rerender } = render(<StreamingMarkdown content="### Summary" isStreaming variant="enterprise" />)
     await act(async () => {

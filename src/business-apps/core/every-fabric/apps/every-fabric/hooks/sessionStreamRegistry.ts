@@ -23,7 +23,7 @@
  */
 
 import { PROMPT_MANAGER_API_URL } from '@/common/utils/serviceResolver'
-import type { AgentStreamEvent } from '../types/enterpriseAgent'
+import type { AgentChunkEvent, AgentStreamEvent } from '../types/enterpriseAgent'
 import { connectPromptManagerSse, type PromptManagerSseConnection } from '../utils/promptManagerSse'
 
 export interface SessionStreamEntry {
@@ -79,6 +79,94 @@ const buildStreamUrl = (sessionId: string, sinceSeq: number): string => {
 
 const notify = (entry: InternalEntry) => {
   for (const listener of entry.listeners) listener()
+}
+
+const pendingNotifyEntries = new Set<InternalEntry>()
+let notifyRafId: number | null = null
+
+/** Batch subscriber notifications to one paint frame for smoother streaming UI. */
+const scheduleNotify = (entry: InternalEntry, immediate = false) => {
+  if (immediate) {
+    pendingNotifyEntries.delete(entry)
+    notify(entry)
+    return
+  }
+  pendingNotifyEntries.add(entry)
+  if (notifyRafId !== null) return
+  notifyRafId = requestAnimationFrame(() => {
+    notifyRafId = null
+    const batch = Array.from(pendingNotifyEntries)
+    pendingNotifyEntries.clear()
+    for (const target of batch) notify(target)
+  })
+}
+
+const isResponseStreamChunk = (event: AgentStreamEvent): event is AgentChunkEvent =>
+  event.type === 'agent_chunk' && event.role === 'ai' && event.chunk_kind === 'response_stream'
+
+const responseStreamCoalesceKey = (event: AgentChunkEvent): string => {
+  const streamKey =
+    typeof event.metadata?.stream_key === 'string' && event.metadata.stream_key.trim().length > 0
+      ? event.metadata.stream_key
+      : 'primary'
+  const segmentId =
+    typeof event.metadata?.segment_id === 'number' && Number.isFinite(event.metadata.segment_id)
+      ? event.metadata.segment_id
+      : 0
+  return `${streamKey}:${segmentId}`
+}
+
+/**
+ * Cumulative response_stream snapshots replace the prior snapshot for the same
+ * segment instead of appending — fewer array copies and less React churn.
+ */
+const ingestStreamEvent = (
+  entry: InternalEntry,
+  event: AgentStreamEvent
+): { applied: boolean; immediateNotify: boolean } => {
+  const key = dedupeKey(event)
+  if (entry.seenEventKeys.has(key)) {
+    return { applied: false, immediateNotify: false }
+  }
+  entry.seenEventKeys.add(key)
+
+  let lastSeq = entry.state.lastSeq
+  if ('seq' in event && typeof event.seq === 'number' && event.seq > lastSeq) {
+    lastSeq = event.seq
+  }
+
+  const terminalReached = isStreamEndEvent(event)
+  let nextEvents = entry.state.events
+
+  if (isResponseStreamChunk(event)) {
+    const coalesceKey = responseStreamCoalesceKey(event)
+    for (let i = nextEvents.length - 1; i >= 0; i -= 1) {
+      const existing = nextEvents[i]
+      if (!isResponseStreamChunk(existing)) continue
+      if (responseStreamCoalesceKey(existing) === coalesceKey) {
+        nextEvents = [...nextEvents]
+        nextEvents[i] = event
+        entry.state = {
+          ...entry.state,
+          events: nextEvents,
+          lastSeq,
+          errorCount: 0,
+          terminalReached: entry.state.terminalReached || terminalReached
+        }
+        return { applied: true, immediateNotify: terminalReached }
+      }
+      break
+    }
+  }
+
+  entry.state = {
+    ...entry.state,
+    events: [...nextEvents, event],
+    lastSeq,
+    errorCount: 0,
+    terminalReached: entry.state.terminalReached || terminalReached
+  }
+  return { applied: true, immediateNotify: terminalReached }
 }
 
 const closeSource = (entry: InternalEntry) => {
@@ -144,26 +232,11 @@ const connect = (entry: InternalEntry) => {
     if (entry.disposed) return
     try {
       const event = JSON.parse(raw) as AgentStreamEvent
-      const key = dedupeKey(event)
-      if (entry.seenEventKeys.has(key)) return
-      entry.seenEventKeys.add(key)
+      const { applied, immediateNotify } = ingestStreamEvent(entry, event)
+      if (!applied) return
+      scheduleNotify(entry, immediateNotify)
 
-      let lastSeq = entry.state.lastSeq
-      if ('seq' in event && typeof event.seq === 'number' && event.seq > lastSeq) {
-        lastSeq = event.seq
-      }
-
-      const terminalReached = isStreamEndEvent(event)
-      entry.state = {
-        ...entry.state,
-        events: [...entry.state.events, event],
-        lastSeq,
-        errorCount: 0,
-        terminalReached: entry.state.terminalReached || terminalReached
-      }
-      notify(entry)
-
-      if (terminalReached) {
+      if (entry.state.terminalReached) {
         closeSource(entry)
       }
     } catch {
@@ -254,28 +327,26 @@ export const appendSessionStreamEvents = (
 
   let lastSeq = entry.state.lastSeq
   let terminalReached = entry.state.terminalReached
-  const nextEvents = [...entry.state.events]
+  let appliedAny = false
+  let immediateNotify = false
   for (const event of eventsToAppend) {
-    const key = dedupeKey(event)
-    if (entry.seenEventKeys.has(key)) continue
-    entry.seenEventKeys.add(key)
-    nextEvents.push(event)
-    if ('seq' in event && typeof event.seq === 'number' && event.seq > lastSeq) {
-      lastSeq = event.seq
-    }
-    if (isStreamEndEvent(event)) {
-      terminalReached = true
-    }
+    const result = ingestStreamEvent(entry, event)
+    if (!result.applied) continue
+    appliedAny = true
+    immediateNotify = immediateNotify || result.immediateNotify
+    lastSeq = entry.state.lastSeq
+    terminalReached = entry.state.terminalReached
   }
+
+  if (!appliedAny) return
 
   entry.state = {
     ...entry.state,
-    events: nextEvents,
     isConnected: !terminalReached,
     lastSeq,
     terminalReached
   }
-  notify(entry)
+  scheduleNotify(entry, immediateNotify)
 }
 
 export const acquireSessionStream = (

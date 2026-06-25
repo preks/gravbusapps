@@ -193,6 +193,8 @@ export interface AgentStepStartedEvent {
   step_type?: 'tool' | 'thinking' | 'subagent'
   name?: string
   input?: Record<string, unknown>
+  /** Links child tool steps to the delegation step that issued them. */
+  parent_step_id?: string
   timestamp: string
 }
 

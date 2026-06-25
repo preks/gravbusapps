@@ -1,7 +1,21 @@
 import type { AgentChunkEvent, AgentStreamEvent, DeepAgentSession } from '../../types/enterpriseAgent'
 import { isTerminalStatus } from './sessionStatus'
-import { looksLikeDashboardJson, looksLikeInternalErrorLeak, looksLikeRawPayload } from './streamPayloadGuards'
+import { looksLikeDashboardJson, looksLikeInternalErrorLeak } from './streamPayloadGuards'
 import { epochFromStreamEvent, toEpoch } from './traceTurn'
+
+const STREAM_DEBUG =
+  typeof window !== 'undefined' &&
+  ((window as unknown as { __FABRIC_STREAM_DEBUG__?: boolean }).__FABRIC_STREAM_DEBUG__ === true ||
+    localStorage.getItem('fabric_stream_debug') === '1')
+
+function logStreamDebug(message: string, detail?: Record<string, unknown>): void {
+  if (!STREAM_DEBUG) return
+  if (detail) {
+    console.debug('[fabric-stream]', message, detail)
+  } else {
+    console.debug('[fabric-stream]', message)
+  }
+}
 
 const chunkStreamKey = (chunk: AgentChunkEvent): string | null => {
   const raw = chunk.metadata?.stream_key
@@ -49,16 +63,39 @@ function buildStreamingContentFromSnapshots(events: AgentStreamEvent[]): string 
 
   const safeSnapshots = responseSnapshots.filter(snapshot => {
     const text = snapshot.content.trim()
-    return !looksLikeInternalErrorLeak(text) && !looksLikeDashboardJson(text) && !looksLikeRawPayload(text, 500)
+    // Long-form answer prose is expected here — do not apply the short status-line
+    // length guard (looksLikeRawPayload maxLen) or snapshots freeze once they
+    // exceed ~500 chars and the final answer appears to "dump" at turn end.
+    const safe = !looksLikeInternalErrorLeak(text) && !looksLikeDashboardJson(text)
+    if (!safe && STREAM_DEBUG) {
+      logStreamDebug('filtered response_stream snapshot', {
+        seq: snapshot.seq,
+        chars: text.length,
+        internalError: looksLikeInternalErrorLeak(text),
+        dashboardJson: looksLikeDashboardJson(text)
+      })
+    }
+    return safe
   })
   if (safeSnapshots.length === 0) {
+    logStreamDebug('no safe response_stream snapshots', {
+      total: responseSnapshots.length,
+      latestChars: responseSnapshots[responseSnapshots.length - 1]?.content.trim().length
+    })
     return ''
   }
 
   const latestSnapshot = safeSnapshots[safeSnapshots.length - 1]
   const latestIdentity = responseStreamIdentity(latestSnapshot)
   const activeSegmentSnapshots = safeSnapshots.filter(snapshot => responseStreamIdentity(snapshot) === latestIdentity)
-  return activeSegmentSnapshots[activeSegmentSnapshots.length - 1]?.content.trim() ?? latestSnapshot.content.trim()
+  const content =
+    activeSegmentSnapshots[activeSegmentSnapshots.length - 1]?.content.trim() ?? latestSnapshot.content.trim()
+  logStreamDebug('selected response_stream snapshot', {
+    seq: latestSnapshot.seq,
+    chars: content.length,
+    segment: latestIdentity
+  })
+  return content
 }
 
 function buildStreamingContentFromLegacyThinking(events: AgentStreamEvent[]): string {
@@ -107,7 +144,7 @@ export function computeStreamingDisplayContent(
   const fromSnapshots = buildStreamingContentFromSnapshots(liveTurnEvents)
   if (fromSnapshots !== null) {
     const trimmed = fromSnapshots.trim()
-    if (!trimmed || looksLikeDashboardJson(trimmed) || looksLikeRawPayload(trimmed, 500)) {
+    if (!trimmed || looksLikeDashboardJson(trimmed)) {
       return 'Generating chart…'
     }
     return trimmed

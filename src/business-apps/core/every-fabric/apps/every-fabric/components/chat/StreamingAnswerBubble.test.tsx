@@ -61,7 +61,7 @@ describe('StreamingAnswerBubble presentation mode wiring', () => {
     mockMarkdownWithChipsRenderer.mockClear()
   })
 
-  it('forwards variant="enterprise" to the answer markdown renderer when presentationMode="enterprise_agents"', () => {
+  it('forwards variant="enterprise" to the streaming markdown renderer when presentationMode="enterprise_agents"', () => {
     render(
       <StreamingAnswerBubble
         greetingContent=""
@@ -72,15 +72,16 @@ describe('StreamingAnswerBubble presentation mode wiring', () => {
       />
     )
 
-    const md = screen.getByTestId('markdown-with-chips-renderer-mock')
+    const md = screen.getByTestId('streaming-markdown-mock')
     expect(md.getAttribute('data-variant')).toBe('enterprise')
 
     const wrapper = screen.getByTestId('enterprise-agent-streaming-answer')
     expect(wrapper.getAttribute('data-presentation-mode')).toBe('enterprise_agents')
 
-    const lastCall = mockMarkdownWithChipsRenderer.mock.calls.at(-1)?.[0]
+    const lastCall = mockStreamingMarkdown.mock.calls.at(-1)?.[0]
     expect(lastCall?.variant).toBe('enterprise')
     expect(lastCall?.content).toBe('Streaming body')
+    expect(lastCall?.isStreaming).toBe(true)
   })
 
   it('defaults to variant="default" when no presentationMode is provided', () => {
@@ -93,7 +94,7 @@ describe('StreamingAnswerBubble presentation mode wiring', () => {
       />
     )
 
-    const md = screen.getByTestId('markdown-with-chips-renderer-mock')
+    const md = screen.getByTestId('streaming-markdown-mock')
     expect(md.getAttribute('data-variant')).toBe('default')
 
     const wrapper = screen.getByTestId('enterprise-agent-streaming-answer')
@@ -105,5 +106,40 @@ describe('StreamingAnswerBubble presentation mode wiring', () => {
       <StreamingAnswerBubble greetingContent="" responseContent="" thinkingContent="" isStreaming={false} />
     )
     expect(container.querySelector('[data-testid="enterprise-agent-streaming-answer"]')).toBeNull()
+  })
+
+  it('shows working chrome before answer text, then collapses it once the reply streams', () => {
+    const { rerender } = render(
+      <StreamingAnswerBubble
+        greetingContent=""
+        responseContent=""
+        thinkingContent="Checking policy docs…"
+        isStreaming
+        statusMessage="Searching"
+        activityLines={['Retrieving context']}
+      />
+    )
+
+    expect(screen.getByTestId('agent-activity-timeline')).toBeInTheDocument()
+    expect(screen.getByTestId('agent-thinking-stream')).toBeInTheDocument()
+    expect(screen.getByText('Generating response')).toBeInTheDocument()
+    expect(screen.getByTestId('enterprise-agent-streaming-answer')).toHaveAttribute('data-answer-streaming', 'false')
+
+    rerender(
+      <StreamingAnswerBubble
+        greetingContent=""
+        responseContent="Here is the answer so far."
+        thinkingContent="Checking policy docs…"
+        isStreaming
+        statusMessage="Searching"
+        activityLines={['Retrieving context']}
+      />
+    )
+
+    expect(screen.queryByTestId('agent-activity-timeline')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('agent-thinking-stream')).not.toBeInTheDocument()
+    expect(screen.queryByText('Generating response')).not.toBeInTheDocument()
+    expect(screen.getByTestId('enterprise-agent-streaming-answer')).toHaveAttribute('data-answer-streaming', 'true')
+    expect(screen.getByText('Here is the answer so far.')).toBeInTheDocument()
   })
 })
