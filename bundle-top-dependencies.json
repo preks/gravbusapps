@@ -34187,20 +34187,20 @@
     ]
   },
   "flow/apps/guardian": {
-    "bitbucketBuildNumber": 14027,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/14027/",
-    "chunkJsBytes": 406258,
+    "bitbucketBuildNumber": 14093,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/14093/",
+    "chunkJsBytes": 406735,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/common/components",
-        "rendered": 281255,
-        "gzip": 73992,
+        "rendered": 282471,
+        "gzip": 74232,
         "leaves": [
           {
             "name": "src/common/components/flow/flow-detail/tabs/stepDataRendering.tsx",
-            "rendered": 29299,
-            "gzip": 6696
+            "rendered": 30226,
+            "gzip": 6892
           },
           {
             "name": "src/common/components/flow/flow-viewer/nodes/NodeOutcomeBadge.tsx",
@@ -34509,15 +34509,15 @@
     ]
   },
   "flow/apps/inbox": {
-    "bitbucketBuildNumber": 14027,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/14027/",
-    "chunkJsBytes": 481103,
+    "bitbucketBuildNumber": 14093,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/14093/",
+    "chunkJsBytes": 481580,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/common/components",
-        "rendered": 336796,
-        "gzip": 84851,
+        "rendered": 338012,
+        "gzip": 85092,
         "leaves": [
           {
             "name": "src/common/components/flow/flow-execution/InputRenderer.tsx",
@@ -34526,8 +34526,8 @@
           },
           {
             "name": "src/common/components/flow/flow-detail/tabs/stepDataRendering.tsx",
-            "rendered": 29303,
-            "gzip": 6699
+            "rendered": 30230,
+            "gzip": 6896
           }
         ]
       },
@@ -35148,9 +35148,9 @@
     ]
   },
   "flow/apps/success": {
-    "bitbucketBuildNumber": 14027,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/14027/",
-    "chunkJsBytes": 564739,
+    "bitbucketBuildNumber": 14093,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/14093/",
+    "chunkJsBytes": 565084,
     "top": [
       {
         "kind": "bucket",
@@ -35173,13 +35173,13 @@
       {
         "kind": "bucket",
         "name": "(src)/common/components",
-        "rendered": 224066,
-        "gzip": 59139,
+        "rendered": 224993,
+        "gzip": 59336,
         "leaves": [
           {
             "name": "src/common/components/flow/flow-detail/tabs/stepDataRendering.tsx",
-            "rendered": 29299,
-            "gzip": 6697
+            "rendered": 30226,
+            "gzip": 6894
           },
           {
             "name": "src/common/components/flow/flow-viewer/nodes/NodeOutcomeBadge.tsx",
@@ -86026,20 +86026,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 14085,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/14085/",
-    "chunkJsBytes": 2020973,
+    "bitbucketBuildNumber": 14093,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/14093/",
+    "chunkJsBytes": 2020963,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
         "rendered": 1736025,
-        "gzip": 114500,
+        "gzip": 114538,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
             "rendered": 1736025,
-            "gzip": 114500
+            "gzip": 114538
           }
         ]
       },
@@ -97976,15 +97976,15 @@
     ]
   },
   "core/every-fabric/apps/every-fabric": {
-    "bitbucketBuildNumber": 14057,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/14057/",
-    "chunkJsBytes": 3395174,
+    "bitbucketBuildNumber": 14093,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/14093/",
+    "chunkJsBytes": 3395469,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/core",
-        "rendered": 3077403,
-        "gzip": 804280,
+        "rendered": 3077688,
+        "gzip": 804358,
         "leaves": [
           {
             "name": "src/business-apps/core/every-fabric/apps/every-fabric/_i18n/de-DE.ftl?raw",
@@ -98014,8 +98014,8 @@
       {
         "kind": "bucket",
         "name": "(src)/common/components",
-        "rendered": 176904,
-        "gzip": 45888,
+        "rendered": 177324,
+        "gzip": 45999,
         "leaves": [
           {
             "name": "src/common/components/flow/flow-viewer/nodes/NodeOutcomeBadge.tsx",
@@ -98230,13 +98230,13 @@
       {
         "kind": "bucket",
         "name": "@newwork/icons",
-        "rendered": 25497,
-        "gzip": 2907,
+        "rendered": 25857,
+        "gzip": 2924,
         "leaves": [
           {
             "name": "node_modules/@newwork/icons/dist/defs/Every.es.js",
-            "rendered": 21340,
-            "gzip": 1573
+            "rendered": 21700,
+            "gzip": 1590
           },
           {
             "name": "node_modules/@newwork/icons/dist/lib/IconBase.es.js",
@@ -105656,20 +105656,20 @@
     ]
   },
   "flow/apps/detail": {
-    "bitbucketBuildNumber": 14027,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/14027/",
-    "chunkJsBytes": 337994,
+    "bitbucketBuildNumber": 14093,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/14093/",
+    "chunkJsBytes": 338471,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/common/components",
-        "rendered": 281550,
-        "gzip": 74088,
+        "rendered": 282766,
+        "gzip": 74328,
         "leaves": [
           {
             "name": "src/common/components/flow/flow-detail/tabs/stepDataRendering.tsx",
-            "rendered": 29299,
-            "gzip": 6696
+            "rendered": 30226,
+            "gzip": 6892
           },
           {
             "name": "src/common/components/flow/flow-viewer/nodes/NodeOutcomeBadge.tsx",
@@ -113072,15 +113072,15 @@
     ]
   },
   "platform/apps/digital-workplace": {
-    "bitbucketBuildNumber": 14047,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/14047/",
-    "chunkJsBytes": 3448512,
+    "bitbucketBuildNumber": 14093,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/14093/",
+    "chunkJsBytes": 3448837,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/core",
-        "rendered": 2310362,
-        "gzip": 540776,
+        "rendered": 2310647,
+        "gzip": 540857,
         "leaves": [
           {
             "name": "src/business-apps/core/every-fabric/apps/every-fabric/_i18n/de-DE.ftl?raw",
@@ -113169,8 +113169,8 @@
       {
         "kind": "bucket",
         "name": "(src)/common/data",
-        "rendered": 186356,
-        "gzip": 47817,
+        "rendered": 186373,
+        "gzip": 47823,
         "leaves": [
           {
             "name": "src/common/data/relations/types/leadTypes.ts",
@@ -113187,8 +113187,8 @@
       {
         "kind": "bucket",
         "name": "(src)/common/components",
-        "rendered": 92727,
-        "gzip": 20227,
+        "rendered": 93147,
+        "gzip": 20337,
         "leaves": [
           {
             "name": "src/common/components/flow/flow-execution/InputRenderer.tsx",
@@ -113197,8 +113197,8 @@
           },
           {
             "name": "src/common/components/flow/flow-detail/tabs/stepDataRendering.tsx",
-            "rendered": 17063,
-            "gzip": 4482
+            "rendered": 17483,
+            "gzip": 4592
           }
         ]
       },
@@ -113295,13 +113295,13 @@
       {
         "kind": "bucket",
         "name": "@newwork/icons",
-        "rendered": 25311,
-        "gzip": 2891,
+        "rendered": 25671,
+        "gzip": 2910,
         "leaves": [
           {
             "name": "node_modules/@newwork/icons/dist/defs/Every.es.js",
-            "rendered": 21264,
-            "gzip": 1567
+            "rendered": 21624,
+            "gzip": 1586
           },
           {
             "name": "node_modules/@newwork/icons/dist/lib/IconBase.es.js",
@@ -117476,7 +117476,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-06-25T06:24:58.232Z",
+    "generatedAt": "2026-06-25T08:26:37.715Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
