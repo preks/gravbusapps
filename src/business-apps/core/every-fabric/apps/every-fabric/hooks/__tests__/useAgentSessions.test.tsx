@@ -83,6 +83,34 @@ describe('useAgentSessions', () => {
     expect(result.current.hasMore).toBe(false)
   })
 
+  it('keeps an optimistic new session when an older history request resolves later', async () => {
+    let resolveInitial: (value: unknown) => void = () => undefined
+    mockGetSessions.mockReturnValue(
+      new Promise(resolve => {
+        resolveInitial = resolve
+      })
+    )
+
+    const { result } = renderHook(() => useAgentSessions('token'))
+
+    act(() => {
+      result.current.addSession(makeSession('new-session', '2026-01-04T00:00:00Z'))
+    })
+
+    expect(result.current.sessions.map(session => session.session_id)).toEqual(['new-session'])
+
+    await act(async () => {
+      resolveInitial({
+        items: [makeSession('old-session', '2026-01-01T00:00:00Z')],
+        next_cursor: null,
+        has_more: false
+      })
+      await Promise.resolve()
+    })
+
+    expect(result.current.sessions.map(session => session.session_id)).toEqual(['new-session'])
+  })
+
   it('debounces sidebar search and resets the loaded page', async () => {
     mockGetSessions.mockImplementation((params?: { q?: string }) => {
       if (params?.q === 'report') {
