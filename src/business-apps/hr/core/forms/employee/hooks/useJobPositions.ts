@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react'
 import { useGetJobPositionData } from '@/business-apps/hr/core/apps/human-resources/components/views/job-position-view/queries/JobPositionQueries'
 import { SelectOption } from '../types'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { buildBaseFilter, buildVacancyFilter } from './jobPositionFilters'
 
 const POSITIONS_PER_PAGE = 20
 
@@ -55,45 +56,21 @@ export const useJobPositions = ({
     value: position.id
   })
 
-  // Build filter object based on organizational unit + active positions only
-  const buildFilter = useCallback(() => {
-    const conditions: any[] = []
+  // Build filter object based on organizational unit + active positions only.
+  // Delegates to a pure helper so the where-clause shape can be unit-tested.
+  const buildFilter = useCallback(
+    () => buildBaseFilter({ organizationalUnitId: currentOrgUnitId }),
+    [currentOrgUnitId]
+  )
 
-    const todayIso = new Date().toISOString().split('T')[0]
-    conditions.push({
-      _or: [{ activeTo: { _isNull: true } }, { activeTo: { _gte: todayIso } }]
-    })
-
-    if (currentOrgUnitId) {
-      conditions.push({
-        organizationalUnitEmployees: {
-          organizationalUnit: {
-            id: { _eq: currentOrgUnitId }
-          }
-        }
-      })
-    }
-
-    return conditions.length === 1 ? conditions[0] : { _and: conditions }
-  }, [currentOrgUnitId])
-
-  const buildVacancyFilter = useCallback(() => {
-    const scopedNullAssignment = {
-      organizationalUnitEmployees: {
-        _and: [{ structureId: { _eq: structureId } }, { employeeId: { _isNull: true } }]
-      }
-    }
-
-    const scopedNonNullAssignment = {
-      organizationalUnitEmployees: {
-        _and: [{ structureId: { _eq: structureId } }, { employeeId: { _isNull: false } }]
-      }
-    }
-
-    return {
-      _and: [scopedNullAssignment, { _not: scopedNonNullAssignment }]
-    }
-  }, [structureId])
+  // Vacancy filter must be evaluated AT the selected organizational unit, not
+  // just at structure level. Without the org-unit narrowing, a position vacant
+  // in some other unit but already taken in the selected unit would still
+  // satisfy both clauses and appear in the dropdown.
+  const buildVacancyFilterCallback = useCallback(
+    () => buildVacancyFilter({ structureId, organizationalUnitId: currentOrgUnitId }),
+    [structureId, currentOrgUnitId]
+  )
 
   // Reset data when search or organizationalUnitId changes
   useEffect(() => {
@@ -125,7 +102,7 @@ export const useJobPositions = ({
         structureId,
         offset,
         limit: POSITIONS_PER_PAGE,
-        vacancyFilter: buildVacancyFilter(),
+        vacancyFilter: buildVacancyFilterCallback(),
         filter,
         search: searchTerm
       }
@@ -167,7 +144,7 @@ export const useJobPositions = ({
     currentSearch,
     currentOrgUnitId,
     buildFilter,
-    buildVacancyFilter,
+    buildVacancyFilterCallback,
     fetchJobPositionData,
     initialLoadDone
   ])
