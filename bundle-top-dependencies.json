@@ -86044,20 +86044,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 14139,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/14139/",
+    "bitbucketBuildNumber": 14146,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/14146/",
     "chunkJsBytes": 2021188,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
         "rendered": 1736272,
-        "gzip": 114755,
+        "gzip": 114750,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
             "rendered": 1736272,
-            "gzip": 114755
+            "gzip": 114750
           }
         ]
       },
@@ -97994,25 +97994,25 @@
     ]
   },
   "core/every-fabric/apps/every-fabric": {
-    "bitbucketBuildNumber": 14139,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/14139/",
-    "chunkJsBytes": 3407821,
+    "bitbucketBuildNumber": 14146,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/14146/",
+    "chunkJsBytes": 3408937,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/core",
-        "rendered": 3102224,
-        "gzip": 811238,
+        "rendered": 3104245,
+        "gzip": 811744,
         "leaves": [
           {
             "name": "src/business-apps/core/every-fabric/apps/every-fabric/_i18n/de-DE.ftl?raw",
-            "rendered": 127268,
-            "gzip": 34111
+            "rendered": 127373,
+            "gzip": 34150
           },
           {
             "name": "src/business-apps/core/every-fabric/apps/every-fabric/_i18n/ro-RO.ftl?raw",
-            "rendered": 127103,
-            "gzip": 33830
+            "rendered": 127202,
+            "gzip": 33869
           }
         ]
       },
@@ -113090,25 +113090,25 @@
     ]
   },
   "platform/apps/digital-workplace": {
-    "bitbucketBuildNumber": 14139,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/14139/",
-    "chunkJsBytes": 3449852,
+    "bitbucketBuildNumber": 14146,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/14146/",
+    "chunkJsBytes": 3450623,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/core",
-        "rendered": 2311380,
-        "gzip": 541044,
+        "rendered": 2312678,
+        "gzip": 541389,
         "leaves": [
           {
             "name": "src/business-apps/core/every-fabric/apps/every-fabric/_i18n/de-DE.ftl?raw",
-            "rendered": 127268,
-            "gzip": 34110
+            "rendered": 127373,
+            "gzip": 34150
           },
           {
             "name": "src/business-apps/core/every-fabric/apps/every-fabric/_i18n/ro-RO.ftl?raw",
-            "rendered": 127103,
-            "gzip": 33829
+            "rendered": 127202,
+            "gzip": 33868
           }
         ]
       },
@@ -117494,7 +117494,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-06-25T14:52:19.576Z",
+    "generatedAt": "2026-06-25T15:50:10.907Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
