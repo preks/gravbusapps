@@ -25,6 +25,7 @@ function agentLabel(item: WorkforceFeedItem, nameById: Record<string, string>): 
 
 export const CommandCenterFeedItem: React.FC<CommandCenterFeedItemProps> = ({ item, nameById, onOpenRun }) => {
   const { t } = useTranslation(translations)
+  const label = agentLabel(item, nameById)
   const source = sourceVisual(item.source)
   const sourceLabel = t(source.labelKey)
   const SourceIcon = source.icon
@@ -35,12 +36,22 @@ export const CommandCenterFeedItem: React.FC<CommandCenterFeedItemProps> = ({ it
   const isLiveRun = item.kind === 'active'
   const needsAttention = isNeedsYouItem(item)
   const isWorking = isLiveRun && !needsAttention
+  // Live runs and action-required runs are both ongoing, so show how long they
+  // have been running / waiting. Only truly finished runs report a duration;
+  // flow-pending "Awaiting approval" cards are modelled as finished but are
+  // still waiting, so they use elapsed time too (never a bare dash).
+  const showElapsed = isLiveRun || needsAttention
   const statusVisual = statusVisualForRun({
     status: item.status,
     pending_flow_approval: item.pendingFlowApproval
   })
   const caseLabel = caseRefLabel(item.caseRef)
   const duration = formatDurationMs(item.durationMs)
+  // The provenance row below always shows the source, so the secondary line
+  // never repeats it: working runs show their live activity; other cards show
+  // the case they acted on (if any) and are otherwise omitted. This kills the
+  // "Inbound email / Inbound email" duplication on action-required cards.
+  const secondaryText = isWorking ? item.currentActivity || t('action-working') : caseLabel
 
   return (
     <button
@@ -65,25 +76,28 @@ export const CommandCenterFeedItem: React.FC<CommandCenterFeedItemProps> = ({ it
             {statusVisual.label}
           </span>
         )}
-        <span className="gba:truncate gba:text-xs gba:font-semibold gba:text-foreground">
-          {agentLabel(item, nameById)}
+        <span className="gba:truncate gba:text-xs gba:font-semibold gba:text-foreground" title={label}>
+          {label}
         </span>
         <span className="gba:ml-auto gba:inline-flex gba:items-center gba:gap-1 gba:text-[10px] gba:text-muted-foreground">
           <ClockIcon className="gba:h-3 gba:w-3" />
-          {isLiveRun ? elapsedSince(item.timestamp) : (duration ?? '—')}
+          {showElapsed ? elapsedSince(item.timestamp) : (duration ?? '—')}
         </span>
       </div>
 
-      <p className="gba:flex gba:items-center gba:gap-1.5 gba:text-[11px] gba:text-muted-foreground">
-        {isWorking ? (
-          <PulseIcon className="gba:h-3 gba:w-3 gba:shrink-0 gba:text-emerald-600" weight="bold" />
-        ) : (
-          <SourceIcon className="gba:h-3 gba:w-3 gba:shrink-0" weight="bold" />
-        )}
-        <span className="gba:truncate">
-          {isWorking ? item.currentActivity || t('action-working') : caseLabel || sourceLabel}
-        </span>
-      </p>
+      {secondaryText && (
+        <p
+          className="gba:flex gba:items-center gba:gap-1.5 gba:text-[11px] gba:text-muted-foreground"
+          data-testid={`command-center-activity-${item.key}`}
+        >
+          {isWorking ? (
+            <PulseIcon className="gba:h-3 gba:w-3 gba:shrink-0 gba:text-emerald-600" weight="bold" />
+          ) : (
+            <SourceIcon className="gba:h-3 gba:w-3 gba:shrink-0" weight="bold" />
+          )}
+          <span className="gba:truncate">{secondaryText}</span>
+        </p>
+      )}
 
       <div className="gba:flex gba:items-center gba:gap-2 gba:text-[10px] gba:text-muted-foreground">
         <span className="gba:inline-flex gba:items-center gba:gap-1">
