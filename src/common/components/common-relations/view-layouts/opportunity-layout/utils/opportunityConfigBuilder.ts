@@ -1,3 +1,4 @@
+import type { FilterConfiguration } from '@newwork/nw-design-system'
 import type { OpportunityViewConfig } from '../OpportunityLayout'
 import type { OpportunityStatisticsData } from '../components/OpportunityStatisticsLayout'
 import type { OpportunityBoardFilters } from '../config/opportunityBoardTypes'
@@ -21,6 +22,9 @@ export interface OpportunityConfigBuilderOptions<TOpportunity, TQueryVariables> 
   }>
 
   filterDataHook: any
+
+  /** Filter configuration for the view. Defaults to the shared opportunityFilterConfig. */
+  baseFilterConfig?: FilterConfiguration
 
   viewDescriptors?: Descriptor[]
 
@@ -78,7 +82,7 @@ export const createOpportunityConfig = <TOpportunity extends { id: string }, TQu
     createSortableColumns: (availableColumnIds?: string[]) =>
       createOpportunitySortableColumns(options.viewDescriptors, availableColumnIds),
 
-    baseFilterConfig: opportunityFilterConfig,
+    baseFilterConfig: options.baseFilterConfig ?? opportunityFilterConfig,
 
     buildQueryVariables: (params: {
       pagination: { pageIndex: number; pageSize: number }
