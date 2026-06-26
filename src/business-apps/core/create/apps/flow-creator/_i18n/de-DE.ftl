@@ -121,6 +121,7 @@ config-panel-title = Konfiguration
 config-general = Allgemein
 config-form = Formular
 config-assignment = Zuweisung
+config-result-display = Erfasste Daten
 config-outcomes = Ergebnisse
 config-conditions = Bedingungen
 config-branches = Zweige
@@ -228,6 +229,14 @@ task-input-params-unmapped = Nicht zugeordnet
 # EveryAI Agent output schema
 task-output-schema-title = Ausgabeschema
 task-output-schema-desc = Definieren Sie die strukturierte Ausgabe, die dieser Agent für nachgelagerte Schritte erzeugt.
+result-display-title = Anzeige erfasster Daten
+result-display-description = Wählen Sie aus, welche erfassten Felder in Genehmigungs-Ergebnisansichten angezeigt werden. HTTP-Metadaten werden immer ausgeblendet.
+result-display-mode = Anzeigemodus
+result-display-show-all = Alle Felder anzeigen
+result-display-include = Nur ausgewählte Felder anzeigen
+result-display-exclude = Ausgewählte Felder ausblenden
+result-display-fields = Feldschlüssel
+result-display-fields-help = Geben Sie ein Feld pro Zeile ein oder trennen Sie Felder mit Kommas. Groß-/Kleinschreibung und Trennzeichen werden ignoriert.
 
 # Task step type selector (signature)
 task-type-group-human = Benutzer-Schritte

@@ -142,8 +142,12 @@ describe('LiveCommandCenter', () => {
     // A "Needs you" (waiting) card renders the amber status pill, not the green
     // "working" dot, so its status label is visible on the card.
     expect(screen.getByTestId('command-center-item-s-wait')).toHaveTextContent('Waiting for human')
+    // It must NOT render a secondary activity line: that would duplicate the
+    // source already shown on the provenance row below.
+    expect(screen.queryByTestId('command-center-activity-s-wait')).not.toBeInTheDocument()
     // A genuinely-working run shows its current activity instead of a status pill.
     expect(screen.getByTestId('command-center-item-s-active')).toHaveTextContent('Searching CRM')
+    expect(screen.getByTestId('command-center-activity-s-active')).toBeInTheDocument()
     // Every jump pill is enabled because every section has at least one item.
     expect(screen.getByTestId('command-center-jump-needsYou')).toBeEnabled()
     expect(screen.getByTestId('command-center-jump-active')).toBeEnabled()
@@ -275,6 +279,63 @@ describe('LiveCommandCenter', () => {
     expect(screen.getByTestId('command-center-item-s-done')).toBeInTheDocument()
     fireEvent.click(screen.getByTestId('command-center-section-toggle-recentlyDone'))
     expect(screen.queryByTestId('command-center-item-s-done')).not.toBeInTheDocument()
+  })
+
+  it('shows elapsed wait time (not a bare dash) on flow-pending approval cards', () => {
+    const ov: WorkforceActiveOverview = {
+      count: 0,
+      status_counts: { running: 0, pending: 0, waiting_for_human: 0 },
+      agents_working: [],
+      by_agent: {},
+      runs: [],
+      recent_completed: [],
+      flow_pending: [
+        {
+          session_id: 's-flow',
+          agent_id: 'a-1',
+          status: 'completed',
+          input: 'review',
+          current_activity: '',
+          last_seq: 1,
+          pending_flow_approval: true,
+          updated_at: '2026-06-01T12:00:00Z'
+        }
+      ]
+    }
+    render(
+      <LiveCommandCenter
+        feed={buildFeed(ov, new Set())}
+        completedToday={0}
+        throughputBuckets={[]}
+        isConnected
+        nameById={{}}
+        onOpenRun={jest.fn()}
+      />
+    )
+
+    const card = screen.getByTestId('command-center-item-s-flow')
+    // It lives in "Needs you" and shows an elapsed time, never the "—" fallback.
+    expect(screen.getByTestId('command-center-section-list-needsYou')).toContainElement(card)
+    expect(card).not.toHaveTextContent('—')
+  })
+
+  it('shows "Recently done" section with outside-window hint when live feed is empty but completedToday > 0', () => {
+    render(
+      <LiveCommandCenter
+        feed={[]}
+        completedToday={6}
+        throughputBuckets={[]}
+        isConnected
+        nameById={{}}
+        onOpenRun={jest.fn()}
+      />
+    )
+    // The section must render even though the live feed has no items.
+    expect(screen.getByTestId('command-center-section-recentlyDone')).toBeInTheDocument()
+    // The bar pill must be enabled so the user can click to scroll to the hint.
+    expect(screen.getByTestId('command-center-jump-recentlyDone')).toBeEnabled()
+    // The outside-window hint must be visible.
+    expect(screen.getByTestId('command-center-section-outside-recentlyDone')).toBeInTheDocument()
   })
 
   it('stays visible with a calm idle state when there is no activity', () => {

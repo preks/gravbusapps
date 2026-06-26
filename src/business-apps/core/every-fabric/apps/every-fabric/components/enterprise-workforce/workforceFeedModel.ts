@@ -42,7 +42,7 @@ const HOUR_MS = 60 * 60 * 1000
 const BUCKET_MS = 5 * 60 * 1000
 const BUCKET_COUNT = 12
 
-function tsMs(iso: string | null): number {
+export function tsMs(iso: string | null): number {
   if (!iso) return 0
   const parsed = Date.parse(iso)
   return Number.isNaN(parsed) ? 0 : parsed
@@ -224,7 +224,7 @@ export const WORKFORCE_FEED_SECTION_CONFIG: Record<WorkforceFeedSectionId, Workf
     id: 'recentlyDone',
     labelKey: 'command-center-section-recently-done',
     order: 2,
-    initialVisible: 2,
+    initialVisible: 5,
     collapsible: true
   }
 }

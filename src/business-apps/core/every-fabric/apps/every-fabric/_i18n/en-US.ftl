@@ -148,12 +148,13 @@ command-center-empty = Nothing in flight right now. New runs will appear here as
 command-center-stat-running = running
 command-center-stat-waiting = waiting
 command-center-stat-pending = pending
-command-center-done-today = done today
+command-center-done-today = today
 command-center-section-needs-you = Needs you
 command-center-section-active = Active
 command-center-section-recently-done = Recently done
 command-center-show-more = Show { $count } more
 command-center-show-less = Show less
+command-center-outside-window = { $count } completed today · older than the live 4-hour window
 
 # Run detail header
 run-detail-back = Back

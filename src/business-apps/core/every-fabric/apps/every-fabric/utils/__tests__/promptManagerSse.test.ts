@@ -25,8 +25,15 @@ describe('parseSseMessageBuffer', () => {
 
   it('parses CRLF-delimited frames emitted by sse-starlette', () => {
     const messages: string[] = []
-    const remainder = parseSseMessageBuffer('data: one\r\n\r\ndata: two\r\n\r\n', d => messages.push(d))
-    expect(messages).toEqual(['one', 'two'])
+    const remainder = parseSseMessageBuffer('data: {"seq":6}\r\n\r\ndata: {"seq":7}\r\n\r\n', d => messages.push(d))
+    expect(messages).toEqual(['{"seq":6}', '{"seq":7}'])
+    expect(remainder).toBe('')
+  })
+
+  it('parses lone CR delimiters and joins multi-line data fields', () => {
+    const messages: string[] = []
+    const remainder = parseSseMessageBuffer('data: one\rdata: two\r\r', d => messages.push(d))
+    expect(messages).toEqual(['one\ntwo'])
     expect(remainder).toBe('')
   })
 })

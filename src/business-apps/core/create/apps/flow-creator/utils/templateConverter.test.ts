@@ -119,6 +119,33 @@ describe('templateConverter', () => {
     expect(template.name).toBe('Renamed Flow')
   })
 
+  it('round-trips approval captured-data display settings', () => {
+    const approval = makeTaskNode('approval_1', 'Approve proposed fix')
+    ;(approval.config as any).stepType = FlowStepType.APPROVAL
+    ;(approval.config as any).resultDisplay = {
+      mode: 'include',
+      fields: ['overall_risk', 'fix_summary', 'evidence']
+    }
+    const nodes: StudioNode[] = [makeStartNode(), approval, makeEndNode()]
+    const edges: FlowGraphEdge[] = [
+      { id: 'e-start-approval', source: START_ID, target: 'approval_1', direction: 'forward' } as any,
+      { id: 'e-approval-end', source: 'approval_1', target: END_ID, direction: 'forward' } as any
+    ]
+
+    const template = studioGraphToTemplate(nodes, edges, 'Approval Flow') as any
+    expect(template.steps[0].resultDisplay).toEqual({
+      mode: 'include',
+      fields: ['overall_risk', 'fix_summary', 'evidence']
+    })
+
+    const rebuilt = templateToStudioGraph(template)
+    const rebuiltApproval = rebuilt.nodes.find(node => node.id === 'approval_1') as StudioNode
+    expect((rebuiltApproval.config as any).resultDisplay).toEqual({
+      mode: 'include',
+      fields: ['overall_risk', 'fix_summary', 'evidence']
+    })
+  })
+
   it('normalizes legacy form fields before saving to the backend', () => {
     const task = makeTaskNode('task_1', 'Task 1')
     ;(task.config as any).form = [

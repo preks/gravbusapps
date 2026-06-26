@@ -4,6 +4,7 @@ import type { FabricSessionSummary } from '../types/fabric'
 import { useEnterpriseAgentClient, type SessionHistoryPage } from './useEnterpriseAgentClient'
 import { useFlowBotFabricClient } from './useFlowBotFabricClient'
 import { isFlowBotFabricRuntime } from '../utils/fabricRuntime'
+import { sessionActivityMs } from '../utils/renderUtils'
 
 const SESSION_HISTORY_PAGE_SIZE = 50
 const SESSION_HISTORY_SEARCH_DEBOUNCE_MS = 300
@@ -39,9 +40,12 @@ export const useAgentSessions = (accessToken: string) => {
   const requestSeqRef = useRef(0)
 
   const byUpdatedDesc = useCallback((a: FabricSessionSummary, b: FabricSessionSummary) => {
-    const aTs = Date.parse(a.updated_at ?? a.created_at)
-    const bTs = Date.parse(b.updated_at ?? b.created_at)
-    return (Number.isNaN(bTs) ? 0 : bTs) - (Number.isNaN(aTs) ? 0 : aTs)
+    const aTs = sessionActivityMs(a) ?? 0
+    const bTs = sessionActivityMs(b) ?? 0
+    if (bTs !== aTs) return bTs - aTs
+    const aCreated = Date.parse(a.created_at ?? '')
+    const bCreated = Date.parse(b.created_at ?? '')
+    return (Number.isNaN(bCreated) ? 0 : bCreated) - (Number.isNaN(aCreated) ? 0 : aCreated)
   }, [])
 
   const mergeSessions = useCallback(

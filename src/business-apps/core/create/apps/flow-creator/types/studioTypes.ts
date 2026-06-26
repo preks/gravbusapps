@@ -12,7 +12,8 @@ import type {
   EventSubscription,
   TaskPriority,
   Link,
-  CustomDataStepConfig
+  CustomDataStepConfig,
+  StepResultDisplay
 } from '@/common/data/flow/types/flowTemplate'
 import type { FlowTags } from '@/business-apps/flow/types'
 import type { StepKindId } from '../components/step-picker/stepKindTypes'
@@ -77,6 +78,7 @@ export interface TaskNodeConfig {
   message?: string
   form?: InputBlock[]
   links?: Link[]
+  resultDisplay?: StepResultDisplay
   assignment: TaskAssignment
   dueInMinutes?: number
   defaultPriority?: TaskPriority

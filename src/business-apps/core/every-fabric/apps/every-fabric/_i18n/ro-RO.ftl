@@ -148,12 +148,13 @@ command-center-empty = Nimic în desfășurare acum. Rulările noi vor apărea a
 command-center-stat-running = în curs
 command-center-stat-waiting = în așteptare
 command-center-stat-pending = în coadă
-command-center-done-today = finalizate azi
+command-center-done-today = azi
 command-center-section-needs-you = Necesită atenția ta
 command-center-section-active = Active
 command-center-section-recently-done = Finalizate recent
 command-center-show-more = Afișează încă { $count }
 command-center-show-less = Afișează mai puțin
+command-center-outside-window = { $count } finalizate azi · mai vechi de fereastra live de 4 ore
 
 # Run detail header
 run-detail-back = Înapoi

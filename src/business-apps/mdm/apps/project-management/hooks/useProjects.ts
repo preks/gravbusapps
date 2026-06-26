@@ -10,6 +10,25 @@ import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
 const DEFAULT_PAGE_SIZE = 10
 const DEFAULT_CURRENT_PAGE = 1
 
+// Batch size used when a caller opts into "fetch all" mode. Pages are fetched
+// in chunks of this size and concatenated until the full set is retrieved.
+const FETCH_ALL_BATCH_SIZE = 100
+// Hard ceiling so a bad totalCount or a runaway loop can never spin forever.
+// If a structure ever legitimately exceeds this, we log and stop rather than
+// silently truncating without any signal.
+const FETCH_ALL_SAFETY_CAP = 5000
+
+export interface UseProjectsOptions {
+  /** Initial page size for paginated callers. Ignored when `fetchAll` is set. */
+  initialPageSize?: number
+  /**
+   * Fetch every matching project by paging through the backend in batches.
+   * Use for screens without pagination controls (e.g. Project Allocation) so
+   * the rendered list is never silently capped at a single page.
+   */
+  fetchAll?: boolean
+}
+
 /** Map i18n language code to Intl locale for date formatting (e.g. en -> en-US, de -> de-DE, ro -> ro-RO) */
 export const getDateLocaleFromLanguage = (lang: string | undefined): string => {
   if (lang == null || lang === '') return 'en-US'
@@ -287,8 +306,10 @@ const transformProject = (projectData: ProjectData, locale: string = 'en-US'): P
 export const useProjects = (
   context: BusinessAppContextProps,
   onlyActiveProjects: boolean = false,
-  locale: string = 'en-US'
+  locale: string = 'en-US',
+  options: UseProjectsOptions = {}
 ) => {
+  const { initialPageSize = DEFAULT_PAGE_SIZE, fetchAll = false } = options
   const [projects, setProjects] = useState<Project[]>([])
   const [accounts, setAccounts] = useState<Account[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -297,10 +318,12 @@ export const useProjects = (
   const accountsFetched = useRef<boolean>(false)
   const [searchTerm, setSearchTerm] = useState<string>('')
 
-  // Pagination state
+  // Pagination state. Callers that need to render all projects (e.g. the
+  // Project Allocation screen, which does not expose pagination controls) can
+  // pass a large `initialPageSize` so the first fetch returns the full set.
   const [totalCount, setTotalCount] = useState<number>(0)
   const [currentPage, setCurrentPage] = useState<number>(DEFAULT_CURRENT_PAGE)
-  const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE)
+  const [pageSize, setPageSize] = useState<number>(initialPageSize)
 
   const graphqlClient = useGraphqlClient(context.accessToken)
   const customerRelationsEnabled = useFeature<boolean>(Feature.CRM.CustomerRelations.Key)
@@ -367,6 +390,38 @@ export const useProjects = (
       }
     },
     [graphqlClient, fetchStructureId, locale, customerRelationsEnabled, onlyActiveProjects]
+  )
+
+  // Fetch every matching project by paging through the backend in batches.
+  // Returns the full set so callers without pagination controls never render a
+  // silently truncated list. A safety cap guards against runaway loops.
+  const fetchAllProjects = useCallback(
+    async (search?: string): Promise<{ projects: Project[]; totalCount: number }> => {
+      const collected: Project[] = []
+      let offset = 0
+      let totalCount = 0
+
+      do {
+        const page = await fetchProjects(FETCH_ALL_BATCH_SIZE, offset, search)
+        totalCount = page.totalCount
+        collected.push(...page.projects)
+        offset += FETCH_ALL_BATCH_SIZE
+
+        // Stop if the backend returned a short page (no more rows to fetch).
+        if (page.projects.length < FETCH_ALL_BATCH_SIZE) {
+          break
+        }
+      } while (collected.length < totalCount && collected.length < FETCH_ALL_SAFETY_CAP)
+
+      if (totalCount > FETCH_ALL_SAFETY_CAP) {
+        console.warn(
+          `useProjects: project count (${totalCount}) exceeds the fetch-all safety cap (${FETCH_ALL_SAFETY_CAP}); list is truncated`
+        )
+      }
+
+      return { projects: collected, totalCount }
+    },
+    [fetchProjects]
   )
 
   // Fetch accounts using GraphQL
@@ -456,7 +511,7 @@ export const useProjects = (
         const shouldFetchAccounts = customerRelationsEnabled && (!accountsFetched.current || accounts.length === 0)
 
         const [projectsResult, accountsResult] = await Promise.all([
-          fetchProjects(pageSize, offset, search),
+          fetchAll ? fetchAllProjects(search) : fetchProjects(pageSize, offset, search),
           shouldFetchAccounts ? fetchAccounts() : Promise.resolve(accounts)
         ])
 
@@ -519,6 +574,8 @@ export const useProjects = (
     },
     [
       fetchProjects,
+      fetchAllProjects,
+      fetchAll,
       fetchAccounts,
       fetchEmployeesByIds,
       fetchMatrixMemberCounts,

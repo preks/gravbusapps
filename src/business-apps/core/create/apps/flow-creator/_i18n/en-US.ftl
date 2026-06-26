@@ -121,6 +121,7 @@ config-panel-title = Configuration
 config-general = General
 config-form = Form
 config-assignment = Assignment
+config-result-display = Captured Data
 config-outcomes = Outcomes
 config-conditions = Conditions
 config-branches = Branches
@@ -228,6 +229,14 @@ task-input-params-unmapped = Unmapped
 # EveryAI Agent output schema
 task-output-schema-title = Output schema
 task-output-schema-desc = Define the structured output this agent produces for downstream steps.
+result-display-title = Captured data display
+result-display-description = Choose which captured fields are shown in approval result views. HTTP metadata is always hidden.
+result-display-mode = Display mode
+result-display-show-all = Show all fields
+result-display-include = Show only selected fields
+result-display-exclude = Hide selected fields
+result-display-fields = Field keys
+result-display-fields-help = Enter one field per line or separate fields with commas. Matching ignores case and separators.
 
 # Task step type selector (signature)
 task-type-group-human = User steps

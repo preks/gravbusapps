@@ -72,7 +72,7 @@ export const CommandCenterFeed: React.FC<CommandCenterFeedProps> = ({
         isConnected={isConnected}
       />
 
-      {items.length === 0 ? (
+      {items.length === 0 && completedToday === 0 ? (
         <p
           className="gba:py-6 gba:text-center gba:text-[11px] gba:text-muted-foreground"
           data-testid="command-center-feed-empty"
@@ -83,7 +83,10 @@ export const CommandCenterFeed: React.FC<CommandCenterFeedProps> = ({
         <div className={scrollClassName}>
           {WORKFORCE_FEED_SECTION_ORDER.map(id => {
             const sectionItems = grouped[id]
-            if (sectionItems.length === 0) return null
+            // For "Recently done", runs that completed earlier today are outside
+            // the 4-hour live window — we have a count but no item data.
+            const outsideWindowCount = id === 'recentlyDone' ? Math.max(0, completedToday - sectionItems.length) : 0
+            if (sectionItems.length === 0 && outsideWindowCount === 0) return null
             return (
               <div
                 key={id}
@@ -98,6 +101,7 @@ export const CommandCenterFeed: React.FC<CommandCenterFeedProps> = ({
                   onToggleCollapsed={() => toggleCollapsed(id)}
                   nameById={nameById}
                   onOpenRun={onOpenRun}
+                  outsideWindowCount={outsideWindowCount}
                 />
               </div>
             )

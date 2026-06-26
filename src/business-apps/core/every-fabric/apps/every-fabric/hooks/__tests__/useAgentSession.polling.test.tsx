@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { writeSessionUiCache } from '../agent-session/sessionUiStateCache'
-import { POLL_INTERVAL_MS, POLL_INTERVAL_WHILE_SSE_CONNECTED_MS } from '../agent-session/types'
+import { POLL_INTERVAL_MS, RECONNECT_POLL_GRACE_MS } from '../agent-session/types'
 import type { DeepAgentSession } from '../../types/enterpriseAgent'
 
 const mockGetSession = jest.fn()
@@ -42,7 +42,8 @@ jest.mock('../../utils/fabricRuntime', () => ({
 
 jest.mock('../sessionStreamRegistry', () => ({
   markSessionStreamRestTerminal: jest.fn(),
-  appendSessionStreamEvents: jest.fn()
+  appendSessionStreamEvents: jest.fn(),
+  advanceSessionStreamCursor: jest.fn()
 }))
 
 import { useAgentSession } from '../useAgentSession'
@@ -81,49 +82,42 @@ describe('useAgentSession polling while SSE is live', () => {
     jest.useRealTimers()
   })
 
-  it('polls on a slower cadence while SSE is connected and agent is running', async () => {
+  it('skips REST polling while SSE is connected and agent is running', async () => {
     renderHook(() => useAgentSession('poll-session', 'token'))
 
     await waitFor(() => expect(mockGetSession).toHaveBeenCalledTimes(1))
 
     await act(async () => {
-      jest.advanceTimersByTime(POLL_INTERVAL_MS + 50)
+      jest.advanceTimersByTime(POLL_INTERVAL_MS * 3 + 50)
     })
 
-    expect(mockGetSession).toHaveBeenCalledTimes(2)
-
-    await act(async () => {
-      jest.advanceTimersByTime(POLL_INTERVAL_WHILE_SSE_CONNECTED_MS + 50)
-    })
-
-    expect(mockGetSession).toHaveBeenCalledTimes(3)
+    expect(mockGetSession).toHaveBeenCalledTimes(1)
   })
 
-  it('polls on the slower cadence for landing bootstrap (session running, isAgentRunning false)', async () => {
-    writeSessionUiCache('poll-session', {
-      session: runningSession,
-      isAgentRunning: false,
-      optimisticMessages: [],
-      activeSkill: null,
-      lastReplyTimestamp: 0,
-      processedTerminalAt: -1
-    })
-
-    renderHook(() => useAgentSession('poll-session', 'token'))
+  it('waits through brief SSE reconnects before polling REST again', async () => {
+    const { rerender } = renderHook(() => useAgentSession('poll-session', 'token'))
 
     await waitFor(() => expect(mockGetSession).toHaveBeenCalledTimes(1))
+
+    mockStreamState = {
+      messages: [],
+      events: [],
+      isConnected: false
+    }
+
+    rerender()
 
     await act(async () => {
       jest.advanceTimersByTime(POLL_INTERVAL_MS + 50)
     })
 
-    expect(mockGetSession).toHaveBeenCalledTimes(2)
+    expect(mockGetSession).toHaveBeenCalledTimes(1)
 
     await act(async () => {
-      jest.advanceTimersByTime(POLL_INTERVAL_WHILE_SSE_CONNECTED_MS + 50)
+      jest.advanceTimersByTime(RECONNECT_POLL_GRACE_MS + POLL_INTERVAL_MS + 50)
     })
 
-    expect(mockGetSession).toHaveBeenCalledTimes(3)
+    await waitFor(() => expect(mockGetSession.mock.calls.length).toBeGreaterThan(1))
   })
 
   it('hydrates once when a terminal stream event arrives', async () => {
@@ -156,6 +150,21 @@ describe('useAgentSession polling while SSE is live', () => {
     rerender()
 
     await waitFor(() => expect(mockGetSession).toHaveBeenCalledTimes(2))
+    expect(mockGetSession).toHaveBeenLastCalledWith('poll-session', { bypassCache: true })
+  })
+
+  it('hydrates once after posting a reply', async () => {
+    mockEnterpriseClient.replyToInterrupt.mockResolvedValueOnce({})
+    const { result } = renderHook(() => useAgentSession('poll-session', 'token'))
+
+    await waitFor(() => expect(mockGetSession).toHaveBeenCalledTimes(1))
+
+    await act(async () => {
+      await result.current.reply('continue')
+    })
+
+    expect(mockEnterpriseClient.replyToInterrupt).toHaveBeenCalledWith('poll-session', 'continue', undefined, undefined)
+    expect(mockGetSession).toHaveBeenCalledTimes(2)
     expect(mockGetSession).toHaveBeenLastCalledWith('poll-session', { bypassCache: true })
   })
 

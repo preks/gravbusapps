@@ -1,6 +1,6 @@
 import type { ActiveSessionSnapshot } from '../../types/activeSession'
 import type { FabricSessionSummary } from '../../types/fabric'
-import { parseIsoTimestampMs } from '../../utils/renderUtils'
+import { sessionActivityMs } from '../../utils/renderUtils'
 
 /**
  * Pure helpers that split the single source-of-truth session list into the two
@@ -74,8 +74,8 @@ function historySessionToActiveSnapshot(session: FabricSessionSummary): ActiveSe
 }
 
 function sortActiveByUpdatedDesc(a: ActiveSessionSnapshot, b: ActiveSessionSnapshot): number {
-  const aTs = parseIsoTimestampMs(a.updated_at ?? a.created_at ?? null) ?? 0
-  const bTs = parseIsoTimestampMs(b.updated_at ?? b.created_at ?? null) ?? 0
+  const aTs = sessionActivityMs(a) ?? 0
+  const bTs = sessionActivityMs(b) ?? 0
   return bTs - aTs
 }
 
@@ -99,7 +99,7 @@ export function groupRecentsByDay(sessions: FabricSessionSummary[]): RecentsGrou
   for (const session of sessions) {
     // Normalize naive-UTC strings from the backend so day bucketing lines up
     // with the user's local calendar (see `parseIsoTimestamp` for details).
-    const ts = parseIsoTimestampMs(session.updated_at ?? session.created_at ?? null)
+    const ts = sessionActivityMs(session)
     if (ts === null) {
       buckets.Earlier.push(session)
       continue

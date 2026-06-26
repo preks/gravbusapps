@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-sys
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { useTeamCoverageData } from '../../../hooks/useTeamCoverageData'
+import { useTeamMemberIds } from '../../../hooks/useTeamMemberIds'
 import { TeamDailyFactsSource, useTeamDailyFactsByTypeMonthly } from '../../../hooks/useTeamDailyFacts'
 
 interface YearComparisonSectionProps extends BusinessAppContextProps {
@@ -21,7 +21,7 @@ const getMonthTotal = (monthData: { [key: string]: string | number }): number =>
 
 export const YearComparisonSection: React.FC<YearComparisonSectionProps> = ({ factsSource = 'net', ...props }) => {
   const { accessToken } = props
-  const { teamMemberIds, isLoading: coverageLoading, error: coverageError } = useTeamCoverageData(props)
+  const { teamMemberIds, isLoading: teamMembersLoading, error: teamMembersError } = useTeamMemberIds(props)
   const currentYear = new Date().getFullYear()
   const previousYear = currentYear - 1
   const previousYearFrom = `${previousYear}-01-01`
@@ -64,8 +64,8 @@ export const YearComparisonSection: React.FC<YearComparisonSectionProps> = ({ fa
     }))
   }, [previousYearFacts.data.barChartData, currentYearFacts.data.barChartData, previousYear, currentYear])
 
-  const isLoading = coverageLoading || previousYearFacts.loading || currentYearFacts.loading
-  const error = coverageError || previousYearFacts.error?.message || currentYearFacts.error?.message
+  const isLoading = teamMembersLoading || previousYearFacts.loading || currentYearFacts.loading
+  const error = teamMembersError || previousYearFacts.error?.message || currentYearFacts.error?.message
 
   if (isLoading) {
     return (

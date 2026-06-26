@@ -117,6 +117,7 @@ config-panel-title = Configurare
 config-general = General
 config-form = Formular
 config-assignment = Atribuire
+config-result-display = Date capturate
 config-outcomes = Rezultate
 config-conditions = Condiții
 config-branches = Ramuri
@@ -224,6 +225,14 @@ task-input-params-unmapped = Nemapat
 # EveryAI Agent output schema
 task-output-schema-title = Schemă de ieșire
 task-output-schema-desc = Definiți ieșirea structurată produsă de acest agent pentru pașii următori.
+result-display-title = Afișarea datelor capturate
+result-display-description = Alegeți ce câmpuri capturate sunt afișate în vizualizările rezultatelor aprobării. Metadatele HTTP sunt întotdeauna ascunse.
+result-display-mode = Mod de afișare
+result-display-show-all = Afișează toate câmpurile
+result-display-include = Afișează doar câmpurile selectate
+result-display-exclude = Ascunde câmpurile selectate
+result-display-fields = Chei câmpuri
+result-display-fields-help = Introduceți un câmp pe linie sau separați câmpurile prin virgule. Potrivirea ignoră majusculele și separatorii.
 
 # Task step type selector (signature)
 task-type-group-human = Pași utilizator

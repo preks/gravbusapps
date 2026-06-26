@@ -334,7 +334,12 @@ const ProjectAllocation: React.FC<ProjectAllocationProps> = context => {
   const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX)
 
   const customerRelationsEnabled = useFeature<boolean>(Feature.CRM.CustomerRelations.Key)
-  const { projects, accounts, isLoading, error, refetch, structureId } = useProjects(context, true, dateLocale)
+  // Project Allocation does not expose pagination controls, so it fetches every
+  // matching active project by paging through the backend in batches instead of
+  // capping the list at a single page.
+  const { projects, accounts, isLoading, error, refetch, structureId } = useProjects(context, true, dateLocale, {
+    fetchAll: true
+  })
   const { teams, refetch: refretchTeams } = useTeams(context)
   const { getTeamEmployees, removeEmployeeFromTeam } = useTeamAssignments(context.accessToken)
 

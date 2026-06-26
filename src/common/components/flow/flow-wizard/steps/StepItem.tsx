@@ -12,6 +12,7 @@ import { EventSubscriptionsConfiguration } from './EventSubscriptionsConfigurati
 import { FunctionConfiguration } from './FunctionConfiguration'
 import { InputFieldsContent } from './InputFieldsConfiguration'
 import { LinksContent } from './LinksConfiguration'
+import { ResultDisplayConfiguration } from './ResultDisplayConfiguration'
 
 interface StepItemProps {
   step: any
@@ -176,6 +177,30 @@ export const StepItem: React.FC<StepItemProps> = ({
                       />
                     )
                   },
+                  ...(normalizedStep.type === FlowStepType.APPROVAL
+                    ? [
+                        {
+                          id: 'result-display',
+                          title: getTranslationFromI18nKeyAndLabel(
+                            'flow.creator.resultDisplay.title',
+                            'Captured Data Display'
+                          ),
+                          badgeText:
+                            normalizedStep.resultDisplay?.fields?.length > 0
+                              ? getTranslationFromI18nKeyAndLabel('flow.creator.configured', 'Configured')
+                              : undefined,
+                          badgeVariant:
+                            normalizedStep.resultDisplay?.fields?.length > 0 ? ('success' as const) : undefined,
+                          content: (
+                            <ResultDisplayConfiguration
+                              step={normalizedStep}
+                              testId={testId}
+                              onUpdateStep={handleUpdateStep}
+                            />
+                          )
+                        }
+                      ]
+                    : []),
                   ...(normalizedStep.type !== FlowStepType.FUNCTION && normalizedStep.type !== FlowStepType.AGENT
                     ? [
                         {

@@ -102,6 +102,10 @@ export async function postSessionReply(params: {
   }
 
   await waitForRestSyncWithWaitingHumanStream(eventsSnapshot, readRestStatus, fetchSession)
+  const cursorBeforeReply = maxSeqFromTrace(eventsSnapshot)
+  if (cursorBeforeReply > 0) {
+    advanceSessionStreamCursor(sessionId, cursorBeforeReply)
+  }
   invalidateDeepAgentSessionEtagCache(sessionId)
   setIsAgentRunning(true)
   const replyStartedAt = Date.now()
@@ -122,12 +126,6 @@ export async function postSessionReply(params: {
     )
     invalidateDeepAgentSessionEtagCache(sessionId)
     const updated = await fetchSession({ bypassCache: true })
-    if (updated) {
-      const traceSeq = maxSeqFromTrace(updated.trace)
-      if (traceSeq > 0) {
-        advanceSessionStreamCursor(sessionId, traceSeq)
-      }
-    }
     if (!isFlowBotFabricRuntime()) {
       setStreamVersion(v => v + 1)
     }

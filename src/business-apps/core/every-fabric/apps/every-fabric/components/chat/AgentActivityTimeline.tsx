@@ -4,6 +4,64 @@ import type { FC } from 'react'
 import { buildAgentActivityTimelineSteps } from '../../hooks/agent-session/agentActivityTimeline'
 import type { ActivityTimelineStep } from '../../hooks/agent-session/agentActivityTimeline'
 import translations from '../../_i18n'
+import { ShimmerText } from './ShimmerText'
+
+const ACTIVE_DOT_PULSE_STYLE = `
+@keyframes gba-agent-activity-dot-pulse {
+  0%, 100% {
+    transform: scale(0.86);
+  }
+  50% {
+    transform: scale(1.12);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gba-agent-activity-dot-pulse-inner {
+    animation: none !important;
+    transform: none !important;
+  }
+}
+`
+
+const DOT_SIZES = {
+  default: { base: 7, slot: 12 },
+  compact: { base: 6, slot: 10 }
+} as const
+
+const DOT_PULSE_ANIMATION = 'gba-agent-activity-dot-pulse 1.65s cubic-bezier(0.37, 0, 0.63, 1) infinite'
+
+interface ThinkingPulseDotProps {
+  active: boolean
+  compact?: boolean
+}
+
+const ThinkingPulseDot: FC<ThinkingPulseDotProps> = ({ active, compact }) => {
+  const sizes = compact ? DOT_SIZES.compact : DOT_SIZES.default
+
+  return (
+    <span
+      className="gba:flex gba:shrink-0 gba:items-center gba:justify-center"
+      style={{ width: sizes.slot, height: sizes.slot }}
+      aria-hidden
+    >
+      <span
+        className={`gba-agent-activity-dot-pulse-inner gba:block gba:rounded-full ${
+          active ? 'gba:bg-black' : 'gba:bg-muted-foreground/40'
+        }`}
+        style={{
+          width: sizes.base,
+          height: sizes.base,
+          backgroundColor: active ? '#000' : undefined,
+          transformOrigin: 'center',
+          willChange: active ? 'transform' : undefined,
+          animation: active ? DOT_PULSE_ANIMATION : undefined
+        }}
+        data-testid={active ? 'agent-activity-dot-active' : 'agent-activity-dot'}
+      />
+    </span>
+  )
+}
 
 export interface AgentActivityTimelineProps {
   activityLines?: readonly string[] | null
@@ -36,31 +94,27 @@ interface TimelineRowProps {
 const TimelineRow: FC<TimelineRowProps> = ({ step, index, total, isStreaming, isCompact, isLast }) => {
   const textSize = isCompact ? 'gba:text-[11px]' : 'gba:text-xs'
   const rowSpacing = isCompact ? 'gba:pb-2' : 'gba:pb-2.5'
-  const nodeSize = isCompact ? 'gba:h-1.5 gba:w-1.5' : 'gba:h-2 gba:w-2'
   const showActiveDot = step.state === 'active' && isStreaming && isLast
 
   return (
-    <div className={`gba:flex gba:gap-2.5 ${rowSpacing} gba:last:pb-0`} data-testid={`agent-activity-step-${step.id}`}>
-      <div className="gba:flex gba:flex-col gba:items-center gba:shrink-0">
-        <span
-          className={`${nodeSize} gba:rounded-full gba:shrink-0 ${
-            step.state === 'active' ? 'gba:bg-primary' : 'gba:bg-muted-foreground/40'
-          }`}
-          aria-hidden
-        />
-        {!isLast ? <span className="gba:flex-1 gba:w-px gba:min-h-3 gba:bg-border/80 gba:mt-1" aria-hidden /> : null}
+    <div
+      className={`gba:relative gba:flex gba:items-center gba:gap-2.5 ${rowSpacing} gba:last:pb-0`}
+      data-testid={`agent-activity-step-${step.id}`}
+    >
+      <div className="gba:relative gba:flex gba:shrink-0 gba:items-center gba:justify-center">
+        <ThinkingPulseDot active={showActiveDot} compact={isCompact} />
+        {!isLast ? (
+          <span
+            className="gba:absolute gba:left-1/2 gba:top-full gba:mt-1 gba:h-3 gba:w-px gba:-translate-x-1/2 gba:bg-border/80"
+            aria-hidden
+          />
+        ) : null}
       </div>
       <p
         className={`gba:min-w-0 gba:flex-1 gba:pt-px ${textSize} gba:leading-snug gba:text-muted-foreground gba:italic gba:animate-in gba:fade-in gba:slide-in-from-bottom-1 gba:duration-300`}
         style={{ opacity: opacityForStep(index, total) }}
       >
-        {step.label}
-        {showActiveDot ? (
-          <span
-            aria-hidden
-            className="gba:inline-block gba:ml-1.5 gba:w-1 gba:h-1 gba:rounded-full gba:bg-muted-foreground/60 gba:animate-pulse gba:align-middle"
-          />
-        ) : null}
+        <ShimmerText enabled={showActiveDot}>{step.label}</ShimmerText>
       </p>
     </div>
   )
@@ -111,34 +165,38 @@ export const AgentActivityTimeline: FC<AgentActivityTimelineProps> = ({
 
   const isCompact = variant === 'compact'
   const containerSpacing = isCompact ? 'gba:mt-1' : 'gba:mt-2'
+  const fadeOlderSteps = displaySteps.length > 1
 
   return (
-    <div
-      data-testid="agent-activity-timeline"
-      className={`gba:relative gba:overflow-hidden ${containerSpacing}`}
-      role="status"
-      aria-live="polite"
-      aria-label={t('chat-activity-aria')}
-      style={{
-        opacity: isLeaving ? 0 : 1,
-        transform: isLeaving ? 'translateY(-4px)' : 'translateY(0)',
-        transition: 'opacity 220ms ease-out, transform 220ms ease-out',
-        maskImage: 'linear-gradient(to bottom, transparent 0%, black 35%, black 100%)'
-      }}
-    >
-      <div className="gba:flex gba:flex-col">
-        {displaySteps.map((step, idx) => (
-          <TimelineRow
-            key={step.id}
-            step={step}
-            index={idx}
-            total={displaySteps.length}
-            isStreaming={isStreaming}
-            isCompact={isCompact}
-            isLast={idx === displaySteps.length - 1}
-          />
-        ))}
+    <>
+      <style>{ACTIVE_DOT_PULSE_STYLE}</style>
+      <div
+        data-testid="agent-activity-timeline"
+        className={`gba:relative gba:pl-0.5 ${containerSpacing}`}
+        role="status"
+        aria-live="polite"
+        aria-label={t('chat-activity-aria')}
+        style={{
+          opacity: isLeaving ? 0 : 1,
+          transform: isLeaving ? 'translateY(-4px)' : 'translateY(0)',
+          transition: 'opacity 220ms ease-out, transform 220ms ease-out',
+          ...(fadeOlderSteps ? { maskImage: 'linear-gradient(to bottom, transparent 0%, black 35%, black 100%)' } : {})
+        }}
+      >
+        <div className="gba:flex gba:flex-col">
+          {displaySteps.map((step, idx) => (
+            <TimelineRow
+              key={step.id}
+              step={step}
+              index={idx}
+              total={displaySteps.length}
+              isStreaming={isStreaming}
+              isCompact={isCompact}
+              isLast={idx === displaySteps.length - 1}
+            />
+          ))}
+        </div>
       </div>
-    </div>
+    </>
   )
 }

@@ -19,6 +19,12 @@ export interface CommandCenterSectionProps {
   onToggleCollapsed: () => void
   nameById: Record<string, string>
   onOpenRun: (agentId: string, sessionId: string) => void
+  /**
+   * Number of runs that completed today but fall outside the live 4-hour
+   * window and therefore have no item data. When non-zero and items is empty
+   * the section still renders with an informational hint instead of vanishing.
+   */
+  outsideWindowCount?: number
 }
 
 export const CommandCenterSection: React.FC<CommandCenterSectionProps> = ({
@@ -27,7 +33,8 @@ export const CommandCenterSection: React.FC<CommandCenterSectionProps> = ({
   collapsed,
   onToggleCollapsed,
   nameById,
-  onOpenRun
+  onOpenRun,
+  outsideWindowCount = 0
 }) => {
   const { t } = useTranslation(translations)
   const [showAll, setShowAll] = useState(false)
@@ -39,6 +46,9 @@ export const CommandCenterSection: React.FC<CommandCenterSectionProps> = ({
   const visibleItems = isCollapsed ? [] : showAll ? items : items.slice(0, config.initialVisible)
   const hiddenCount = items.length - config.initialVisible
   const CollapseIcon = isCollapsed ? CaretRightIcon : CaretDownIcon
+  // When the live window has no items but older completions exist today,
+  // the header shows the outside count so it's still meaningful.
+  const displayCount = items.length > 0 ? items.length : outsideWindowCount
 
   return (
     <section data-testid={`command-center-section-${config.id}`}>
@@ -55,7 +65,7 @@ export const CommandCenterSection: React.FC<CommandCenterSectionProps> = ({
           <span className="gba:text-[11px] gba:font-semibold gba:uppercase gba:tracking-wide gba:text-foreground">
             {t(config.labelKey)}
           </span>
-          <span className={`gba:text-[11px] gba:font-semibold ${visual.toneClass}`}>{items.length}</span>
+          <span className={`gba:text-[11px] gba:font-semibold ${visual.toneClass}`}>{displayCount}</span>
         </button>
       </header>
 
@@ -81,6 +91,15 @@ export const CommandCenterSection: React.FC<CommandCenterSectionProps> = ({
         >
           {showAll ? t('command-center-show-less') : t('command-center-show-more', { count: hiddenCount })}
         </button>
+      )}
+
+      {outsideWindowCount > 0 && (
+        <p
+          className="gba:mt-1.5 gba:text-[11px] gba:text-muted-foreground"
+          data-testid={`command-center-section-outside-${config.id}`}
+        >
+          {t('command-center-outside-window', { count: outsideWindowCount })}
+        </p>
       )}
     </section>
   )

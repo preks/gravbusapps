@@ -10,13 +10,19 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { PROMPT_MANAGER_API_URL } from '@/common/utils/serviceResolver'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import { connectPromptManagerSse, type PromptManagerSseConnection } from '../../utils/promptManagerSse'
-import { buildFeed, type WorkforceFeedItem } from './workforceFeedModel'
+import { buildFeed, tsMs, type WorkforceFeedItem } from './workforceFeedModel'
 import type {
   WorkforceActiveOverview,
   WorkforceActiveRun,
   WorkforceRecentRun,
   WorkforceThroughput
 } from './workforceTypes'
+
+// How many recently-completed runs to keep in the client-side buffer. The
+// server's live window may be shorter than a typical page session, so we
+// accumulate completions here and pass the buffer to buildFeed. The section
+// shows RECENTLY_DONE_INITIAL_VISIBLE first and hides the rest under "Show more".
+const RECENTLY_DONE_BUFFER_SIZE = 15
 
 export interface UseWorkforceLiveActivityResult {
   overview: WorkforceActiveOverview | null
@@ -73,6 +79,11 @@ export function useWorkforceLiveActivity(
   // Session ids seen as active in the previous snapshot, so we can flag
   // "just started" runs in the feed.
   const prevActiveIdsRef = useRef<Set<string>>(new Set())
+  // Client-side accumulator for recently-completed runs. The server's
+  // recent_completed window may be short, so we merge every snapshot's
+  // completions into this map (keyed by session_id) and pass the capped
+  // buffer to buildFeed so "Recently done" stays populated across the session.
+  const completedBufferRef = useRef<Map<string, WorkforceRecentRun>>(new Map())
 
   // One-shot REST snapshot for instant initial paint (the stream also sends an
   // overview on connect, but this avoids a blank strip during the handshake).
@@ -206,7 +217,31 @@ export function useWorkforceLiveActivity(
       if (!prevActiveIdsRef.current.has(id)) newActiveIds.add(id)
     }
     prevActiveIdsRef.current = currentActiveIds
-    return buildFeed(overview, newActiveIds)
+
+    // Accumulate completions into the client buffer so "Recently done" stays
+    // populated even when the server's recent_completed window is short.
+    for (const run of overview?.recent_completed ?? []) {
+      completedBufferRef.current.set(run.session_id, run)
+    }
+    // Evict runs that are currently active or flow-pending — they should
+    // render under their live state, not as a stale finished card.
+    for (const run of overview?.runs ?? []) {
+      completedBufferRef.current.delete(run.session_id)
+    }
+    for (const run of overview?.flow_pending ?? []) {
+      completedBufferRef.current.delete(run.session_id)
+    }
+    // Cap to the most recent RECENTLY_DONE_BUFFER_SIZE completions.
+    if (completedBufferRef.current.size > RECENTLY_DONE_BUFFER_SIZE) {
+      const sorted = [...completedBufferRef.current.entries()].sort(
+        ([, a], [, b]) => tsMs(b.completed_at ?? b.started_at ?? null) - tsMs(a.completed_at ?? a.started_at ?? null)
+      )
+      completedBufferRef.current = new Map(sorted.slice(0, RECENTLY_DONE_BUFFER_SIZE))
+    }
+
+    const bufferedCompleted = [...completedBufferRef.current.values()]
+    const enrichedOverview = overview ? { ...overview, recent_completed: bufferedCompleted } : null
+    return buildFeed(enrichedOverview, newActiveIds)
   }, [overview])
 
   const throughput = useMemo<WorkforceThroughput>(() => overview?.throughput ?? { count: 0, buckets: [] }, [overview])
