@@ -3,7 +3,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import dayjs from 'dayjs'
 import { AbsenceTrendsChart } from '../../KPISection/AbsenceTrendsChart'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { useTeamCoverageData } from '../../../hooks/useTeamCoverageData'
+import { useTeamMemberIds } from '../../../hooks/useTeamMemberIds'
 import { TeamDailyFactsSource, useTeamDailyFactsByTypeMonthly } from '../../../hooks/useTeamDailyFacts'
 import { useAbsenceTypeCatalog } from '../../../../personal-absences/hooks/useAbsenceTypeCatalog'
 
@@ -13,7 +13,7 @@ interface AbsenceTrendsSectionProps extends BusinessAppContextProps {
 
 export const AbsenceTrendsSection: React.FC<AbsenceTrendsSectionProps> = ({ factsSource = 'net', ...props }) => {
   const { accessToken } = props
-  const { teamMemberIds, isLoading: coverageLoading, error: coverageError } = useTeamCoverageData(props)
+  const { teamMemberIds, isLoading: teamMembersLoading, error: teamMembersError } = useTeamMemberIds(props)
   const { mapType } = useAbsenceTypeCatalog(accessToken)
   const from = dayjs().startOf('year').format('YYYY-MM-DD')
   const to = dayjs().endOf('year').format('YYYY-MM-DD')
@@ -31,8 +31,8 @@ export const AbsenceTrendsSection: React.FC<AbsenceTrendsSectionProps> = ({ fact
     factsSource
   )
 
-  const loading = coverageLoading || factsLoading
-  const error = coverageError || (factsError ? factsError.message : null)
+  const loading = teamMembersLoading || factsLoading
+  const error = teamMembersError || (factsError ? factsError.message : null)
 
   if (!props.userInfo?.employeeDetails?.employeeId) {
     return (

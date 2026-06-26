@@ -3,7 +3,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { Card } from '@newwork/nw-design-system'
 import { AbsenceDistributionChart } from '../../KPISection/AbsenceDistributionChart'
 import dayjs from 'dayjs'
-import { useTeamCoverageData } from '../../../hooks/useTeamCoverageData'
+import { useTeamMemberIds } from '../../../hooks/useTeamMemberIds'
 import { TeamDailyFactsSource, useTeamDailyFactsByType } from '../../../hooks/useTeamDailyFacts'
 import { useAbsenceTypeCatalog } from '../../../../personal-absences/hooks/useAbsenceTypeCatalog'
 import { translateManagerAbsencesText } from '../../../utils/managerAbsencesI18n'
@@ -101,7 +101,7 @@ export const AbsenceDistributionSection: React.FC<AbsenceDistributionSectionProp
   ...props
 }) => {
   const { accessToken } = props
-  const { teamMemberIds, isLoading: coverageLoading, error: coverageError } = useTeamCoverageData(props)
+  const { teamMemberIds, isLoading: teamMembersLoading, error: teamMembersError } = useTeamMemberIds(props)
   const { mapType } = useAbsenceTypeCatalog(accessToken)
   const from = dayjs().startOf('year').format('YYYY-MM-DD')
   const to = dayjs().endOf('year').format('YYYY-MM-DD')
@@ -111,8 +111,8 @@ export const AbsenceDistributionSection: React.FC<AbsenceDistributionSectionProp
     error: factsError
   } = useTeamDailyFactsByType(accessToken, teamMemberIds, from, to, mapType, ['APPROVED'], factsSource)
 
-  const loading = coverageLoading || factsLoading
-  const error = coverageError || (factsError ? factsError.message : null)
+  const loading = teamMembersLoading || factsLoading
+  const error = teamMembersError || (factsError ? factsError.message : null)
 
   if (!props.userInfo?.employeeDetails?.employeeId) {
     return (

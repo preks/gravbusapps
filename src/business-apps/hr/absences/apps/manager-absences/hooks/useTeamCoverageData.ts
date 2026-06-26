@@ -148,7 +148,11 @@ export const useTeamCoverageData = (context: BusinessAppContextProps): UseTeamCo
       const currentAbsences = result.currentAbsences || []
 
       // Create set of absent employee IDs for quick lookup
-      const absentEmployeeIds = new Set(currentAbsences.map((absence: any) => absence.employee.id))
+      const absentEmployeeIds = new Set(
+        currentAbsences
+          .map((absence: any) => absence?.employee?.id)
+          .filter((employeeId: string | undefined) => !!employeeId)
+      )
 
       // Calculate Organizational Unit Coverage
       const orgUnitMap = new Map<string, { name: string; employees: any[]; absentEmployees: any[] }>()
@@ -174,9 +178,14 @@ export const useTeamCoverageData = (context: BusinessAppContextProps): UseTeamCo
       employees.forEach((employee: any) => {
         const matrixUnits = employee.employeePosition?.matrixUnitEmployees || []
         matrixUnits.forEach((matrixUnit: any) => {
-          const key = matrixUnit.matrixUnit.id
+          const matrixUnitData = matrixUnit?.matrixUnit
+          const key = matrixUnitData?.id
+          if (!key) {
+            return
+          }
+
           if (!matrixMap.has(key)) {
-            matrixMap.set(key, { name: matrixUnit.matrixUnit.name, employees: [], absentEmployees: [] })
+            matrixMap.set(key, { name: matrixUnitData.name, employees: [], absentEmployees: [] })
           }
           const matrix = matrixMap.get(key)!
           matrix.employees.push(employee)
@@ -211,7 +220,11 @@ export const useTeamCoverageData = (context: BusinessAppContextProps): UseTeamCo
             const capabilityId = capabilityData?.capability?.id
             const capabilityName = capabilityData?.capability?.name
 
-            if (capabilityMap && !capabilityMap.has(capabilityId)) {
+            if (!capabilityId) {
+              return
+            }
+
+            if (!capabilityMap.has(capabilityId)) {
               capabilityMap.set(capabilityId, {
                 capabilityId,
                 capabilityName,
@@ -271,32 +284,33 @@ export const useTeamCoverageData = (context: BusinessAppContextProps): UseTeamCo
 
           // Calculate impact on capabilities
           const affectedCapabilities =
-            employee.employeePosition?.employeeCapabilities?.map((capabilityData: any) => {
+            employee.employeePosition?.employeeCapabilities?.flatMap((capabilityData: any) => {
               const capabilityId = capabilityData?.capability?.id
               const capabilityName = capabilityData?.capability?.name
+              if (!capabilityId) {
+                return []
+              }
+
               const currentCapability = capabilities.find(cap => cap.capabilityId === capabilityId)
 
               if (!currentCapability) {
-                return {
-                  capabilityId:
-                    capabilityId ??
-                    getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:absence_management_hub_manager.statistics_tab.unknown',
-                      'Unknown'
-                    ),
-                  capabilityName:
-                    capabilityName ??
-                    getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:absence_management_hub_manager.statistics_tab.unknown',
-                      'Unknown'
-                    ),
-                  newCoverage: 0,
-                  newRisk: 'high' as const,
-                  impactDescription: getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:absence_management_hub_manager.statistics_tab.no_current_coverage_for_this_capability',
-                    'No current coverage for this capability'
-                  )
-                }
+                return [
+                  {
+                    capabilityId,
+                    capabilityName:
+                      capabilityName ??
+                      getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:absence_management_hub_manager.statistics_tab.unknown',
+                        'Unknown'
+                      ),
+                    newCoverage: 0,
+                    newRisk: 'high' as const,
+                    impactDescription: getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:absence_management_hub_manager.statistics_tab.no_current_coverage_for_this_capability',
+                      'No current coverage for this capability'
+                    )
+                  }
+                ]
               }
 
               // Calculate new coverage for this capability
@@ -330,13 +344,20 @@ export const useTeamCoverageData = (context: BusinessAppContextProps): UseTeamCo
                 )
               }
 
-              return {
-                capabilityId,
-                capabilityName,
-                newCoverage: newCapabilityCoverage,
-                newRisk: newCapabilityRisk,
-                impactDescription
-              }
+              return [
+                {
+                  capabilityId,
+                  capabilityName:
+                    capabilityName ??
+                    getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:absence_management_hub_manager.statistics_tab.unknown',
+                      'Unknown'
+                    ),
+                  newCoverage: newCapabilityCoverage,
+                  newRisk: newCapabilityRisk,
+                  impactDescription
+                }
+              ]
             }) || []
 
           // Determine overall impact level based on coverage change and capability impact
@@ -406,8 +427,11 @@ export const useTeamCoverageData = (context: BusinessAppContextProps): UseTeamCo
                       const isOtherAbsent = absentEmployeeIds.has(otherEmployee.id)
 
                       otherEmployee.employeePosition?.employeeCapabilities?.forEach((otherCapabilityData: any) => {
-                        const otherCapabilityId = otherCapabilityData.capability.id
-                        const otherCapabilityName = otherCapabilityData.capability.name
+                        const otherCapabilityId = otherCapabilityData?.capability?.id
+                        const otherCapabilityName = otherCapabilityData?.capability?.name
+                        if (!otherCapabilityId) {
+                          return
+                        }
 
                         if (!otherMatrixCapabilityMap.has(otherCapabilityId)) {
                           otherMatrixCapabilityMap.set(otherCapabilityId, {

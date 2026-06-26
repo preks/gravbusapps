@@ -242,3 +242,17 @@ export const GET_TEAM_COVERAGE_DATA = `
     }
   }
 `
+
+export const GET_TEAM_MEMBER_IDS = `
+  query GetTeamMemberIds($supervisorId: uuid!) {
+    employees: Employee(
+      where: {
+        employeePosition: {supervisorEmployeeId: {_eq: $supervisorId}},
+        isDeleted: {_eq: false}
+      }
+      orderBy: [{firstName: ASC}, {lastName: ASC}]
+    ) {
+      id
+    }
+  }
+`
