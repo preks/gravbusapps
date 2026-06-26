@@ -32,6 +32,7 @@ import { resolveSessionTraceEvents } from '../hooks/agent-session/resolveSession
 import { deriveActivityFromEvents } from '../utils/messageUtils'
 import { buildDelegatedAgentDetails, type DelegatedAgentDetail } from '../utils/delegatedAgentDetails'
 import { currentTurnTrace } from '../utils/currentTurnTrace'
+import { pickEffectivePreview } from '../utils/pickEffectivePreview'
 
 // ─── Context shape ─────────────────────────────────────────────────────────────
 
@@ -530,8 +531,21 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
     return currentTurnTrace(source)
   }, [activeSessionId, traceEvents, events])
 
-  // Live artifact previews from SSE or session trace events
-  const { previews: artifactPreviews, latestPreview, hasActivePreview } = useArtifactPreview(previewSourceEvents)
+  // Live artifact previews scoped to the current user turn (drives the live
+  // generating/draft_ready spinner without leaking prior-turn errors).
+  const turnPreview = useArtifactPreview(previewSourceEvents)
+
+  // Full-session previews — the fallback that keeps a finished canvas pinned
+  // once the current turn no longer carries a live preview (e.g. the user
+  // sent a follow-up message right after a deck completed).
+  const fullPreviewSource = useMemo(() => (traceEvents.length > 0 ? traceEvents : events), [traceEvents, events])
+  const fullPreview = useArtifactPreview(fullPreviewSource)
+
+  const {
+    previews: artifactPreviews,
+    latestPreview,
+    hasActivePreview
+  } = useMemo(() => pickEffectivePreview(turnPreview, fullPreview), [turnPreview, fullPreview])
 
   // Session attachments (RAG over composer uploads). Lives at the provider
   // level so files staged on the landing screen survive the transition into
