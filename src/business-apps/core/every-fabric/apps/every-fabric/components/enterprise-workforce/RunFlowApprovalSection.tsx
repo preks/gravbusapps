@@ -33,12 +33,19 @@ const FlowApprovalCard: React.FC<FlowApprovalCardProps> = ({ approval, accessTok
   const { t } = useTranslation(translations)
   const { step, flowId, flowName, prevStepReference } = approval
   const taskId = step.taskId ?? step.taskBusinessId ?? ''
+  const approvalStepReference = `step_${step.stepIndex}`
 
   const { getUserProfileBrief } = useEnterpriseAgentClient(accessToken)
   const { approve, reject } = useFlowTaskApproval(accessToken)
   const stepResult = useFlowStepResult({
     workflowId: flowId,
     stepReference: prevStepReference,
+    accessToken,
+    enabled: Boolean(prevStepReference)
+  })
+  const approvalStepConfig = useFlowStepResult({
+    workflowId: flowId,
+    stepReference: approvalStepReference,
     accessToken,
     enabled: Boolean(prevStepReference)
   })
@@ -114,10 +121,11 @@ const FlowApprovalCard: React.FC<FlowApprovalCardProps> = ({ approval, accessTok
         <div className="gba:rounded-md gba:border gba:border-amber-500/30 gba:bg-background gba:px-3 gba:py-2">
           <FlowStepResult
             data={stepResult.data}
-            isLoading={stepResult.isLoading}
+            isLoading={stepResult.isLoading || approvalStepConfig.isLoading}
             error={stepResult.error}
             accessToken={accessToken}
             emptyLabel={t('approval-flow-empty-proposal')}
+            resultDisplayOverride={approvalStepConfig.data?.resultDisplay}
           />
         </div>
       )}

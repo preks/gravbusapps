@@ -12,13 +12,22 @@ import translations from '../../../_i18n'
 import { formatTimestamp } from '../runDisplay'
 import { StepResultData } from './StepResultData'
 import type { FlowStepResultState } from './useFlowStepResult'
+import type { StepResultDisplayConfig } from '@/common/components/flow/flow-detail/tabs/stepDataRendering'
 
 export interface FlowStepResultProps extends FlowStepResultState {
   accessToken?: string
   emptyLabel?: string
+  resultDisplayOverride?: StepResultDisplayConfig
 }
 
-export const FlowStepResult: React.FC<FlowStepResultProps> = ({ data, isLoading, error, accessToken, emptyLabel }) => {
+export const FlowStepResult: React.FC<FlowStepResultProps> = ({
+  data,
+  isLoading,
+  error,
+  accessToken,
+  emptyLabel,
+  resultDisplayOverride
+}) => {
   const { t } = useTranslation(translations)
   const resolvedEmptyLabel = emptyLabel ?? t('flow-step-result-empty')
 
@@ -74,7 +83,7 @@ export const FlowStepResult: React.FC<FlowStepResultProps> = ({ data, isLoading,
           <StepResultData
             formData={row.inputData ?? {}}
             accessToken={accessToken}
-            resultDisplay={data?.resultDisplay}
+            resultDisplay={resultDisplayOverride ?? data?.resultDisplay}
           />
         </div>
       ))}

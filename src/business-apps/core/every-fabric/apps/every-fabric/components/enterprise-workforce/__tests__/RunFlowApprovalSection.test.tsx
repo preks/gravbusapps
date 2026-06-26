@@ -10,6 +10,8 @@ const approve = jest.fn().mockResolvedValue(undefined)
 const reject = jest.fn().mockResolvedValue(undefined)
 const refresh = jest.fn().mockResolvedValue(undefined)
 const getUserProfileBrief = jest.fn().mockResolvedValue({ user_id: 'user-9' })
+const useFlowStepResultMock = jest.fn()
+const flowStepResultMock = jest.fn()
 
 let mockApprovals: RunFlowApproval[] = []
 
@@ -22,11 +24,14 @@ jest.mock('../flow-detail/useFlowTaskApproval', () => ({
 }))
 
 jest.mock('../flow-detail/useFlowStepResult', () => ({
-  useFlowStepResult: () => ({ data: null, isLoading: false, error: null })
+  useFlowStepResult: (args: unknown) => useFlowStepResultMock(args)
 }))
 
 jest.mock('../flow-detail/FlowStepResult', () => ({
-  FlowStepResult: () => <div data-testid="flow-step-result-stub">proposed patch</div>
+  FlowStepResult: (props: unknown) => {
+    flowStepResultMock(props)
+    return <div data-testid="flow-step-result-stub">proposed patch</div>
+  }
 }))
 
 jest.mock('../../../hooks/useEnterpriseAgentClient', () => ({
@@ -58,6 +63,9 @@ describe('RunFlowApprovalSection', () => {
     reject.mockClear()
     refresh.mockClear()
     getUserProfileBrief.mockClear()
+    useFlowStepResultMock.mockReset()
+    flowStepResultMock.mockClear()
+    useFlowStepResultMock.mockReturnValue({ data: null, isLoading: false, error: null })
     mockApprovals = []
   })
 
@@ -88,6 +96,29 @@ describe('RunFlowApprovalSection', () => {
     )
     await waitFor(() => expect(onRefresh).toHaveBeenCalled())
     await waitFor(() => expect(refresh).toHaveBeenCalled())
+  })
+
+  it('uses approval step resultDisplay to filter the previous step proposal data', async () => {
+    mockApprovals = [buildApproval()]
+    useFlowStepResultMock.mockImplementation((args: { stepReference?: string }) => {
+      if (args.stepReference === 'step_11') {
+        return { data: { resultDisplay: { mode: 'include', fields: ['overall_risk'] } }, isLoading: false, error: null }
+      }
+      return {
+        data: { data: [{ taskId: 'task-prev', userId: 'system', inputData: { overall_risk: 'MEDIUM' } }] },
+        isLoading: false,
+        error: null
+      }
+    })
+
+    render(<RunFlowApprovalSection run={run} accessToken="token" onRefreshAfterSubmit={() => Promise.resolve()} />)
+
+    await waitFor(() => expect(getUserProfileBrief).toHaveBeenCalled())
+    expect(useFlowStepResultMock).toHaveBeenCalledWith(expect.objectContaining({ stepReference: 'step_10' }))
+    expect(useFlowStepResultMock).toHaveBeenCalledWith(expect.objectContaining({ stepReference: 'step_11' }))
+    expect(flowStepResultMock).toHaveBeenCalledWith(
+      expect.objectContaining({ resultDisplayOverride: { mode: 'include', fields: ['overall_risk'] } })
+    )
   })
 
   it('rejects a waiting flow task with the entered comment', async () => {
