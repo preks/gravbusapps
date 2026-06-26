@@ -70,3 +70,6 @@ scripts/start-document-service.sh
 .claw/
 .sandbox-home/
 .sandbox-tmp/
+
+# NEWWORK App Builder files
+.newwork/
