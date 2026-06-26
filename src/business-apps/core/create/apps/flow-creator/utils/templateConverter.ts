@@ -324,6 +324,7 @@ export function studioGraphToTemplate(
         message: cfg.message,
         form: normalizeInputBlocks(cfg.form),
         links: Array.isArray(cfg.links) ? cfg.links : undefined,
+        resultDisplay: cfg.resultDisplay,
         assignment: normalizeAssignmentForStudio(cfg.assignment) ?? {
           targets: null,
           assignmentMode: AssignmentMode.CLAIM
@@ -700,6 +701,7 @@ export function templateToStudioGraph(template: FlowTemplate): {
         message: step.message,
         form: step.form ?? [],
         links: Array.isArray(step.links) ? step.links : [],
+        resultDisplay: step.resultDisplay,
         assignment: normalizeAssignmentForStudio(step.assignment) ?? {
           targets: null,
           assignmentMode: AssignmentMode.CLAIM

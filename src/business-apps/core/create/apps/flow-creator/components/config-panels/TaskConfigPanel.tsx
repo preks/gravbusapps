@@ -4,16 +4,18 @@
  */
 
 import React, { useCallback, useMemo } from 'react'
-import { FileText, Settings2, Users, Zap } from 'lucide-react'
+import { Eye, FileText, Settings2, Users, Zap } from 'lucide-react'
 import { useTranslation } from '@newwork/nw-design-system'
 import translations from '../../_i18n'
 import { useFlowStudioStore } from '../../hooks/useFlowStudioStore'
 import type { TaskNodeConfig, DesignerMode, FlowStudioUpdateOptions } from '../../types/studioTypes'
 import type { FlowStudioData } from '../../hooks/useFlowStudioData'
+import { FlowStepType } from '@/common/data/flow/types/flowTemplate'
 import { TaskGeneralTab } from './task/TaskGeneralTab'
 import { TaskFormTab } from './task/TaskFormTab'
 import { TaskAssignmentTab } from './task/TaskAssignmentTab'
 import { TaskEventsTab } from './task/TaskEventsTab'
+import { TaskResultDisplayTab } from './task/TaskResultDisplayTab'
 import { StepConfigTabShell, type StepConfigTabItem } from './shared/StepConfigTabShell'
 
 interface TaskConfigPanelProps {
@@ -39,6 +41,7 @@ export const TaskConfigPanel: React.FC<TaskConfigPanelProps> = ({
   const rewriteExpressionsForTaskFieldRename = useFlowStudioStore(s => s.rewriteExpressionsForTaskFieldRename)
   const showFormTab = config.kind === 'USER'
   const showAssignmentTab = config.kind === 'USER'
+  const showResultDisplayTab = config.kind === 'USER' && config.stepType === FlowStepType.APPROVAL
   const showAutomationTab = mode === 'advanced' && config.kind === 'USER'
 
   const update = useCallback(
@@ -109,6 +112,15 @@ export const TaskConfigPanel: React.FC<TaskConfigPanelProps> = ({
       })
     }
 
+    if (showResultDisplayTab) {
+      items.push({
+        id: 'result-display',
+        label: t('config-result-display'),
+        icon: Eye,
+        content: <TaskResultDisplayTab config={config} update={update} t={t} testId={testId} />
+      })
+    }
+
     if (showAutomationTab) {
       items.push({
         id: 'events',
@@ -136,6 +148,7 @@ export const TaskConfigPanel: React.FC<TaskConfigPanelProps> = ({
     showAssignmentTab,
     showAutomationTab,
     showFormTab,
+    showResultDisplayTab,
     studioData,
     t,
     testId,
