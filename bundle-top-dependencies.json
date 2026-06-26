@@ -5865,15 +5865,15 @@
     ]
   },
   "core/create/apps/flow-creator": {
-    "bitbucketBuildNumber": 14149,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/14149/",
-    "chunkJsBytes": 1318826,
+    "bitbucketBuildNumber": 14156,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/14156/",
+    "chunkJsBytes": 1323060,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/core",
-        "rendered": 757184,
-        "gzip": 195976,
+        "rendered": 763198,
+        "gzip": 197683,
         "leaves": [
           {
             "name": "src/business-apps/core/create/apps/flow-creator/FlowStudio.tsx",
@@ -5882,8 +5882,8 @@
           },
           {
             "name": "src/business-apps/core/create/apps/flow-creator/utils/templateConverter.ts",
-            "rendered": 25921,
-            "gzip": 6212
+            "rendered": 26006,
+            "gzip": 6232
           }
         ]
       },
@@ -86044,20 +86044,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 14149,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/14149/",
+    "bitbucketBuildNumber": 14156,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/14156/",
     "chunkJsBytes": 2021188,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
         "rendered": 1736272,
-        "gzip": 114785,
+        "gzip": 114789,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
             "rendered": 1736272,
-            "gzip": 114785
+            "gzip": 114789
           }
         ]
       },
@@ -117494,7 +117494,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-06-25T22:26:31.425Z",
+    "generatedAt": "2026-06-26T07:06:36.232Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
