@@ -99,6 +99,7 @@ export const Navigation = {
   MANAGE_USERS: `${NAVIGATION_BASE_PATH}/manage/user-manager`,
 
   // Platform
+  PLATFORM_ORGCHART: `${NAVIGATION_BASE_PATH}/orgchart/active/organization`,
   PLATFORM_WORK_HOME: `${NAVIGATION_BASE_PATH}/work-home`,
   PLATFORM_DIGITAL_WORKPLACE: `${NAVIGATION_BASE_PATH}/digital-workplace`,
   PLATFORM_TASK_MANAGER: `${NAVIGATION_BASE_PATH}/task-manager`,

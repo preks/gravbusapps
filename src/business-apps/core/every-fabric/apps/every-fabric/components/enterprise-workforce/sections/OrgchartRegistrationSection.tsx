@@ -8,12 +8,19 @@
 //      (token exchange in prompt-manager) instead of the shared service account.
 
 import { Badge, Button, Combobox, Input, Label, useTranslation, type ComboboxOption } from '@newwork/nw-design-system'
-import { SpinnerGapIcon, TreeStructureIcon, UserCirclePlusIcon } from '@phosphor-icons/react'
+import { ArrowSquareOutIcon, SpinnerGapIcon, TreeStructureIcon, UserCirclePlusIcon } from '@phosphor-icons/react'
 import React, { useMemo, useState } from 'react'
 import { flowbotClient } from '@/common/network/flowbot'
+import { navigateTo, Navigation } from '@/common/utils/navigationUtils'
 import type { WorkforceAgent, WorkforceAgentUpdateInput } from '../workforceTypes'
 import { useOrgchartUnitName, useOrgchartUnits, type OrgchartUnit } from './useOrgchartUnits'
 import translations from '../../../_i18n'
+
+// The active org chart. It does not yet support deep-linking to a specific
+// employee, so we jump to the chart itself (the requested "at least jump to
+// orgchart" fallback). Sourced from the shared Navigation map (no hardcoded
+// host) so it stays correct across environments.
+const ORGCHART_URL = Navigation.PLATFORM_ORGCHART
 
 type TFn = (key: string, vars?: Record<string, unknown>) => string
 
@@ -301,7 +308,20 @@ export const OrgchartRegistrationSection: React.FC<OrgchartRegistrationSectionPr
         )}
       </div>
 
-      <footer className="gba:flex gba:items-center gba:justify-end gba:gap-2 gba:border-t gba:border-border/60 gba:bg-muted/20 gba:px-5 gba:py-3">
+      <footer className="gba:flex gba:items-center gba:justify-between gba:gap-2 gba:border-t gba:border-border/60 gba:bg-muted/20 gba:px-5 gba:py-3">
+        {registered ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigateTo(ORGCHART_URL)}
+            data-testid="workforce-orgchart-open"
+          >
+            <ArrowSquareOutIcon className="gba:h-3.5 gba:w-3.5" />
+            {t('orgchart-open')}
+          </Button>
+        ) : (
+          <span />
+        )}
         {registered ? (
           <Button
             variant="ghost"

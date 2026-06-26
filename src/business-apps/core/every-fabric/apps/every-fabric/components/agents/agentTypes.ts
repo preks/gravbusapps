@@ -72,6 +72,10 @@ export function deriveDeploymentBadges(agent: Pick<FabricAgent, 'deployments' | 
       badges.push({ key: 'workforce', label: 'Worker', tone: 'workforce' })
     } else if (wf.status === 'paused') {
       badges.push({ key: 'workforce-paused', label: 'Worker paused', tone: 'paused' })
+    } else if (agent.isWorkforce) {
+      // The agent is in the Workforce collection but the deployments view has
+      // not reported a workforce status yet (rollout lag). Trust the list.
+      badges.push({ key: 'workforce', label: 'Worker', tone: 'workforce' })
     }
     return badges
   }
@@ -84,9 +88,16 @@ export function deriveDeploymentBadges(agent: Pick<FabricAgent, 'deployments' | 
   return badges
 }
 
-/** True when the agent has a live (active or paused) Workforce deployment. */
+/**
+ * True when the agent has a live (active or paused) Workforce deployment.
+ *
+ * Treats the backend ``deployments`` view and the legacy ``isWorkforce`` flag
+ * (membership in the Workforce collection) as a union: either signal is enough.
+ * This keeps an agent classified as a Worker whether the backend reports it via
+ * the unified deployments block or only via the separate workforce listing.
+ */
 export function hasWorkforceDeployment(agent: Pick<FabricAgent, 'deployments' | 'isWorkforce'>): boolean {
-  if (agent.deployments) return agent.deployments.workforce.enabled
+  if (agent.deployments?.workforce.enabled) return true
   return Boolean(agent.isWorkforce)
 }
 

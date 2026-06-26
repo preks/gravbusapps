@@ -86,6 +86,11 @@ function mapRegistryEntryToFabricAgent(
     skills_count: e.skills_count ?? 0,
     skill_tools_by_id: skillToolsById,
     source: e.source ?? 'prompt_odm',
+    // Carry the backend's unified deployment view through so the grid can
+    // honor it as the source of truth for Assistant/Worker classification.
+    // Without this, registry agents always look enterprise-only and we rely
+    // solely on the separate workforce-list lookup to detect Workers.
+    deployments: e.deployments,
     status: e.status ?? statusFallback,
     created_at: e.created_at
   }

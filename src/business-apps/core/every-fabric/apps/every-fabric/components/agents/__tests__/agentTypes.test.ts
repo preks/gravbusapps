@@ -58,6 +58,14 @@ describe('deriveDeploymentBadges', () => {
     expect(deriveDeploymentBadges({ isWorkforce: true }).map(b => b.tone)).toEqual(['enterprise', 'workforce'])
     expect(deriveDeploymentBadges({ isWorkforce: false }).map(b => b.tone)).toEqual(['enterprise'])
   })
+
+  it('still shows Worker when isWorkforce is set but the deployments status lags', () => {
+    const badges = deriveDeploymentBadges({
+      deployments: deployments({ workforce: { enabled: false, status: null } }),
+      isWorkforce: true
+    })
+    expect(badges.map(b => b.tone)).toEqual(['enterprise', 'workforce'])
+  })
 })
 
 describe('hasWorkforceDeployment', () => {
@@ -71,5 +79,14 @@ describe('hasWorkforceDeployment', () => {
   it('falls back to isWorkforce when deployments is absent', () => {
     expect(hasWorkforceDeployment({ isWorkforce: true })).toBe(true)
     expect(hasWorkforceDeployment({ isWorkforce: false })).toBe(false)
+  })
+
+  it('treats deployments and isWorkforce as a union', () => {
+    // Workforce listing says yes even though the deployments view has not caught up.
+    expect(hasWorkforceDeployment({ deployments: deployments({}), isWorkforce: true })).toBe(true)
+    // Deployments view says yes even though the agent is not in the workforce listing.
+    expect(
+      hasWorkforceDeployment({ deployments: deployments({ workforce: { enabled: true, status: 'active' } }) })
+    ).toBe(true)
   })
 })

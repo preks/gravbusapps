@@ -333,7 +333,9 @@ action-remove = { $value } entfernen
 # Role & ownership fields
 roleown-role-label = Rolle
 roleown-department-label = Abteilung
-roleown-owner-label = Eigentümer-Benutzer-ID
+roleown-owner-label = Eigentümer
+roleown-department-unassigned = Nicht zugewiesen — im Organigramm-Identität festlegen
+roleown-owner-unassigned = Kein Eigentümer zugewiesen
 roleown-owner-placeholder = Für Eskalationen verantwortliche Person
 roleown-section-title = Rolle & Eigentümerschaft
 roleown-section-desc = Rolle, Abteilung und die verantwortliche Person für { -platform-ai-agent.inline }.
@@ -372,6 +374,7 @@ orgchart-org-unit-hint = Wo { -platform-ai-agent.inline } im Organigramm erschei
 orgchart-existing-user-id = Bestehende Keycloak-Benutzer-ID (optional)
 orgchart-existing-user-id-placeholder = Leer lassen, um automatisch einen neuen Benutzer zu erstellen
 orgchart-unlink = Identität entkoppeln
+orgchart-open = Im Organigramm öffnen
 orgchart-registering = Wird registriert…
 orgchart-register = Im Organigramm registrieren
 

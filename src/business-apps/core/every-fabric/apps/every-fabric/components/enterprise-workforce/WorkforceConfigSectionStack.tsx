@@ -77,7 +77,12 @@ export const WorkforceConfigSectionStack: React.FC<WorkforceConfigSectionStackPr
         (identityMode === 'full' ? (
           <IdentitySection agent={agent} isSaving={savingSection === 'identity'} onSave={makeSaver('identity')} />
         ) : (
-          <RoleOwnershipSection agent={agent} isSaving={savingSection === 'identity'} onSave={makeSaver('identity')} />
+          <RoleOwnershipSection
+            agent={agent}
+            accessToken={accessToken}
+            isSaving={savingSection === 'identity'}
+            onSave={makeSaver('identity')}
+          />
         ))}
       {inActivation && (
         <AutonomySection agent={agent} isSaving={savingSection === 'autonomy'} onSave={makeSaver('autonomy')} />

@@ -333,7 +333,9 @@ action-remove = Elimină { $value }
 # Role & ownership fields
 roleown-role-label = Rol
 roleown-department-label = Departament
-roleown-owner-label = ID utilizator proprietar
+roleown-owner-label = Proprietar
+roleown-department-unassigned = Nealocat — setează în identitatea din organigramă
+roleown-owner-unassigned = Niciun proprietar alocat
 roleown-owner-placeholder = Persoana responsabilă pentru escaladări
 roleown-section-title = Rol și proprietate
 roleown-section-desc = Rolul, departamentul și persoana responsabilă pentru { -platform-ai-agent.inline }.
@@ -372,6 +374,7 @@ orgchart-org-unit-hint = Unde apare { -platform-ai-agent.inline } în organigram
 orgchart-existing-user-id = ID utilizator Keycloak existent (opțional)
 orgchart-existing-user-id-placeholder = Lasă gol pentru a crea automat un utilizator nou
 orgchart-unlink = Deconectează identitatea
+orgchart-open = Deschide în organigramă
 orgchart-registering = Se înregistrează…
 orgchart-register = Înregistrează în organigramă
 
